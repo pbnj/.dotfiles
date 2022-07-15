@@ -1,0 +1,104 @@
+# Config: https://pre-commit.com/#plugins
+# Hooks: https://pre-commit.com/#new-hooks
+---
+repos:
+  - repo: local
+    hooks:
+      - id: doctoc
+        name: doctoc
+        description: This hook updates Table of Contents in markdown files. `brew install node` required.
+        types:
+          - markdown
+        language: system
+        entry: npx
+        args:
+          - doctoc
+          - --notitle
+          - --update-only
+
+      - id: prettier
+        name: prettier
+        description: This hook formats supported file types. `brew install node` required.
+        language: system
+        entry: npx
+        args:
+          - prettier
+          - --write
+          - --check
+          - --ignore-unknown
+
+      - id: markdownlint
+        name: markdownlint
+        description: This hook lints markdown files. `brew install node` required.
+        language: system
+        types:
+          - markdown
+        entry: npx
+        args:
+          - markdownlint-cli
+
+      - id: yamllint
+        name: yamllint
+        description: This hook lints YAML files. `brew install yamllint` required.
+        language: system
+        types:
+          - yaml
+        entry: yamllint
+
+      - id: gofmt
+        name: gofmt
+        description: This hook formats Go files. `brew install go` required.
+        language: system
+        types:
+          - go
+        entry: gofmt
+        args:
+          - -w
+
+      - id: golangci-lint
+        name: golangci-lint
+        description: This hook lints Go files. `brew install golangci-lint` required.
+        language: golang
+        types:
+          - go
+        entry: golangci-lint
+        args:
+          - run
+          - --fix
+        pass_filenames: false
+
+      - id: gitleaks
+        name: gitleaks
+        description: This hook checks commits for secrets. `brew install gitleaks` required.
+        language: system
+        entry: gitleaks
+        args:
+          - --verbose
+          - --no-git
+
+      - id: shellcheck
+        name: shellcheck
+        description: This hook checks shell files for common problems. `brew install shellcheck` required.
+        types:
+          - shell
+        language: system
+        entry: shellcheck
+
+      - id: hadolint
+        name: hadolint
+        description: This hook lints Dockerfiles. `brew install hadolint` required.
+        language: system
+        types:
+          - dockerfile
+        entry: hadolint
+
+      - id: commitizen
+        name: commitizen
+        description: This hook lints commit messages. `brew install commitizen` required.
+        stages:
+          - commit-msg # run only in git commit-msg lifecycle event
+        language: system
+        entry: cz
+        args:
+          - check
+          - --commit-msg-file

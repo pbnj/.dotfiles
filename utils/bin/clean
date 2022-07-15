@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -eou pipefail
+
+# Clean unwanted files
+find ~ \( -name "*.swo" -or -name "*.swp" -or -name "*.DS_Store" \) -exec rm -r {} \;

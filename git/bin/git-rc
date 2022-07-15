@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+rctemplate="${1}"
+
+# scaffold rc files from templates
+if [[ -n "${rctemplate}" ]]; then
+	cp -R ~/.dotfiles/templates/"${rctemplate}"/ "$(git rev-parse --show-toplevel)"/
+	echo "SUCCESS: Created ${rctemplate}"
+else
+	 for conf in $(find ~/.dotfiles/templates/* -type d | fzf --multi --height=20); do
+		 cp -R "${conf}"/ "$(git rev-parse --show-toplevel)"/
+		echo "SUCCESS: Created ${conf}"
+	 done
+fi

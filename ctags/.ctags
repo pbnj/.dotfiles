@@ -1,0 +1,18 @@
+# vim:ft=conf:
+
+# ctags --recurse .
+
+# Basic options
+--recurse=yes
+--exclude=.git
+--exclude=\*.min.\*
+--exclude=\*.swp
+--exclude=\*.bak
+--exclude=\*.pyc
+--exclude=\*.class
+--exclude=\*.sln
+--exclude=\*.csproj
+--exclude=\*.csproj.user
+--exclude=\*.cache
+--exclude=\*.dll
+--exclude=\*.pdb

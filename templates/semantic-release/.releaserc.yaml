@@ -1,0 +1,27 @@
+# Config: https://github.com/semantic-release/semantic-release/blob/master/docs/usage/configuration.md
+# Plugins: https://github.com/semantic-release/semantic-release/blob/master/docs/extending/plugins-list.md
+# Examples:
+# - To run without pre-installing anything:
+#   $ npx \
+#     --package semantic-release \
+#     --package conventional-changelog-conventionalcommits \
+#     --package @semantic-release/changelog \
+#     --package @semantic-release/git \
+#     --command 'semantic-release'
+---
+branches:
+  - "main"
+  - "master"
+  - name: "*"
+    prerelease: true
+
+preset: "conventionalcommits"
+
+plugins:
+  - "@semantic-release/commit-analyzer" # https://github.com/semantic-release/commit-analyzer
+  - "@semantic-release/release-notes-generator" # https://github.com/semantic-release/release-notes-generator
+  - "@semantic-release/changelog" # https://github.com/semantic-release/changelog
+  - - "@semantic-release/git" # https://github.com/semantic-release/git
+    - assets:
+        - CHANGELOG.md
+      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"

@@ -1,0 +1,19 @@
+services:
+  default: &default
+    image: ubuntu:latest
+    entrypoint: /bin/bash
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+      - $HOME/.ssh:/root/.ssh
+      - $HOME/.aws:/root/.aws
+    environment:
+      - TERM=xterm-256color
+
+  ubuntu:
+    <<: *default
+
+  alpine:
+    <<: *default
+    image: "alpine:latest"
+

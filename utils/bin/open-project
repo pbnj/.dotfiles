@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Project Manager
+# Open any project in a new tmux window.
+# How it works:
+# 1. Run `fd` or `find` to enumerate/list all projects under `${HOME}/Projects/`
+# 2. Filter results through `fzf` fuzzy finder to select one or more project
+# 3. Open select project(s) in tmux new window
+
+set -eou pipefail
+
+FIND_PROG="$(which find)"
+FIND_ARGS="-type d \( -path *.git -or -path *.terraform -or -path *node_modules \) -prune -print "
+FIND_DIR="${HOME}/Projects"
+
+if hash fd >/dev/null 2>&1; then
+	FIND_PROG="$(which fd)"
+	FIND_ARGS=". --type=directory"
+fi
+
+PROJECTS="$(
+	${FIND_PROG} ${FIND_ARGS} ${FIND_DIR} |
+		fzf-tmux -p 60% --reverse --multi --prompt "${FIND_PROG} ${FIND_ARGS} ${FIND_DIR}> " ||
+		true
+)"
+
+if test -n "${PROJECTS}"; then
+	for p in ${PROJECTS}; do
+		tmux new-window -c "${p}"
+	done
+else
+	exit 0
+fi

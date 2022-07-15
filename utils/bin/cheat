@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -eou pipefail
+
+# Get cheatsheet info from http://cheat.sh
+
+CHEAT_KEYWORD="${1:-""}"
+if test -n "${CHEAT_KEYWORD}"; then
+	curl cheat.sh/"${CHEAT_KEYWORD}"
+fi

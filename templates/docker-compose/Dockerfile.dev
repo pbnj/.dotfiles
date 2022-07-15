@@ -1,0 +1,15 @@
+FROM ubuntu:21.04
+
+# disable interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# install dependencies
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    bash-completion \
+    curl \
+    git \
+    make \
+    stow \
+    tmux \
+    vim \
+    && rm -rf /var/lib/apt/lists/*

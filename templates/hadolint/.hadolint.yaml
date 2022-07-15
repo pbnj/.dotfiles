@@ -1,0 +1,11 @@
+---
+# Config: https://github.com/hadolint/hadolint#configure
+# Rules: https://github.com/hadolint/hadolint#rules
+ignored:
+  - DL3007
+  - DL3008
+
+trustedRegistries:
+  - docker.io
+  - registry.gitlab.com
+  - ghcr.io

@@ -1,0 +1,39 @@
+# vim:ft=bash:
+# shellcheck shell=bash
+
+########################################
+# Kubernetes
+########################################
+
+kash() {
+	docker run --rm -it --volume="${HOME}/.kube/configs:/.kube/configs" --workdir=/.kube/configs --entrypoint=/bin/bash bitnami/kubectl:latest
+}
+
+# prompt for kubeconfig + namespace
+kcfg() {
+	local kubeconfig
+	kubeconfig="$(find "${HOME}/.kube/configs" -type f | fzf --height=20)"
+
+	if [[ -n "${kubeconfig}" ]]; then
+		export KUBECONFIG="${kubeconfig}"
+	fi
+}
+kns() {
+	local kubenamespace
+	kubenamespace="$(kubectl get ns -o name | cut -d '/' -f 2 | fzf --height=20)"
+	if [[ -n "${kubenamespace}" ]]; then
+		export KUBENS="${kubenamespace}"
+	fi
+}
+
+########################################
+# Custom FZF Completions
+########################################
+
+# gw <tab>
+_fzf_complete_gw() {
+	_fzf_complete --reverse --prompt="gw> " -- "$@" < <(
+		yq '. | keys' ~/.config/gw/config.yaml | grep -v '#' | tr -d '[- ]'
+	)
+}
+complete -o default -o bashdefault -F _fzf_complete_gw gw

@@ -1,0 +1,20 @@
+---
+# ('"https://example.com'")
+url:
+  flags: -oE
+  pattern: https?://[^[:space:]'")]+
+
+# ASIAXXXXXXXXXXXXXXXX
+aws_access_key:
+  flags: -oE
+  pattern: (A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}
+
+# AEKZmhXXXXXXXXXXXXXXXXXXXXXXXXX/118625Wl
+aws_secret_key:
+  flags: -oE
+  pattern: (?i)aws_(.{0,20})?=?.[\'\"0-9a-zA-Z\/+]{40}
+
+# PROEJCT-1 AB-12 CDE-456
+jira:
+  flags: -oE
+  pattern: '[A-Z]{2,}-\d+'

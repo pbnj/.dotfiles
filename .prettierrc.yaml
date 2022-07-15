@@ -1,0 +1,18 @@
+# config: https://prettier.io/docs/en/configuration.html
+# rules: https://prettier.io/docs/en/options.html
+---
+printWidth: 80
+tabWidth: 2
+useTabs: false
+proseWrap: "preserve"
+endOfLine: "lf"
+overrides:
+  - files:
+      - "*.md"
+    options:
+      proseWrap: "always"
+  - files:
+      - "*.yml"
+      - "*.yaml"
+    options:
+      singleQuote: false

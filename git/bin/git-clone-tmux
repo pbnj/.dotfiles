@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+set -eou pipefail
+
+# Clone a git repo and open it in a new tmux window
+# Requires: gh, glab, git
+REPO_URL="${1:-""}"
+CLONE_PATH=""
+
+[[ -z "${REPO_URL}" ]] && read -re -p "Repo URL: " REPO_URL
+
+if [[ "${REPO_URL}" =~ ^https://(github|git.zias.io) ]]
+then
+	GITHUB_ORG_REPO="$(echo "${REPO_URL%.git}" | cut -d '/' -f 3-5)"
+	CLONE_PATH="${HOME}/Projects/${GITHUB_ORG_REPO}"
+	mkdir -p "${CLONE_PATH}"
+	git clone "${REPO_URL}" "${CLONE_PATH}"
+elif [[ "${REPO_URL}" =~ ^https://gitlab ]]
+then
+	GITLAB_GROUP_REPO="$(echo "${REPO_URL%.git}" | cut -d '/' -f 3-)"
+	CLONE_PATH="${HOME}/Projects/${GITLAB_GROUP_REPO}"
+	mkdir -p "${CLONE_PATH}"
+	git clone "${REPO_URL}" "${CLONE_PATH}"
+else
+	[[ -z "${CLONE_PATH}" ]] && read -re -p "Directory: " CLONE_PATH
+	mkdir -p "${CLONE_PATH}"
+	git clone "${REPO_URL}" "${CLONE_PATH}"
+fi
+
+tmux new-window -c "${CLONE_PATH}" -n "$(basename "${CLONE_PATH}")"

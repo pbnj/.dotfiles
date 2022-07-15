@@ -1,0 +1,17 @@
+# config: https://github.com/DavidAnson/markdownlint#configuration
+# rules: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+---
+# enable all by default
+default: true
+
+# MD013
+line-length:
+  code_blocks: false
+
+# MD046
+code-block-style:
+  style: fenced
+
+# MD024
+no-duplicate-heading:
+  siblings_only: true

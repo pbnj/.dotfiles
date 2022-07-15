@@ -1,0 +1,74 @@
+# vim:ft=bash:
+# shellcheck shell=bash
+
+# Hint: `complete -p` shows all completions in the form of commands you can run
+# to replicate the completion behavior for aliases.
+
+alias ..="cd .."
+alias ...="cd ../.."
+
+hash gls 2>/dev/null && alias ls="gls"
+hash exa 2>/dev/null && alias ls="exa"
+alias ll="ls -alFh --group-directories-first"
+
+# For safety
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# top
+alias mtop='top -omem'
+
+# For quick edits
+# shellcheck disable=SC2139
+alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
+
+# ddgr
+alias ?='ddgr --expand'
+alias ?g="ddgr --noprompt '!g' "
+alias ?gh="ddgr --noprompt '!gh' "
+alias ?npm="ddgr --noprompt '!npm' "
+alias ?go="ddgr --noprompt '!gopkg' "
+alias ?rust="ddgr --noprompt '!rust' "
+
+# vim
+alias vi="vim --clean"
+alias vf="vim +Files +only"
+alias vg="vim +Git +only"
+alias vgf="vim +GFiles +only"
+
+# vault
+hash vault 2>/dev/null && complete -C "$(which vault)" vault
+
+# terraform
+if hash terraform 2>/dev/null; then
+	alias tf=terraform
+	alias tfv="terraform validate"
+	alias tff="terraform fmt"
+	alias tfp="terraform plan"
+	alias tfa="terraform apply"
+	alias tfss="terraform state show"
+	alias tfsl="terraform state list"
+
+	tfs() {
+		terraform state list | fzf --reverse --multi --height 20 | xargs -L1 terraform state show
+	}
+
+fi
+
+# osx
+if [[ $(uname) == "Darwin" ]]; then
+	# desktop
+	alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
+	alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
+
+	# .DS_Store
+	alias dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
+
+fi
+
+# brew
+if hash brew &>/dev/null; then
+	test "$(uname)" == "Darwin" && alias brew="arch -arm64 brew"
+	alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
+fi

@@ -1,0 +1,66 @@
+# config: https://starship.rs/config/
+# presets: https://starship.rs/presets/
+
+add_newline = true
+
+[character]
+success_symbol = "[\\$](bold green)"
+error_symbol = "[\\$](bold red)"
+
+[git_commit]
+tag_symbol = " tag:"
+
+[git_status]
+ahead = ">"
+behind = "<"
+diverged = "<>"
+renamed = "r"
+deleted = "x"
+
+[aws]
+symbol = "aws:"
+
+[gcloud]
+symbol = "gcp:"
+
+[azure]
+symbol = "azure:"
+
+[deno]
+symbol = "deno:"
+
+[directory]
+read_only = " ro"
+
+[docker_context]
+symbol = "docker:"
+
+[git_branch]
+symbol = "git:"
+
+[golang]
+symbol = "go:"
+
+[nodejs]
+symbol = "nodejs:"
+
+[memory_usage]
+symbol = "memory:"
+
+[package]
+symbol = "pkg:"
+
+[python]
+symbol = "py:"
+
+[ruby]
+symbol = "rb:"
+
+[rust]
+symbol = "rs:"
+
+[sudo]
+symbol = "sudo:"
+
+[terraform]
+symbol = "tf:"

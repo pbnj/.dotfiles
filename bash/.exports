@@ -1,0 +1,50 @@
+# vim:ft=sh:ts=2:sw=2:sts=2:et:
+# shellcheck shell=bash
+
+# General
+
+export EDITOR=vim
+export GIT_TERMINAL_PROMPT=1
+export HISTCONTROL=ignoreboth
+export FZF_DEFAULT_OPTS='--bind alt-a:select-all,alt-d:deselect-all'
+export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+export MANPAGER=$(which cat)
+
+# Rootless Docker
+# docs: https://docs.docker.com/engine/security/rootless/
+#   $ dockerd-rootless-setuptool.sh install
+[[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
+
+# MISC
+export DOTFILES="${HOME}/.dotfiles"
+
+# Paths
+## General
+[ -d "${HOME}/bin" ] && export PATH="${HOME}/bin:${PATH}"
+
+## nvm
+[ -d "${HOME}/.nvm" ] && export NVM_DIR="${HOME}/.nvm"
+
+## go
+export GODEBUG=x509ignoreCN=0
+export GOPATH="${HOME}/go"
+export PATH="${PATH}:${GOPATH}/bin"
+
+## aws
+export AWS_PAGER=''
+export AWS_DEFAULT_OUTPUT=json
+
+## prompt
+if hash starship 2>/dev/null; then
+eval "$(starship init bash)"
+# elif hash __git_ps1 2>/dev/null; then
+# export GIT_PS1_SHOWDIRTYSTATE="true"
+# export GIT_PS1_SHOWUNTRACKEDFILES="true"
+# export GIT_PS1_SHOWUPSTREAM="auto"
+# export GIT_PS1_SHOWSTASHSTATE="true"
+# export GIT_PS1_HIDE_IF_PWD_IGNORED="false"
+# export GIT_PS1_SHOWCOLORHINTS="true"
+# export PROMPT_COMMAND='__git_ps1 "\\n\w" "\\n\\\$ "'
+else
+export PS1="\\n\w\\n\\$ "
+fi

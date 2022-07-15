@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+# view ci pipelines in terminal
+if [[ "$(git remote get-url origin)" =~ gitlab ]]; then 
+	glab ci view
+else
+	gh run watch
+fi

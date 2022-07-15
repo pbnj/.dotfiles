@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Print size of a given directory or file, like du, but more human-friendly.
+
+du -sh "${1%\/}"/* | sort -hr

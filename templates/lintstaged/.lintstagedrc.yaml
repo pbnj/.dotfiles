@@ -1,0 +1,12 @@
+# docs: https://github.com/okonet/lint-staged
+---
+"*.tf":
+  - terraform fmt
+  # generate terraform docs
+  # - temp_func () { for file in $* ; do terraform-docs markdown "$(dirname $file)" > "$(dirname $file)/README.md" ; done } ; temp_func
+
+"*.md":
+  - markdownlint --fix
+
+"*.{md,yml,yaml,json}":
+  - npx prettier --write

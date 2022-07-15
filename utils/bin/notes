@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -eou pipefail
+
+NOTE_PATH="${HOME}/.notes"
+NOTE_TOPIC="${1:-""}"
+NOTE_DATE="$(date -Iseconds)"
+NOTE="${NOTE_PATH}/${NOTE_TOPIC}-${NOTE_DATE}.md"
+
+vim "${NOTE}"
+
+if [[ -f "${NOTE}" ]]; then
+	gh gist create "${NOTE}"
+fi

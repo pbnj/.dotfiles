@@ -1,0 +1,185 @@
+{
+    "inputs": [
+        {
+            "args": {
+                "command": "make -qp | awk -F':' '/^[a-zA-Z0-9 ][^$#/\t= ]*:([^= ]|$)/ {split($1,A,/ /);for(i in A)print A[i ] }' | sort -u",
+                "cwd": "${fileDirname}"
+            },
+            "command": "shellCommand.execute",
+            "id": "makeTargets",
+            "type": "command"
+        },
+        {
+            "args": {
+                "command": "npx britive-cli listprofiles | yq -P .[].name"
+            },
+            "command": "shellCommand.execute",
+            "id": "britiveProfiles",
+            "type": "command"
+        }
+    ],
+    "tasks": [
+        {
+            "command": "make ${input:makeTargets}",
+            "label": "Make: ...",
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "terraform init",
+            "label": "Terraform: Init",
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "terraform plan",
+            "label": "Terraform: Plan",
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "presentation": {
+                "clear": true,
+                "echo": true,
+                "focus": false,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "terraform apply",
+            "label": "Terraform: Apply",
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "presentation": {
+                "clear": true,
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "terraform show",
+            "label": "Terraform: Show",
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "presentation": {
+                "clear": true,
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "npx doctoc --notitle --update-only ${file}",
+            "label": "MD: TOC",
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "npx doctoc --notitle --update-only ${workspaceFolder}",
+            "label": "MD: TOC - All",
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "brew update ; brew upgrade ; brew cleanup",
+            "label": "Brew: Update + Upgrade + Clean Up",
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "gw url '${file}' | fzf | xargs open ",
+            "label": "Open: URL",
+            "presentation": {
+                "clear": false,
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "dasel --file '${file}' --parser json",
+            "label": "Dasel: Sort JSON",
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "dasel --file '${file}' --parser json --write yaml",
+            "label": "Dasel: JSON to YAML",
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "dasel --file '${file}' --parser yaml --write json",
+            "label": "Dasel: YAML to JSON",
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "npx britive-cli checkout --mode=displayenv ${input:britiveProfiles}",
+            "label": "Britive: Checkout ...",
+            "presentation": {
+                "clear": false,
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "~/.britive/console",
+            "label": "Britive: Console ...",
+            "presentation": {
+                "clear": false,
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "~/.britive/scan",
+            "label": "Britive: Scan ...",
+            "presentation": {
+                "clear": false,
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        }
+    ],
+    "version": "2.0.0"
+}
