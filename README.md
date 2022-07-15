@@ -23,3 +23,7 @@ As such, the major themes underpinning my personal setup are as follow:
 - My IDE is the surrounding environment: the shell, the compilers/interpreters,
   the various command-line applications and programs, the custom shell
   scripts/functions/aliases, ...etc
+
+## Screenshots
+
+![cool-retro-term with night-owl theme](https://i.imgur.com/hqpV0ML.jpeg)
