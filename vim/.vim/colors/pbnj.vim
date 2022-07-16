@@ -71,6 +71,7 @@ if &background ==# 'dark'
 	highlight Pmenu ctermbg=Black ctermfg=White
 	highlight PmenuSel ctermbg=White ctermfg=Black
 	highlight Search ctermbg=Yellow ctermfg=Black
+	highlight MatchParen cterm=NONE ctermbg=DarkGray
 elseif &background ==# 'light'
 	highlight Comment ctermfg=Gray
 	highlight DiffAdd ctermfg=DarkGreen ctermbg=NONE
@@ -82,6 +83,7 @@ elseif &background ==# 'light'
 	highlight Pmenu ctermbg=Black ctermfg=White
 	highlight PmenuSel ctermbg=White ctermfg=Black
 	highlight Search ctermbg=Yellow ctermfg=Black
+	highlight MatchParen cterm=NONE ctermbg=DarkGray
 endif
 
 highlight link SpecialKey NonText
