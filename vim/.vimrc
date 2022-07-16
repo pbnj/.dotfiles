@@ -161,11 +161,17 @@ let &statusline .= ' %y %l:%c/%L'
 
 if has('macunix')
   if system('defaults read -g AppleInterfaceStyle') =~# '^Dark'
-    set background=dark   " for the dark version of the theme
+    set background=dark
   else
-    set background=light  " for the light version of the theme
+    set background=light
   endif
 endif
+
+augroup ToggleCursorLine
+  autocmd!
+  autocmd InsertEnter * setlocal cursorline
+  autocmd InsertLeave * setlocal nocursorline
+augroup END
 
 function! CopyPath(type) abort
   if a:type ==# 'file'
