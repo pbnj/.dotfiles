@@ -159,14 +159,6 @@ if exists('*FugitiveStatusline')
 endif
 let &statusline .= ' %y %l:%c/%L'
 
-if has('macunix')
-  if system('defaults read -g AppleInterfaceStyle') =~# '^Dark'
-    set background=dark
-  else
-    set background=light
-  endif
-endif
-
 augroup ToggleCursorLine
   autocmd!
   autocmd InsertEnter * setlocal cursorline
