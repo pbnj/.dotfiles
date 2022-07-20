@@ -16,6 +16,15 @@
             "command": "shellCommand.execute",
             "id": "britiveProfiles",
             "type": "command"
+        },
+        {
+            "args": {
+                "command": "terraform state list",
+                "cwd": "${fileDirname}"
+            },
+            "command": "shellCommand.execute",
+            "id": "terraformState",
+            "type": "command"
         }
     ],
     "tasks": [
@@ -89,6 +98,23 @@
             "type": "shell"
         },
         {
+            "command": "terraform state show ${input:terraformState}",
+            "label": "Terraform: State Show ...",
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "presentation": {
+                "clear": true,
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "reveal": "always",
+                "showReuseMessage": true
+            },
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
             "command": "npx doctoc --notitle --update-only ${file}",
             "label": "MD: TOC",
             "problemMatcher": [],
@@ -121,7 +147,13 @@
             "type": "shell"
         },
         {
-            "command": "dasel --file '${file}' --parser json",
+            "command": "dasel --file '${file}' --parser yaml >${file}.sorted",
+            "label": "Dasel: Sort YAML",
+            "problemMatcher": [],
+            "type": "shell"
+        },
+        {
+            "command": "dasel --file '${file}' --parser json > ${file}.sorted",
             "label": "Dasel: Sort JSON",
             "problemMatcher": [],
             "type": "shell"
