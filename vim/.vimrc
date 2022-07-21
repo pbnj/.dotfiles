@@ -34,13 +34,14 @@ let g:ale_floating_preview   = 1
 function! ALELSPMappings() abort
   setlocal omnifunc=ale#completion#OmniFunc
 
-  nnoremap <buffer> gk         <cmd>ALEDocumentation<cr>
-  nnoremap <buffer> gr         <cmd>ALEFindReferences<cr>
-  nnoremap <buffer> gd         <cmd>ALEGoToDefinition<cr>
-  nnoremap <buffer> gy         <cmd>ALEGoToTypeDefinition<cr>
-  nnoremap <buffer> gm         <cmd>ALEGoToImplementation<cr>
-  nnoremap <buffer> K          <cmd>ALEHover<cr>
+  nnoremap <buffer> <leader>gd <cmd>ALEGoToDefinition<cr>
+  nnoremap <buffer> <leader>gk <cmd>ALEDocumentation<cr>
+  nnoremap <buffer> <leader>gm <cmd>ALEGoToImplementation<cr>
+  nnoremap <buffer> <leader>gr <cmd>ALEFindReferences<cr>
+  nnoremap <buffer> <leader>gy <cmd>ALEGoToTypeDefinition<cr>
+  nnoremap <buffer> <leader>K  <cmd>ALEHover<cr>
   nnoremap <buffer> <leader>rn <cmd>ALERename<cr>
+
 endfunction
 
 augroup ALEMappings
@@ -100,7 +101,7 @@ let &backup         = 0
 let &breakindent    = 1
 let &clipboard      = 'unnamed,unnamedplus'
 let &cmdheight      = 2
-let &completeopt    = 'menuone,noinsert,noselect'
+let &completeopt    = 'menuone'
 let &conceallevel   = 0
 let &cursorcolumn   = 0
 let &cursorline     = 0
@@ -144,7 +145,6 @@ let &updatetime     = 100
 let &wildignore     = '*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*'
 let &wildignorecase = 1
 let &wildmenu       = 1
-let &wildmode       = 'longest:full,full'
 let &wrap           = 0
 let &wrapscan       = 0
 

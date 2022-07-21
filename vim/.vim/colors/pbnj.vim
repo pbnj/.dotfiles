@@ -40,7 +40,7 @@ let g:colors_name='pbnj'
 
 highlight SignColumn NONE
 highlight Normal NONE
-highlight Pmenu NONE
+" highlight Pmenu NONE
 highlight DiffAdd NONE
 highlight DiffChange NONE
 highlight DiffDelete NONE
@@ -68,8 +68,8 @@ if &background ==# 'dark'
 	highlight DiffText cterm=bold,underline ctermfg=DarkYellow ctermbg=NONE
 	highlight LineNr ctermfg=Gray
 	highlight NonText ctermfg=Gray
-	highlight Pmenu ctermbg=Black ctermfg=White
-	highlight PmenuSel ctermbg=White ctermfg=Black
+	" highlight Pmenu ctermbg=Black ctermfg=White
+	" highlight PmenuSel ctermbg=White ctermfg=Black
 	highlight Search ctermbg=Yellow ctermfg=Black
 	highlight MatchParen cterm=NONE ctermbg=DarkGray
 elseif &background ==# 'light'
@@ -80,8 +80,8 @@ elseif &background ==# 'light'
 	highlight DiffText cterm=bold,underline ctermfg=DarkYellow ctermbg=NONE
 	highlight LineNr ctermfg=Gray
 	highlight NonText ctermfg=Gray
-	highlight Pmenu ctermbg=Black ctermfg=White
-	highlight PmenuSel ctermbg=White ctermfg=Black
+	" highlight Pmenu ctermbg=Black ctermfg=White
+	" highlight PmenuSel ctermbg=White ctermfg=Black
 	highlight Search ctermbg=Yellow ctermfg=Black
 	highlight MatchParen cterm=NONE ctermbg=DarkGray
 endif
