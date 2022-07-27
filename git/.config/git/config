@@ -1,8 +1,7 @@
 [alias]
 	alias = !git config -l | grep ^alias | cut -c 7- | sort
 	a = !files=$(git status --porcelain --short | awk '{print $2}' | fzf --reverse --height=20 --multi --preview 'git diff --color=always {}') && test -n ${files} && git add ${files} && git commit && git status --short
-	b = browse ; `browse` available from `git-extras`
-	bf = !git browse origin $(git ls --full | fzf --reverse --height 20)
+	b = !git ls --full | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
 	bci = browse-ci ; `browse-ci` available from `git-extras`
 	branches = branch -a --sort=-committerdate
 	c = commit
