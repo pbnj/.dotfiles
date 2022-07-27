@@ -40,7 +40,6 @@ let g:colors_name='pbnj'
 
 highlight SignColumn NONE
 highlight Normal NONE
-" highlight Pmenu NONE
 highlight DiffAdd NONE
 highlight DiffChange NONE
 highlight DiffDelete NONE
@@ -49,10 +48,27 @@ highlight NonText NONE
 highlight Visual NONE
 highlight ModeMsg NONE
 
-highlight link Visual IncSearch
-highlight link CurSearch IncSearch
-highlight link ModeMsg IncSearch
+highlight Comment ctermfg=Gray
+highlight Comment guifg=Gray
+highlight CursorLine guibg=Gray20
+highlight DiffAdd ctermfg=DarkGreen ctermbg=NONE
+highlight DiffAdd guifg=DarkGreen guibg=NONE
+highlight DiffChange ctermfg=DarkYellow ctermbg=NONE
+highlight DiffChange guifg=DarkYellow guibg=NONE
+highlight DiffDelete ctermfg=DarkRed ctermbg=NONE
+highlight DiffDelete guifg=DarkRed guibg=NONE
+highlight DiffText cterm=bold,underline ctermfg=DarkYellow ctermbg=NONE
+highlight DiffText gui=bold,underline guifg=DarkYellow guibg=NONE
+highlight LineNr ctermfg=Gray
+highlight LineNr guifg=Gray
+highlight MatchParen cterm=NONE ctermbg=DarkGray
+highlight MatchParen gui=NONE guibg=Gray30
+highlight NonText ctermfg=Gray
+highlight NonText guifg=Gray
+highlight Search ctermbg=Yellow ctermfg=Black
+highlight Search guibg=Yellow guifg=Black
 
+" ALE
 highlight ALEError cterm=underline
 highlight ALEInfo cterm=underline
 highlight ALEWarning cterm=underline
@@ -60,33 +76,10 @@ highlight link ALEErrorSign Error
 highlight link ALEInfoSign Todo
 highlight link ALEWarningSign Todo
 
-if &background ==# 'dark'
-	highlight Comment ctermfg=Gray
-	highlight DiffAdd ctermfg=DarkGreen ctermbg=NONE
-	highlight DiffChange ctermfg=DarkYellow ctermbg=NONE
-	highlight DiffDelete ctermfg=DarkRed ctermbg=NONE
-	highlight DiffText cterm=bold,underline ctermfg=DarkYellow ctermbg=NONE
-	highlight LineNr ctermfg=Gray
-	highlight NonText ctermfg=Gray
-	" highlight Pmenu ctermbg=Black ctermfg=White
-	" highlight PmenuSel ctermbg=White ctermfg=Black
-	highlight Search ctermbg=Yellow ctermfg=Black
-	highlight MatchParen cterm=NONE ctermbg=DarkGray
-elseif &background ==# 'light'
-	highlight Comment ctermfg=Gray
-	highlight DiffAdd ctermfg=DarkGreen ctermbg=NONE
-	highlight DiffChange ctermfg=DarkYellow ctermbg=NONE
-	highlight DiffDelete ctermfg=DarkRed ctermbg=NONE
-	highlight DiffText cterm=bold,underline ctermfg=DarkYellow ctermbg=NONE
-	highlight LineNr ctermfg=Gray
-	highlight NonText ctermfg=Gray
-	" highlight Pmenu ctermbg=Black ctermfg=White
-	" highlight PmenuSel ctermbg=White ctermfg=Black
-	highlight Search ctermbg=Yellow ctermfg=Black
-	highlight MatchParen cterm=NONE ctermbg=DarkGray
-endif
-
-highlight link SpecialKey NonText
+highlight link CurSearch IncSearch
 highlight link diffAdded DiffAdd
 highlight link diffChanged DiffChange
 highlight link diffRemoved DiffDelete
+highlight link ModeMsg IncSearch
+highlight link SpecialKey NonText
+highlight link Visual IncSearch
