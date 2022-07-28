@@ -24,12 +24,12 @@ alias mtop='top -omem'
 alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
 
 # ddgr
-alias ?='ddgr --expand'
-alias ?g="ddgr --noprompt '!g' "
-alias ?gh="ddgr --noprompt '!gh' "
-alias ?npm="ddgr --noprompt '!npm' "
-alias ?go="ddgr --noprompt '!gopkg' "
-alias ?rust="ddgr --noprompt '!rust' "
+alias \?='ddgr --expand'
+alias \?g="ddgr --noprompt '!g' "
+alias \?gh="ddgr --noprompt '!gh' "
+alias \?npm="ddgr --noprompt '!npm' "
+alias \?go="ddgr --noprompt '!gopkg' "
+alias \?rust="ddgr --noprompt '!rust' "
 
 # vim
 alias vi="vim --clean"
