@@ -25,9 +25,149 @@
             "command": "shellCommand.execute",
             "id": "terraformState",
             "type": "command"
+        },
+        {
+            "id": "awsAccounts",
+            "type": "command",
+            "command": "shellCommand.execute",
+            "args": {
+                "command": "npx britive-cli listenvs -f csv 2>/dev/null | grep -v application, | awk -F',' '{print $2}'"
+            }
         }
     ],
     "tasks": [
+        {
+            "label": "AWS: Copy Account ID",
+            "type": "shell",
+            "command": [
+                "echo -n '${input:awsAccounts}'",
+                "|",
+                "awk",
+                "'{print $1}'",
+                "|",
+                "pbcopy"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "AWS: Copy Account Alias",
+            "type": "shell",
+            "command": [
+                "echo -n '${input:awsAccounts}'",
+                "|",
+                "awk",
+                "-F'[()]'",
+                "'{print $2}'",
+                "|",
+                "pbcopy"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
+            "label": "tfsec: workspace",
+            "type": "shell",
+            "command": "tfsec",
+            "args": [
+                "--force-all-dirs",
+                "-f",
+                "csv",
+                "|",
+                "grep",
+                "-v",
+                "file,start_line"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                {
+                    "owner": "tfsec",
+                    "source": "tfsec",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*),(.*),(.*),(.*),(.*),(.*),(.*),(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "endLine": 3,
+                        "code": 4,
+                        "severity": 5,
+                        "message": 6,
+                        "loop": true
+                    }
+                }
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "tfsec: local directory",
+            "type": "shell",
+            "command": "tfsec",
+            "args": [
+                "-f",
+                "csv",
+                "|",
+                "grep",
+                "-v",
+                "file,start_line"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                {
+                    "owner": "tfsec",
+                    "source": "tfsec",
+                    "fileLocation": [
+                        "relative",
+                        "${fileDirname}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*),(.*),(.*),(.*),(.*),(.*),(.*),(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "endLine": 3,
+                        "code": 4,
+                        "severity": 5,
+                        "message": 6,
+                        "loop": true
+                    }
+                }
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
         {
             "command": "make ${input:makeTargets}",
             "label": "Make: ...",
@@ -171,7 +311,7 @@
             "type": "shell"
         },
         {
-            "command": "npx britive-cli checkout --mode=displayenv ${input:britiveProfiles}",
+            "command": "npx britive-cli checkout ${input:britiveProfiles}",
             "label": "Britive: Checkout ...",
             "presentation": {
                 "clear": false,
