@@ -7,14 +7,20 @@
 alias ..="cd .."
 alias ...="cd ../.."
 
-hash gls 2>/dev/null && alias ls="gls"
-hash exa 2>/dev/null && alias ls="exa"
-alias ll="ls -alFh --group-directories-first"
+if hash exa 2>/dev/null; then
+	alias ls="exa --group-directories-first"
+elif hash gls 2>/dev/null; then
+	alias ls="gls --group-directories-first"
+fi
+alias ll="ls -alFh"
 
 # For safety
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
+
+# grep
+alias grep="grep --color=auto -HIn"
 
 # top
 alias mtop='top -omem'
@@ -51,7 +57,7 @@ if hash terraform 2>/dev/null; then
 	alias tfsl="terraform state list"
 
 	tfs() {
-		terraform state list | fzf --reverse --multi --height 20 | xargs -L1 terraform state show
+		terraform state list | fzf --reverse --multi --height 20 | xargs -L1 terraform state show -no-color
 	}
 
 fi
