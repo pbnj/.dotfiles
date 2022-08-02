@@ -67,6 +67,7 @@ highlight NonText ctermfg=Gray
 highlight NonText guifg=Gray
 highlight Search ctermbg=Yellow ctermfg=Black
 highlight Search guibg=Yellow guifg=Black
+highlight PmenuSel cterm=underline ctermfg=White ctermbg=Magenta
 
 if &background ==# 'light'
 	highlight CursorLine guibg=Gray95
