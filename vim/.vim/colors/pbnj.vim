@@ -68,6 +68,11 @@ highlight NonText guifg=Gray
 highlight Search ctermbg=Yellow ctermfg=Black
 highlight Search guibg=Yellow guifg=Black
 
+if &background ==# 'light'
+	highlight CursorLine guibg=Gray95
+	highlight MatchParen guibg=Gray80
+endif
+
 " ALE
 highlight ALEError cterm=underline
 highlight ALEInfo cterm=underline
@@ -76,7 +81,7 @@ highlight link ALEErrorSign Error
 highlight link ALEInfoSign Todo
 highlight link ALEWarningSign Todo
 
-highlight link CurSearch IncSearch
+highlight link CurSearch Search
 highlight link diffAdded DiffAdd
 highlight link diffChanged DiffChange
 highlight link diffRemoved DiffDelete

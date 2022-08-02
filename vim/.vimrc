@@ -8,84 +8,20 @@ filetype plugin indent on
 
 " plugins
 
-" :help cfilter
-packadd! cfilter
-
-if filereadable(glob('~/.vim/work.vim'))
-  source ~/.vim/work.vim
-endif
-
 let g:fzf_layout = { 'down': '40%' }
-let g:fzf_colors = {
-      \ 'hl':      [ 'fg', 'Exception'  ] ,
-      \ 'hl+':     [ 'fg', 'Exception'  ] ,
-      \ 'border':  [ 'fg', 'NonText'    ] ,
-      \ 'pointer': [ 'fg', 'DiffAdd'    ] ,
-      \ 'marker':  [ 'fg', 'DiffDelete' ] ,
-      \ 'info':    [ 'fg', 'PreProc'    ] ,
-      \ 'query':   [ 'fg', 'PreProc'    ] ,
-      \ }
 
 let g:ale_completion_enabled = 1
 let g:ale_fix_on_save        = 1
 let g:ale_fixers             = { '*': ['remove_trailing_lines', 'trim_whitespace'] }
 let g:ale_floating_preview   = 1
 
-function! ALELSPMappings() abort
-  setlocal omnifunc=ale#completion#OmniFunc
+if filereadable(glob('~/.vim/plugins.vim'))
+  source ~/.vim/plugins.vim
+endif
 
-  nnoremap <buffer> <leader>gd <cmd>ALEGoToDefinition<cr>
-  nnoremap <buffer> <leader>gk <cmd>ALEDocumentation<cr>
-  nnoremap <buffer> <leader>gm <cmd>ALEGoToImplementation<cr>
-  nnoremap <buffer> <leader>gr <cmd>ALEFindReferences<cr>
-  nnoremap <buffer> <leader>gy <cmd>ALEGoToTypeDefinition<cr>
-  nnoremap <buffer> <leader>K  <cmd>ALEHover<cr>
-  nnoremap <buffer> <leader>rn <cmd>ALERename<cr>
-
-endfunction
-
-augroup ALEMappings
-  autocmd!
-  autocmd User ALELSPStarted call ALELSPMappings()
-augroup END
-
-let g:plugin_dir = '~/.vim/pack/pbnj/start'
-let g:plugins = [
-      \ 'https://github.com/dense-analysis/ale',
-      \ 'https://github.com/editorconfig/editorconfig-vim',
-      \ 'https://github.com/godlygeek/tabular',
-      \ 'https://github.com/junegunn/fzf',
-      \ 'https://github.com/junegunn/fzf.vim',
-      \ 'https://github.com/kana/vim-textobj-entire',
-      \ 'https://github.com/kana/vim-textobj-user',
-      \ 'https://github.com/ludovicchabant/vim-gutentags',
-      \ 'https://github.com/machakann/vim-highlightedyank',
-      \ 'https://github.com/mhinz/vim-signify',
-      \ 'https://github.com/preservim/tagbar',
-      \ 'https://github.com/sheerun/vim-polyglot',
-      \ 'https://github.com/tpope/vim-commentary',
-      \ 'https://github.com/tpope/vim-dispatch',
-      \ 'https://github.com/tpope/vim-eunuch',
-      \ 'https://github.com/tpope/vim-fugitive',
-      \ 'https://github.com/tpope/vim-rhubarb',
-      \ 'https://github.com/tpope/vim-surround',
-      \ 'https://github.com/tpope/vim-unimpaired',
-      \ 'https://github.com/tpope/vim-vinegar',
-      \ 'https://github.com/vim-test/vim-test',
-      \ 'https://github.com/lifepillar/vim-mucomplete',
-      \ ]
-
-function! PackInstall() abort
-  for l:plugin_url in g:plugins
-    let l:plugin_path = g:plugin_dir . '/' . join(split(l:plugin_url, '/')[-1 : ], '/')
-    execute 'Terminal git clone ' . l:plugin_url . ' ' . l:plugin_path . ' 2>/dev/null || git -C ' . l:plugin_path . ' pull '
-  endfor
-endfunction
-
-command! PackUp call PackInstall()
-
-packloadall
-helptags ALL
+if filereadable(glob('~/.vim/work.vim'))
+  source ~/.vim/work.vim
+endif
 
 " options
 
@@ -107,9 +43,10 @@ let &cursorcolumn   = 0
 let &cursorline     = 0
 let &display        = 'lastline'
 let &encoding       = 'utf-8' | scriptencoding utf-8
+let &errorformat    = '%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 let &fillchars      = 'vert:|,fold:-,eob:~'
 let &formatoptions  = 'tcqjno'
-let &grepprg        = 'grep -HIn'
+let &grepprg        = 'grep -HI --line-number'
 let &hidden         = 1
 let &hlsearch       = 1
 let &ignorecase     = 1
@@ -123,11 +60,12 @@ let &listchars      = 'tab:| ,nbsp:·,trail:·,'
 let &modeline       = 1
 let &mouse          = 'a'
 let &number         = 1
+let &omnifunc       = 'ale#completion#OmniFunc'
 let &relativenumber = 0
 let &ruler          = 1
 let &scrolloff      = 10
 let &secure         = 1
-let &shortmess      = 'filnxtToOSc'
+let &shortmess      = 'filnxtToOc'
 let &showbreak      = '> '
 let &sidescrolloff  = 20
 let &signcolumn     = 'yes'
@@ -148,6 +86,17 @@ let &wildmenu       = 1
 let &wrap           = 0
 let &wrapscan       = 0
 
+if has('macunix')
+  if has('gui_running')
+    let &guifont      = 'SF Mono:h13'
+    let &guioptions   = 'egm'
+    let &background   = 'light'
+    if executable('mvim')
+      command! -nargs=* -complete=file_in_path MV silent !mvim <args>
+    endif
+  endif
+endif
+
 if v:version >= 900
   let &listchars .= 'multispace:·,leadmultispace:·,'
   let &wildoptions = 'fuzzy,pum'
@@ -158,6 +107,7 @@ if exists('*FugitiveStatusline')
   let &statusline .= '%{FugitiveStatusline()}'
 endif
 let &statusline .= ' %y %l:%c/%L'
+let &statusline .= ' %{get(b:, ''vista_nearest_method_or_function'', '''')}'
 
 augroup ToggleCursorLine
   autocmd!
@@ -183,9 +133,9 @@ command! CopyFileName call CopyPath('filename')
 command! CopyDirPath call CopyPath('dir')
 command! CopyDirName call CopyPath('dirname')
 
-command! -nargs=* Terminal topleft terminal ++shell <args>
-command! -nargs=* STerminal topleft terminal ++shell <args>
-command! -nargs=* VTerminal topleft vertical terminal ++shell <args>
+command! -nargs=* Terminal topleft Start <args>
+command! -nargs=* STerminal topleft Start <args>
+command! -nargs=* VTerminal topleft vertical Start <args>
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -201,7 +151,7 @@ function! GitBrowse(args) abort
   execute 'silent ! ' . l:cmd | redraw!
 endfunction
 
-command! CD :lcd %:p:h
+command! LCD :lcd %:p:h
 command! BO :%bdelete | edit# | normal `#
 command! Cclear call setqflist([])
 command! GC Git commit
@@ -209,7 +159,7 @@ command! GD Gdiffsplit
 command! GP Git push
 command! GPull Git pull
 command! GW Gwrite
-command! -range GBrowse call GitBrowse({
+command! -range GB call GitBrowse({
       \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
       \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
       \ 'range': <range>,
@@ -218,24 +168,19 @@ command! -range GBrowse call GitBrowse({
       \ })
 
 if executable('brew')
-  command! BUpdate
-        \ VTerminal brew update && arch -arm64 brew upgrade && brew upgrade --casks && brew cleanup --prune 0
+  command! BrewUpdate
+        \ Terminal brew update && arch -arm64 brew upgrade && brew upgrade --casks && brew cleanup --prune 0
 else
   echoerr 'brew cli is not in $PATH'
 endif
 
 if executable('ddgr')
   command! -nargs=* DD
-        \ VTerminal ddgr --expand <args>
+        \ Terminal ddgr --expand <args>
 else
   echoerr 'ddgr cli is not in $PATH'
 endif
 
-imap <C-f> <plug>(fzf-complete-path)
-inoremap <expr> <C-d> fzf#vim#complete(fzf#wrap({
-      \ 'source': uniq(sort(split(join(getline(1,'$'),"\n"),'\W\+'))),
-      \ }))
-imap <C-l> <plug>(fzf-complete-line)
 inoremap <silent> <C-U> <C-G>u<C-U>
 inoremap <silent> <C-W> <C-G>u<C-W>
 nmap <C-j> <Plug>(ale_next_wrap)
@@ -243,13 +188,19 @@ nmap <C-k> <Plug>(ale_previous_wrap)
 nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>bs :b <C-d>
 nnoremap <leader>cd <cmd>CD<cr>
+nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
+nnoremap <leader>gK <cmd>ALEDocumentation<cr>
+nnoremap <leader>gk <cmd>ALEHover<cr>
+nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
-nnoremap <leader>tt <cmd>TagbarToggle<cr>
+nnoremap <leader>gr <cmd>ALEFindReferences<cr>
+nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
+nnoremap <leader>rn <cmd>ALERename<cr>
+nnoremap <leader>tt <cmd>Vista!!<cr>
 nnoremap C "_C
-nnoremap Y y$
-nnoremap c "_c
 nnoremap cc "_cc
 nnoremap gs <cmd>SignifyHunkDiff<cr>
+nnoremap Y y$
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
