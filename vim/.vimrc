@@ -31,7 +31,7 @@ endif
 
 let &autoindent     = 1
 let &autoread       = 1
-let &background     = 'dark'
+let &background     = 'light'
 let &backspace      = 'indent,eol,start'
 let &backup         = 0
 let &breakindent    = 1
@@ -133,9 +133,9 @@ command! CopyFileName call CopyPath('filename')
 command! CopyDirPath call CopyPath('dir')
 command! CopyDirName call CopyPath('dirname')
 
-command! -nargs=* Terminal topleft Start <args>
-command! -nargs=* STerminal topleft Start <args>
-command! -nargs=* VTerminal topleft vertical Start <args>
+command! -nargs=* Terminal topleft terminal ++shell <args>
+command! -nargs=* STerminal topleft terminal ++shell <args>
+command! -nargs=* VTerminal topleft vertical terminal ++shell <args>
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -151,7 +151,6 @@ function! GitBrowse(args) abort
   execute 'silent ! ' . l:cmd | redraw!
 endfunction
 
-command! LCD :lcd %:p:h
 command! BO :%bdelete | edit# | normal `#
 command! Cclear call setqflist([])
 command! GC Git commit
@@ -187,19 +186,19 @@ nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
 nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>bs :b <C-d>
-nnoremap <leader>cd <cmd>CD<cr>
+nnoremap <leader>cd <cmd>:lcd %:p:h<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
 nnoremap <leader>gk <cmd>ALEHover<cr>
 nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
+nnoremap <leader>gs <cmd>SignifyHunkDiff<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
 nnoremap <leader>rn <cmd>ALERename<cr>
 nnoremap <leader>tt <cmd>Vista!!<cr>
 nnoremap C "_C
 nnoremap cc "_cc
-nnoremap gs <cmd>SignifyHunkDiff<cr>
 nnoremap Y y$
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>

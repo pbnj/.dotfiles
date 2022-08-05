@@ -65,9 +65,10 @@ highlight MatchParen cterm=NONE ctermbg=DarkGray
 highlight MatchParen gui=NONE guibg=Gray30
 highlight NonText ctermfg=Gray
 highlight NonText guifg=Gray
+highlight PmenuSel cterm=underline ctermfg=White ctermbg=Magenta
+highlight PmenuSel gui=underline guifg=White guibg=LightMagenta
 highlight Search ctermbg=Yellow ctermfg=Black
 highlight Search guibg=Yellow guifg=Black
-highlight PmenuSel cterm=underline ctermfg=White ctermbg=Magenta
 
 if &background ==# 'light'
 	highlight CursorLine guibg=Gray95
