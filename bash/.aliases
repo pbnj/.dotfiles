@@ -20,7 +20,7 @@ alias cp='cp -i'
 alias mv='mv -i'
 
 # grep
-alias grep="grep --color=auto -HIn"
+alias grep="grep --color=auto"
 
 # top
 alias mtop='top -omem'
