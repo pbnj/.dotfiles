@@ -166,6 +166,9 @@ command! -range GB call GitBrowse({
       \ 'line2': <line2>,
       \ })
 
+command! -nargs=* Grep
+      \ cexpr system('rg ' . <q-args>)
+
 if executable('brew')
   command! BrewUpdate
         \ Terminal brew update && arch -arm64 brew upgrade && brew upgrade --casks && brew cleanup --prune 0
