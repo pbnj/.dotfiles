@@ -2,9 +2,13 @@
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
-let g:netrw_keepdir = 0
+let g:netrw_keepdir   = 0
+let g:netrw_liststyle = 3
 
 filetype plugin indent on
+
+syntax off
+let g:syntax_on=0
 
 " plugins
 
@@ -56,7 +60,7 @@ let &laststatus     = 2
 let &lazyredraw     = 1
 let &linebreak      = 1
 let &list           = 1
-let &listchars      = 'tab:| ,nbsp:·,trail:·,'
+let &listchars      = 'tab:| ,nbsp:·,trail:·,eol:¬,'
 let &modeline       = 1
 let &mouse          = 'a'
 let &number         = 1
@@ -187,11 +191,12 @@ inoremap <silent> <C-U> <C-G>u<C-U>
 inoremap <silent> <C-W> <C-G>u<C-W>
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
+nmap ga <Plug>(EasyAlign)
 nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>bs :b <C-d>
 nnoremap <leader>cd <cmd>:lcd %:p:h<cr>
-nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
+nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gk <cmd>ALEHover<cr>
 nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
@@ -201,8 +206,9 @@ nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
 nnoremap <leader>rn <cmd>ALERename<cr>
 nnoremap <leader>tt <cmd>Vista!!<cr>
 nnoremap C "_C
-nnoremap cc "_cc
+nnoremap x "_x
 nnoremap Y y$
+nnoremap cc "_cc
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
