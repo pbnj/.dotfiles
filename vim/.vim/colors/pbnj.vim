@@ -5,27 +5,28 @@
 "  | .__/|_.__/|_| |_|/ |
 "  |_|              |__/
 "
-" Author: Peter Benjamin <petermbenjamin@gmail.com>
-" Description: Minimal, dark, 16-color colorscheme that improves on vim's default colorscheme.
+" Author:      Peter Benjamin
+" Description: Minimal, 16-color colorscheme that works on light & dark terminals.
 
 " :help cterm-colors
-" NR-16   NR-8    COLOR NAME
-" 0 	    0 	    Black
-" 1 	    4 	    DarkBlue
-" 2 	    2 	    DarkGreen
-" 3 	    6 	    DarkCyan
-" 4 	    1 	    DarkRed
-" 5 	    5 	    DarkMagenta
-" 6 	    3 	    Brown, DarkYellow
-" 7 	    7 	    LightGray, LightGrey, Gray, Grey
-" 8 	    0*	    DarkGray, DarkGrey
-" 9 	    4*	    Blue, LightBlue
-" 10	    2*	    Green, LightGreen
-" 11	    6*	    Cyan, LightCyan
-" 12	    1*	    Red, LightRed
-" 13	    5*	    Magenta, LightMagenta
-" 14	    3*	    Yellow, LightYellow
-" 15	    7*	    White
+
+" NR-16 NR-8 COLOR-NAME
+" 0     0    Black
+" 1     4    DarkBlue
+" 2     2    DarkGreen
+" 3     6    DarkCyan
+" 4     1    DarkRed
+" 5     5    DarkMagenta
+" 6     3    Brown,     DarkYellow
+" 7     7    LightGray, LightGrey, Gray, Grey
+" 8     0*   DarkGray,  DarkGrey
+" 9     4*   Blue,      LightBlue
+" 10    2*   Green,     LightGreen
+" 11    6*   Cyan,      LightCyan
+" 12    1*   Red,       LightRed
+" 13    5*   Magenta,   LightMagenta
+" 14    3*   Yellow,    LightYellow
+" 15    7*   White
 
 highlight clear
 
@@ -38,37 +39,44 @@ endif
 
 let g:colors_name='pbnj'
 
-highlight SignColumn NONE
-highlight Normal NONE
-highlight DiffAdd NONE
+highlight DiffAdd    NONE
 highlight DiffChange NONE
 highlight DiffDelete NONE
+highlight ModeMsg    NONE
+highlight NonText    NONE
+highlight Normal     NONE
+highlight SignColumn NONE
 highlight SpecialKey NONE
-highlight NonText NONE
-highlight Visual NONE
-highlight ModeMsg NONE
+highlight Visual     NONE
 
-highlight Comment ctermfg=Gray
-highlight Comment guifg=Gray
-highlight CursorLine guibg=Gray20
-highlight DiffAdd ctermfg=DarkGreen ctermbg=NONE
-highlight DiffAdd guifg=DarkGreen guibg=NONE
-highlight DiffChange ctermfg=DarkYellow ctermbg=NONE
-highlight DiffChange guifg=DarkYellow guibg=NONE
-highlight DiffDelete ctermfg=DarkRed ctermbg=NONE
-highlight DiffDelete guifg=DarkRed guibg=NONE
-highlight DiffText cterm=bold,underline ctermfg=DarkYellow ctermbg=NONE
-highlight DiffText gui=bold,underline guifg=DarkYellow guibg=NONE
-highlight LineNr ctermfg=Gray
-highlight LineNr guifg=Gray
-highlight MatchParen cterm=NONE ctermbg=DarkGray
-highlight MatchParen gui=NONE guibg=Gray30
-highlight NonText ctermfg=Gray
-highlight NonText guifg=Gray
-highlight PmenuSel cterm=underline ctermfg=White ctermbg=Magenta
-highlight PmenuSel gui=underline guifg=White guibg=LightMagenta
-highlight Search ctermbg=Yellow ctermfg=Black
-highlight Search guibg=Yellow guifg=Black
+" terminal colors
+
+highlight Comment      cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
+highlight CursorLineNr cterm=bold           ctermfg=NONE       ctermbg=NONE
+highlight DiffAdd      cterm=NONE           ctermfg=DarkGreen  ctermbg=NONE
+highlight DiffChange   cterm=NONE           ctermfg=DarkYellow ctermbg=NONE
+highlight DiffDelete   cterm=NONE           ctermfg=DarkRed    ctermbg=NONE
+highlight DiffText     cterm=bold,underline ctermfg=DarkGreen  ctermbg=NONE
+highlight LineNr       cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
+highlight MatchParen   cterm=NONE           ctermfg=NONE       ctermbg=DarkGray
+highlight NonText      cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
+highlight PmenuSel     cterm=underline      ctermfg=White      ctermbg=Magenta
+highlight Search       cterm=NONE           ctermfg=Black      ctermbg=Yellow
+
+" gui colors
+
+highlight Comment      gui=NONE           guifg=Gray       guibg=NONE
+highlight CursorLine   gui=NONE           guifg=NONE       guibg=Gray20
+highlight CursorLineNr gui=bold           guifg=NONE       guibg=NONE
+highlight DiffAdd      gui=NONE           guifg=DarkGreen  guibg=NONE
+highlight DiffChange   gui=NONE           guifg=DarkYellow guibg=NONE
+highlight DiffDelete   gui=NONE           guifg=DarkRed    guibg=NONE
+highlight DiffText     gui=bold,underline guifg=DarkGreen  guibg=NONE
+highlight LineNr       gui=NONE           guifg=Gray       guibg=NONE
+highlight MatchParen   gui=NONE           guifg=NONE       guibg=Gray30
+highlight NonText      gui=NONE           guifg=Gray       guibg=NONE
+highlight PmenuSel     gui=underline      guifg=White      guibg=LightMagenta
+highlight Search       gui=NONE           guifg=Black      guibg=Yellow
 
 if &background ==# 'light'
 	highlight CursorLine guibg=Gray95
@@ -84,9 +92,9 @@ highlight link ALEInfoSign Todo
 highlight link ALEWarningSign Todo
 
 highlight link CurSearch Search
-highlight link diffAdded DiffAdd
-highlight link diffChanged DiffChange
-highlight link diffRemoved DiffDelete
 highlight link ModeMsg IncSearch
 highlight link SpecialKey NonText
 highlight link Visual IncSearch
+highlight link diffAdded DiffAdd
+highlight link diffChanged DiffChange
+highlight link diffRemoved DiffDelete
