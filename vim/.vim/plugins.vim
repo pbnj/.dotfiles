@@ -1,0 +1,33 @@
+call plug#begin()
+
+Plug 'https://gist.github.com/PeterRincker/582ea9be24a69e6dd8e237eb877b8978.git', { 'as': 'SortGroup', 'do': 'mkdir plugin; mv -f *.vim plugin/', 'on': 'SortGroup' }
+Plug 'https://github.com/arthurxavierx/vim-caser'
+Plug 'https://github.com/christoomey/vim-sort-motion'
+Plug 'https://github.com/dense-analysis/ale'
+Plug 'https://github.com/editorconfig/editorconfig-vim'
+Plug 'https://github.com/junegunn/fzf'
+Plug 'https://github.com/junegunn/fzf.vim'
+Plug 'https://github.com/junegunn/vim-easy-align'
+Plug 'https://github.com/kana/vim-textobj-entire'
+Plug 'https://github.com/kana/vim-textobj-indent'
+Plug 'https://github.com/kana/vim-textobj-user'
+Plug 'https://github.com/liuchengxu/vista.vim'
+Plug 'https://github.com/ludovicchabant/vim-gutentags'
+Plug 'https://github.com/machakann/vim-highlightedyank'
+Plug 'https://github.com/mhinz/vim-signify'
+Plug 'https://github.com/romainl/vim-qf'
+Plug 'https://github.com/sheerun/vim-polyglot'
+Plug 'https://github.com/tpope/vim-abolish'
+Plug 'https://github.com/tpope/vim-commentary'
+Plug 'https://github.com/tpope/vim-dispatch'
+Plug 'https://github.com/tpope/vim-eunuch'
+Plug 'https://github.com/tpope/vim-fugitive'
+Plug 'https://github.com/tpope/vim-rhubarb'
+Plug 'https://github.com/tpope/vim-rsi'
+Plug 'https://github.com/tpope/vim-surround'
+Plug 'https://github.com/tpope/vim-unimpaired'
+Plug 'https://github.com/tpope/vim-vinegar'
+Plug 'https://github.com/vim-scripts/ReplaceWithRegister'
+Plug 'https://github.com/vim-test/vim-test'
+
+call plug#end()
