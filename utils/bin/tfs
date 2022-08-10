@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Author: Peter Benjamin <https://github.com/pbnj>
-# Date: Wed Aug 10 12:15:25 PDT 2022
+# Author     : Peter Benjamin <https://github.com/pbnj>
+# Date       : Wed Aug 10 12:15:25 PDT 2022
 # Description: Interactively fuzzy find terraform resources in state file and print them out
 
 set -eou pipefail
