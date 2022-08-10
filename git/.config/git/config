@@ -1,15 +1,15 @@
 [alias]
+
 alias = !git config -l | grep ^alias | cut -c 7- | sort
-a = !files=$(git status --porcelain --short | awk '{print $2}' | fzf --reverse --height=20 --multi --preview 'git diff --color=always {}') && test -n ${files} && git add ${files} && git commit && git status --short
-b = !git ls --full | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
-bb = !git ls --full $GIT_PREFIX | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
 bci = browse-ci # `browse-ci` available from `git-extras`
 branches = branch -a --sort=-committerdate
 c = commit
 co = checkout
 contributors = shortlog --summary --numbered
 czc = cz commit
-d = !git status --porcelain --short | awk '{print $2}' | fzf --height=20 --multi --preview 'git diff --color=always {}'
+fa = !files=$(git status --porcelain --short | awk '{print $2}' | fzf --reverse --height=20 --multi --preview 'git diff --color=always {}') && test -n ${files} && git add ${files} && git commit && git status --short
+fb = !git ls --full | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
+fd = !git status --porcelain --short | awk '{print $2}' | fzf --height=20 --multi --preview 'git diff --color=always {}'
 graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
 ignore = !echo "${1}" >>.gitignore
 l = log --pretty=oneline -n 20 --graph --abbrev-commit
@@ -22,11 +22,6 @@ tags = tag --list
 top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
 undo = !git reset HEAD~1 --mixed
 unstage = reset
-
-# edit git files in vim, inspired by fzf-vim's :GFiles
-files = !files=$(git ls-files | fzf --reverse --multi --height=20 --preview 'cat {}') && test -n ${files} && vim ${files}
-# edit files from `git status` in vim, inspired by fzf-vim's :GFiles?
-sfiles = !files=$(git status --porcelain --short | awk '{print $2}' | fzf --reverse --multi --height=20 --preview 'git diff --color=always {}') && test -n ${files} && vim ${files}
 
 [apply]
 whitespace = fix
@@ -66,7 +61,7 @@ cmd = code --wait --diff $LOCAL $REMOTE
 tool = code
 
 [mergetool "code"]
-cmd = code --wait --merge $REMOTE $LOCAL $BASE $MERGED
+cmd = code --wait --merge $REMOTE $LOCAL $BASE $MERGED ${1} ${2}
 
 [init]
 defaultBranch = main
