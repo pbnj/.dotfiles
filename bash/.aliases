@@ -55,11 +55,6 @@ if hash terraform 2>/dev/null; then
 	alias tfa="terraform apply"
 	alias tfss="terraform state show"
 	alias tfsl="terraform state list"
-
-	tfs() {
-		terraform state list | fzf --reverse --multi --height 20 | xargs -L1 terraform state show -no-color
-	}
-
 fi
 
 # osx
