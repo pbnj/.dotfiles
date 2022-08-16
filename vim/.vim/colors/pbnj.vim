@@ -49,8 +49,6 @@ highlight SignColumn NONE
 highlight SpecialKey NONE
 highlight Visual     NONE
 
-" terminal colors
-
 highlight Comment      cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
 highlight CursorLineNr cterm=bold           ctermfg=NONE       ctermbg=NONE
 highlight DiffAdd      cterm=NONE           ctermfg=DarkGreen  ctermbg=NONE
@@ -60,28 +58,8 @@ highlight DiffText     cterm=bold,underline ctermfg=DarkGreen  ctermbg=NONE
 highlight LineNr       cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
 highlight MatchParen   cterm=NONE           ctermfg=NONE       ctermbg=DarkGray
 highlight NonText      cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
-highlight PmenuSel     cterm=underline      ctermfg=White      ctermbg=Magenta
+highlight PmenuSel     cterm=bold,underline ctermfg=White      ctermbg=Magenta
 highlight Search       cterm=NONE           ctermfg=Black      ctermbg=Yellow
-
-" gui colors
-
-highlight Comment      gui=NONE           guifg=Gray       guibg=NONE
-highlight CursorLine   gui=NONE           guifg=NONE       guibg=Gray20
-highlight CursorLineNr gui=bold           guifg=NONE       guibg=NONE
-highlight DiffAdd      gui=NONE           guifg=DarkGreen  guibg=NONE
-highlight DiffChange   gui=NONE           guifg=DarkYellow guibg=NONE
-highlight DiffDelete   gui=NONE           guifg=DarkRed    guibg=NONE
-highlight DiffText     gui=bold,underline guifg=DarkGreen  guibg=NONE
-highlight LineNr       gui=NONE           guifg=Gray       guibg=NONE
-highlight MatchParen   gui=NONE           guifg=NONE       guibg=Gray30
-highlight NonText      gui=NONE           guifg=Gray       guibg=NONE
-highlight PmenuSel     gui=underline      guifg=White      guibg=LightMagenta
-highlight Search       gui=NONE           guifg=Black      guibg=Yellow
-
-if &background ==# 'light'
-	highlight CursorLine guibg=Gray95
-	highlight MatchParen guibg=Gray80
-endif
 
 " ALE
 highlight ALEError cterm=underline

@@ -2,13 +2,9 @@
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
-let g:netrw_keepdir   = 0
 let g:netrw_liststyle = 3
 
 filetype plugin indent on
-
-syntax off
-let g:syntax_on=0
 
 " plugins
 
@@ -19,13 +15,41 @@ let g:ale_fix_on_save        = 1
 let g:ale_fixers             = { '*': ['remove_trailing_lines', 'trim_whitespace'] }
 let g:ale_floating_preview   = 1
 
-if filereadable(glob('~/.vim/plugins.vim'))
-  source ~/.vim/plugins.vim
-endif
-
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
 endif
+
+call plug#begin()
+
+Plug 'https://gist.github.com/PeterRincker/582ea9be24a69e6dd8e237eb877b8978.git', { 'as': 'SortGroup', 'do': 'mkdir plugin; mv -f *.vim plugin/', 'on': 'SortGroup' }
+Plug 'https://github.com/arthurxavierx/vim-caser'
+Plug 'https://github.com/dense-analysis/ale'
+Plug 'https://github.com/editorconfig/editorconfig-vim'
+Plug 'https://github.com/junegunn/fzf'
+Plug 'https://github.com/junegunn/fzf.vim'
+Plug 'https://github.com/junegunn/vim-easy-align'
+Plug 'https://github.com/kana/vim-textobj-entire'
+Plug 'https://github.com/kana/vim-textobj-indent'
+Plug 'https://github.com/kana/vim-textobj-user'
+Plug 'https://github.com/ludovicchabant/vim-gutentags'
+Plug 'https://github.com/machakann/vim-highlightedyank'
+Plug 'https://github.com/mhinz/vim-signify'
+Plug 'https://github.com/romainl/vim-qf'
+Plug 'https://github.com/sheerun/vim-polyglot'
+Plug 'https://github.com/tpope/vim-abolish'
+Plug 'https://github.com/tpope/vim-commentary'
+Plug 'https://github.com/tpope/vim-dispatch'
+Plug 'https://github.com/tpope/vim-eunuch'
+Plug 'https://github.com/tpope/vim-fugitive'
+Plug 'https://github.com/tpope/vim-rhubarb'
+Plug 'https://github.com/tpope/vim-rsi'
+Plug 'https://github.com/tpope/vim-surround'
+Plug 'https://github.com/tpope/vim-unimpaired'
+Plug 'https://github.com/tpope/vim-vinegar'
+Plug 'https://github.com/vim-scripts/ReplaceWithRegister'
+Plug 'https://github.com/vim-test/vim-test'
+
+call plug#end()
 
 " options
 
@@ -35,7 +59,7 @@ endif
 
 let &autoindent     = 1
 let &autoread       = 1
-let &background     = 'light'
+let &background     = 'dark'
 let &backspace      = 'indent,eol,start'
 let &backup         = 0
 let &breakindent    = 1
@@ -62,8 +86,8 @@ let &linebreak      = 1
 let &list           = 1
 let &listchars      = 'tab:| ,nbsp:·,trail:·,eol:¬,'
 let &modeline       = 1
-let &mouse          = 'a'
-let &number         = 1
+let &mouse          = ''
+let &number         = 0
 let &omnifunc       = 'ale#completion#OmniFunc'
 let &relativenumber = 0
 let &ruler          = 1
@@ -90,17 +114,6 @@ let &wildmenu       = 1
 let &wrap           = 0
 let &wrapscan       = 0
 
-if has('macunix')
-  if has('gui_running')
-    let &guifont      = 'SF Mono:h13'
-    let &guioptions   = 'egm'
-    let &background   = 'light'
-    if executable('mvim')
-      command! -nargs=* -complete=file_in_path MV silent !mvim <args>
-    endif
-  endif
-endif
-
 if v:version >= 900
   let &listchars .= 'multispace:·,leadmultispace:·,'
   let &wildoptions = 'fuzzy,pum'
@@ -111,7 +124,6 @@ if exists('*FugitiveStatusline')
   let &statusline .= '%{FugitiveStatusline()}'
 endif
 let &statusline .= ' %y %l:%c/%L'
-let &statusline .= ' %{get(b:, ''vista_nearest_method_or_function'', '''')}'
 
 augroup ToggleCursorLine
   autocmd!
@@ -156,12 +168,6 @@ function! GitBrowse(args) abort
 endfunction
 
 command! BO :%bdelete | edit# | normal `#
-command! Cclear call setqflist([])
-command! GC Git commit
-command! GD Gdiffsplit
-command! GP Git push
-command! GPull Git pull
-command! GW Gwrite
 command! -range GB call GitBrowse({
       \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
       \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
@@ -169,46 +175,44 @@ command! -range GB call GitBrowse({
       \ 'line1': <line1>,
       \ 'line2': <line2>,
       \ })
+command! GC Git commit
+command! GD Gdiffsplit
+command! GP Git push
+command! GPull Git pull
+command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
+command! GW Gwrite
 
-command! -nargs=* Grep
-      \ cexpr system('rg ' . <q-args>)
+command! -nargs=* Grep cexpr system('rg ' . <q-args>)
+command! -nargs=* DD Terminal ddgr --expand <args>
+command! -nargs=* DHere :Dispatch -dir=%:p:h <args>
+command! TmuxHere call system('tmux split-window -c ' . expand('%:p:h'))
+command! TermHere call term_start($SHELL, {'cwd': expand('%:p:h')})
 
-if executable('brew')
-  command! BrewUpdate
-        \ Terminal brew update && arch -arm64 brew upgrade && brew upgrade --casks && brew cleanup --prune 0
-else
-  echoerr 'brew cli is not in $PATH'
-endif
-
-if executable('ddgr')
-  command! -nargs=* DD
-        \ Terminal ddgr --expand <args>
-else
-  echoerr 'ddgr cli is not in $PATH'
-endif
-
-inoremap <silent> <C-U> <C-G>u<C-U>
-inoremap <silent> <C-W> <C-G>u<C-W>
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
-nmap ga <Plug>(EasyAlign)
 nnoremap <leader>bb <cmd>b#<cr>
-nnoremap <leader>bs :b <C-d>
-nnoremap <leader>cd <cmd>:lcd %:p:h<cr>
-nnoremap <leader>gK <cmd>ALEDocumentation<cr>
+nnoremap <leader>cd <cmd>GRoot<cr>
+nnoremap <leader>ee :e **/*
+nnoremap <leader>es :sp **/*
+nnoremap <leader>ev :vsp **/*
+nnoremap <leader>ff <cmd>Files<cr>
+nnoremap <leader>fb <cmd>Buffers<cr>
+nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
+nnoremap <leader>gK <cmd>ALEDocumentation<cr>
 nnoremap <leader>gk <cmd>ALEHover<cr>
 nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
 nnoremap <leader>gs <cmd>SignifyHunkDiff<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
+nnoremap <leader>lcd <cmd>lcd %:p:h<cr>
 nnoremap <leader>rn <cmd>ALERename<cr>
-nnoremap <leader>tt <cmd>Vista!!<cr>
 nnoremap C "_C
+nnoremap c "_c
+nnoremap cc "_cc
 nnoremap x "_x
 nnoremap Y y$
-nnoremap cc "_cc
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
