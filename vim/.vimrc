@@ -2,11 +2,12 @@
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
-let g:netrw_liststyle = 3
-
 filetype plugin indent on
 
 " plugins
+
+packadd cfilter
+runtime ftplugin/man.vim
 
 let g:fzf_layout = { 'down': '40%' }
 
@@ -34,7 +35,6 @@ Plug 'https://github.com/kana/vim-textobj-user'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
-Plug 'https://github.com/romainl/vim-qf'
 Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-abolish'
 Plug 'https://github.com/tpope/vim-commentary'
@@ -74,7 +74,7 @@ let &encoding       = 'utf-8' | scriptencoding utf-8
 let &errorformat    = '%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 let &fillchars      = 'vert:|,fold:-,eob:~'
 let &formatoptions  = 'tcqjno'
-let &grepprg        = 'grep -HI --line-number'
+let &grepprg        = 'grep -HI --line-number $* -r .'
 let &hidden         = 1
 let &hlsearch       = 1
 let &ignorecase     = 1
@@ -96,7 +96,7 @@ let &secure         = 1
 let &shortmess      = 'filnxtToOc'
 let &showbreak      = '> '
 let &sidescrolloff  = 20
-let &signcolumn     = 'yes'
+let &signcolumn     = 'auto'
 let &smartcase      = 1
 let &smarttab       = 1
 let &swapfile       = 0
@@ -123,7 +123,7 @@ let &statusline = '%<%f %h%m%r'
 if exists('*FugitiveStatusline')
   let &statusline .= '%{FugitiveStatusline()}'
 endif
-let &statusline .= ' %y %l:%c/%L'
+let &statusline .= ' %=%y %l:%c/%L'
 
 augroup ToggleCursorLine
   autocmd!
@@ -149,9 +149,7 @@ command! CopyFileName call CopyPath('filename')
 command! CopyDirPath call CopyPath('dir')
 command! CopyDirName call CopyPath('dirname')
 
-command! -nargs=* Terminal topleft terminal ++shell <args>
-command! -nargs=* STerminal topleft terminal ++shell <args>
-command! -nargs=* VTerminal topleft vertical terminal ++shell <args>
+command! -nargs=* Terminal <mods> terminal ++shell <args>
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -183,8 +181,7 @@ command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GW Gwrite
 
 command! -nargs=* Grep cexpr system('rg ' . <q-args>)
-command! -nargs=* DD Terminal ddgr --expand <args>
-command! -nargs=* DHere :Dispatch -dir=%:p:h <args>
+command! -nargs=* DD <mods> Terminal ++close ddgr --expand <args>
 command! TmuxHere call system('tmux split-window -c ' . expand('%:p:h'))
 command! TermHere call term_start($SHELL, {'cwd': expand('%:p:h')})
 
