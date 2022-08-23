@@ -47,7 +47,6 @@ highlight NonText    NONE
 highlight Normal     NONE
 highlight SignColumn NONE
 highlight SpecialKey NONE
-highlight Visual     NONE
 
 highlight Comment      cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
 highlight CursorLineNr cterm=bold           ctermfg=NONE       ctermbg=NONE
@@ -60,6 +59,13 @@ highlight MatchParen   cterm=NONE           ctermfg=NONE       ctermbg=DarkGray
 highlight NonText      cterm=NONE           ctermfg=DarkGray   ctermbg=NONE
 highlight PmenuSel     cterm=bold,underline ctermfg=White      ctermbg=Magenta
 highlight Search       cterm=NONE           ctermfg=Black      ctermbg=Yellow
+highlight Visual       cterm=NONE           ctermfg=Black      ctermbg=Gray
+
+if &background ==# 'light'
+	highlight LineNr     cterm=NONE ctermfg=Gray ctermbg=NONE
+	highlight MatchParen cterm=NONE ctermfg=NONE ctermbg=Gray
+	highlight NonText    cterm=NONE ctermfg=Gray ctermbg=NONE
+endif
 
 " ALE
 highlight ALEError cterm=underline
@@ -72,7 +78,6 @@ highlight link ALEWarningSign Todo
 highlight link CurSearch Search
 highlight link ModeMsg IncSearch
 highlight link SpecialKey NonText
-highlight link Visual IncSearch
 highlight link diffAdded DiffAdd
 highlight link diffChanged DiffChange
 highlight link diffRemoved DiffDelete
