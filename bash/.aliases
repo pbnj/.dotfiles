@@ -12,7 +12,7 @@ if hash exa 2>/dev/null; then
 elif hash gls 2>/dev/null; then
 	alias ls="gls --group-directories-first"
 fi
-alias ll="ls -alFh"
+alias ll="clear; ls -alFh"
 
 # For safety
 alias rm='rm -i'
@@ -43,6 +43,16 @@ alias vf="vim +Files +only"
 alias vg="vim +Git +only"
 alias vgf="vim +GFiles +only"
 
+# git
+alias ga="git fa"
+alias gb="git fb"
+alias gc="git commit"
+alias gco="git checkout"
+alias gd="git fd"
+alias gp="git push"
+alias gpull="git pull"
+alias groot='cd $(git root)'
+
 # vault
 hash vault 2>/dev/null && complete -C "$(which vault)" vault
 
@@ -55,6 +65,7 @@ if hash terraform 2>/dev/null; then
 	alias tfa="terraform apply"
 	alias tfss="terraform state show"
 	alias tfsl="terraform state list"
+	alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -I{} -L1 terraform state rm '{}'"
 fi
 
 # osx
