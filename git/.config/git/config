@@ -1,91 +1,77 @@
 [alias]
+	alias = !git config -l | grep ^alias | cut -c 7- | sort
 
-alias = !git config -l | grep ^alias | cut -c 7- | sort
-bci = browse-ci # `browse-ci` available from `git-extras`
-branches = branch -a --sort=-committerdate
-c = commit
-co = checkout
-contributors = shortlog --summary --numbered
-czc = cz commit
-fa = !files=$(git status --porcelain --short | awk '{print $2}' | fzf --reverse --height=20 --multi --preview 'git diff --color=always {}') && test -n ${files} && git add ${files} && git commit && git status --short
-fb = !git ls --full | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
-fd = !git status --porcelain --short | awk '{print $2}' | fzf --height=20 --multi --preview 'git diff --color=always {}'
-graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
-ignore = !echo "${1}" >>.gitignore
-l = log --pretty=oneline -n 20 --graph --abbrev-commit
-ls = ls-files
-p = push
-remotes = remote -v
-s = status -s
-ss = status -s $GIT_PREFIX
-tags = tag --list
-top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
-undo = !git reset HEAD~1 --mixed
-unstage = reset
+	a = !git status --porcelain --short              | awk '{print $2}' | fzf --reverse --multi --preview 'git diff --color=always {}' | xargs git add
+	aa = !git status --porcelain --short $GIT_PREFIX | awk '{print $2}' | fzf --reverse --multi --preview 'git diff --color=always {}' | xargs git add
+	b = !git ls --full $GIT_PREFIX | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
+	bci = browse-ci # `browse-ci` available from `git-extras`
+	branches = branch -a --sort=-committerdate
+	c = commit
+	co = checkout
+	contributors = shortlog --summary --numbered
+	czc = cz commit
+	d = !git status --short | awk '{print $2}' | fzf --multi --preview 'git diff --color=always {}'
+	dd = !git status --short $GIT_PREFIX | awk '{print $2}' | fzf --multi --preview 'git diff --color=always {}'
+	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
+	ignore = !echo "${1}" >>.gitignore
+	l = log --pretty=oneline -n 20 --graph --abbrev-commit
+	ls = ls-files
+	p = push
+	remotes = remote -v
+	s = status -s
+	ss = status -s .
+	tags = tag --list
+	top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
+	undo = !git reset HEAD~1 --mixed
+	unstage = reset
 
 [apply]
-whitespace = fix
+	whitespace = fix
 
 [core]
-excludesfile = ~/.config/git/ignore
-whitespace = space-before-tab,-indent-with-non-tab,trailing-space
-trustctime = false
+	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
+	trustctime = false
 
 [color]
-ui = auto
+	ui = auto
 
 [push]
-default = current
+	default = current
 
 [user]
-name = "Peter Benjamin"
-email = "petermbenjamin@gmail.com"
-signingkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C"
+	name = "Peter Benjamin"
+	email = "petermbenjamin@gmail.com"
+	signingkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C"
 
 [credential]
-helper = store
+	helper = store
 
 [pull]
-rebase = true
-
-# [merge]
-# 	tool = vimdiff
-
-[diff]
-tool = code
-
-[difftool "code"]
-cmd = code --wait --diff $LOCAL $REMOTE
-
-[merge]
-tool = code
-
-[mergetool "code"]
-cmd = code --wait --merge $REMOTE $LOCAL $BASE $MERGED ${1} ${2}
+	rebase = true
 
 [init]
-defaultBranch = main
+	defaultBranch = main
 
 [commit]
-verbose = true
-gpgsign = true
+	verbose = true
+	gpgsign = true
 
 [grep]
-lineNumber = true
-column = true
-fallbackToNoIndex = true
+	lineNumber = true
+	column = true
+	fallbackToNoIndex = true
 
 # https://github.com/git/git/blob/master/contrib/completion/git-prompt.sh
 [bash]
-showDirtyState = true
-showStashState = true
-showUntrackedFiles = true
-showUpstream = auto
-hideIfPwdIgnored = false
+	showDirtyState = true
+	showStashState = true
+	showUntrackedFiles = true
+	showUpstream = auto
+	hideIfPwdIgnored = false
 
 [log]
-showSignature = true
+	showSignature = true
 [gpg]
-format = ssh
+	format = ssh
 [gpg "ssh"]
-allowedSignersFile = ~/.ssh/allowed_signers
+	allowedSignersFile = ~/.ssh/allowed_signers
