@@ -37,3 +37,19 @@ _fzf_complete_gw() {
 	)
 }
 complete -o default -o bashdefault -F _fzf_complete_gw gw
+
+# bconsole **<tab>
+_fzf_complete_bconsole() {
+	_fzf_complete --reverse --prompt="britive console> " -- "$@" < <(
+		npx britive-cli listprofiles 2>/dev/null | yq -r .[].name
+	)
+}
+complete -o default -o bashdefault -F _fzf_complete_bconsole bconsole
+
+# bcheckout **<tab>
+_fzf_complete_bcheckout() {
+	_fzf_complete --reverse --prompt="britive checkout> " -- "$@" < <(
+		npx britive-cli@latest listprofiles 2>/dev/null | yq -r .[].name
+	)
+}
+complete -o default -o bashdefault -F _fzf_complete_bcheckout bcheckout

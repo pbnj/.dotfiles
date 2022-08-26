@@ -12,15 +12,12 @@ if hash exa 2>/dev/null; then
 elif hash gls 2>/dev/null; then
 	alias ls="gls --group-directories-first"
 fi
-alias ll="clear; ls -alFh"
+alias ll="ls -alFh"
 
 # For safety
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
-
-# grep
-alias grep="grep --color=auto"
 
 # top
 alias mtop='top -omem'
