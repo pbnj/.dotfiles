@@ -1,7 +1,7 @@
 # vim:ft=conf:
-bind-key -T copy-mode-vi y                 send-keys -X copy-pipe-and-cancel "pbcopy"
-bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
-bind-key -T copy-mode-vi Enter             send-keys -X copy-pipe-and-cancel "pbcopy"
+bind-key -T copy-mode-vi y                 send-keys -X copy-pipe "pbcopy"
+bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe "pbcopy"
+bind-key -T copy-mode-vi Enter             send-keys -X copy-pipe "pbcopy"
 
 # Double click word to copy
 # https://stackoverflow.com/questions/31404140/can-i-use-double-click-to-select-and-copy-in-tmux/46638561

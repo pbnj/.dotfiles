@@ -2,7 +2,4 @@
 --glob=!.terraform/*
 --glob=!node_modules/*
 --hidden
---line-number
---max-columns-preview
---max-columns=150
 --smart-case
