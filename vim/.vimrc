@@ -9,8 +9,6 @@ filetype plugin indent on
 packadd cfilter
 runtime ftplugin/man.vim
 
-let g:fzf_layout = { 'down': '40%' }
-
 let g:ale_completion_enabled = 1
 let g:ale_fix_on_save        = 1
 let g:ale_fixers             = { '*': ['remove_trailing_lines', 'trim_whitespace'] }
@@ -24,25 +22,13 @@ call plug#begin()
 
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
-Plug 'https://github.com/junegunn/fzf'
-Plug 'https://github.com/junegunn/fzf.vim'
-Plug 'https://github.com/kana/vim-textobj-entire'
-Plug 'https://github.com/kana/vim-textobj-indent'
-Plug 'https://github.com/kana/vim-textobj-user'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/sheerun/vim-polyglot'
-Plug 'https://github.com/tpope/vim-abolish'
 Plug 'https://github.com/tpope/vim-commentary'
-Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
-Plug 'https://github.com/tpope/vim-rhubarb'
-Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
-Plug 'https://github.com/tpope/vim-unimpaired'
-Plug 'https://github.com/tpope/vim-vinegar'
-Plug 'https://github.com/vim-scripts/ReplaceWithRegister'
 
 call plug#end()
 
@@ -67,6 +53,7 @@ let &cursorline = 0
 let &display = 'lastline'
 let &encoding = 'utf-8' | scriptencoding utf-8
 let &errorformat = '%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
+let &expandtab = 1
 let &fillchars = 'vert:|,fold:-,eob:~'
 let &formatoptions = 'tcqjno'
 let &grepprg = 'grep -HI --line-number $* -r .'
@@ -178,6 +165,26 @@ command! TermHere call term_start($SHELL, {'cwd': expand('%:p:h')})
 
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
+nnoremap [a <cmd>previous<cr>
+nnoremap ]a <cmd>next<cr>
+nnoremap [A <cmd>first<cr>
+nnoremap ]A <cmd>last<cr>
+nnoremap [b <cmd>bprevious<cr>
+nnoremap ]b <cmd>bnext<cr>
+nnoremap [B <cmd>bfirst<cr>
+nnoremap ]B <cmd>blast<cr>
+nnoremap [l <cmd>lprevious<cr>
+nnoremap ]l <cmd>lnext<cr>
+nnoremap [L <cmd>lfirst<cr>
+nnoremap ]L <cmd>llast<cr>
+nnoremap [q <cmd>cprevious<cr>
+nnoremap ]q <cmd>cnext<cr>
+nnoremap [Q <cmd>cfirst<cr>
+nnoremap ]Q <cmd>clast<cr>
+nnoremap [t <cmd>tprevious<cr>
+nnoremap ]t <cmd>tnext<cr>
+nnoremap [T <cmd>tfirst<cr>
+nnoremap ]T <cmd>tlast<cr>
 nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>cd <cmd>GRoot<cr>
 nnoremap <leader>ee :e **/*
@@ -196,6 +203,7 @@ nnoremap <leader>gs <cmd>SignifyHunkDiff<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
 nnoremap <leader>lcd <cmd>lcd %:p:h<cr>
 nnoremap <leader>rn <cmd>ALERename<cr>
+nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
 nnoremap c "_c
 nnoremap cc "_cc
