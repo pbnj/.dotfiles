@@ -1,9 +1,5 @@
 # https://github.com/alacritty/alacritty/blob/master/alacritty.yml
-# Configuration for Alacritty, the GPU enhanced terminal emulator.
 ---
-import:
-  - ~/Projects/github.com/mbadolato/iTerm2-Color-Schemes/alacritty/Dracula.yml
-
 env:
   TERM: xterm-256color
 
@@ -12,23 +8,23 @@ window:
 
 font:
   normal:
-    family: Input Mono
+    family: SF Mono
     style: Light
   italic:
-    family: Input Mono
+    family: SF Mono
     style: Light Italic
   bold:
-    family: Input Mono
+    family: SF Mono
     style: Bold
   bold_italic:
-    family: Input Mono
+    family: SF Mono
     style: Bold Italic
   size: 11.0
 
-# colors:
-#   cursor:
-#     text: CellBackground
-#     cursor: CellForeground
+colors:
+  cursor:
+    text: CellBackground
+    cursor: "#FF69B4"
 
 selection:
   save_to_clipboard: true
