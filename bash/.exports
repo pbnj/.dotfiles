@@ -6,6 +6,7 @@
 export EDITOR=vim
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
+export FZF_DEFAULT_COMMAND="rg --files || find * -type f"
 export FZF_DEFAULT_OPTS='--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up'
 export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
