@@ -1,4 +1,5 @@
 setlocal formatprg=terraform\ fmt\ \-no-color\ \-
+setlocal commentstring=#\ %s
 
 function! TerraformStateCompletion(A,L,P) abort
     return filter(systemlist('terraform state list'),'v:val =~ a:A')

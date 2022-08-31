@@ -2,7 +2,7 @@
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
-filetype plugin indent on
+let g:netrw_keepdir = 0
 
 " plugins
 
@@ -10,27 +10,37 @@ packadd cfilter
 runtime ftplugin/man.vim
 
 let g:ale_completion_enabled = 1
-let g:ale_fix_on_save        = 1
-let g:ale_fixers             = { '*': ['remove_trailing_lines', 'trim_whitespace'] }
-let g:ale_floating_preview   = 1
+let g:ale_fix_on_save = 1
+let g:ale_fixers = { '*': ['remove_trailing_lines', 'trim_whitespace'] }
+let g:ale_floating_preview = 1
+let g:ale_open_list = 1
 
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
 endif
 
 call plug#begin()
-
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
-Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
-
+Plug 'https://github.com/sheerun/vim-polyglot'
 call plug#end()
+
+call ale#linter#Define('dockerfile', {
+      \ 'name': 'docker-language-server',
+      \ 'lsp': 'stdio',
+      \ 'executable': 'docker-langserver',
+      \ 'command': '%e --stdio',
+      \ 'language': 'dockerfile',
+      \ 'project_root': { _ -> expand('%p:h') }
+      \})
+
+filetype plugin indent on
 
 " options
 
@@ -46,7 +56,7 @@ let &backup = 0
 let &breakindent = 1
 let &clipboard = 'unnamed,unnamedplus'
 let &cmdheight = 2
-let &completeopt = 'menuone'
+let &completeopt = 'menuone,noselect'
 let &conceallevel = 0
 let &cursorcolumn = 0
 let &cursorline = 0
@@ -56,7 +66,7 @@ let &errorformat = '%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 let &expandtab = 1
 let &fillchars = 'vert:|,fold:-,eob:~'
 let &formatoptions = 'tcqjno'
-let &grepprg = 'grep -HI --line-number $* -r .'
+let &grepprg = 'grep -HI --line-number '
 let &hidden = 1
 let &hlsearch = 1
 let &ignorecase = 1
@@ -65,6 +75,7 @@ let &infercase = 1
 let &laststatus = 2
 let &lazyredraw = 1
 let &linebreak = 1
+let &list = 0
 let &listchars = 'tab:| ,nbsp:·,trail:·,eol:¬,'
 let &modeline = 1
 let &mouse = ''
@@ -149,19 +160,25 @@ command! -range GB call GitBrowse({
       \ 'line1': <line1>,
       \ 'line2': <line2>,
       \ })
-command! GA    Git add .
 command! GC    Git commit
 command! GD    Gdiffsplit
-command! GP    Git push
-command! GPull Git pull
+command! GP    Git! push
+command! GPull Git! pull
 command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GW    Gwrite
 command! GS    G status --short .
 
-command! -nargs=* Grep cexpr system('rg ' . <q-args>)
+command! -nargs=* Grep cexpr system('rg --vimgrep --hidden --smart-case ' . <q-args>)
 command! -nargs=* DD <mods> Terminal ++close ddgr --expand <args>
 command! TmuxHere call system('tmux split-window -c ' . expand('%:p:h'))
 command! TermHere call term_start($SHELL, {'cwd': expand('%:p:h')})
+
+function! MakeCompletion(A,L,P) abort
+    let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
+    return filter(l:targets, 'v:val =~ "^' . a:A . '"')
+endfunction
+command! -nargs=* -complete=customlist,MakeCompletion Make !make <args>
+nnoremap m<space> :Make<space><c-d>
 
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
@@ -190,16 +207,12 @@ nnoremap <leader>cd <cmd>GRoot<cr>
 nnoremap <leader>ee :e **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vsp **/*
-nnoremap <leader>ff <cmd>Files<cr>
-nnoremap <leader>fb <cmd>Buffers<cr>
-nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
 nnoremap <leader>gk <cmd>ALEHover<cr>
 nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
-nnoremap <leader>gs <cmd>SignifyHunkDiff<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
 nnoremap <leader>lcd <cmd>lcd %:p:h<cr>
 nnoremap <leader>rn <cmd>ALERename<cr>

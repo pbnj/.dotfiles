@@ -57,7 +57,7 @@ highlight DiffText cterm=bold,underline ctermfg=DarkGreen ctermbg=NONE
 highlight LineNr cterm=NONE ctermfg=DarkGray ctermbg=NONE
 highlight MatchParen cterm=NONE ctermfg=NONE ctermbg=DarkGray
 highlight NonText cterm=NONE ctermfg=DarkGray ctermbg=NONE
-highlight PmenuSel cterm=bold,underline ctermfg=White ctermbg=Magenta
+highlight PmenuSel cterm=bold ctermfg=Black ctermbg=Magenta
 highlight Search cterm=NONE ctermfg=Black ctermbg=Yellow
 highlight Visual cterm=NONE ctermfg=Black ctermbg=Gray
 
