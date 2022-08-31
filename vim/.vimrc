@@ -136,8 +136,6 @@ command! CopyFileName call CopyPath('filename')
 command! CopyDirPath call CopyPath('dir')
 command! CopyDirName call CopyPath('dirname')
 
-command! -nargs=* Terminal <mods> terminal ++shell <args>
-
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
   if a:args.filename ==# ''
@@ -169,9 +167,16 @@ command! GW    Gwrite
 command! GS    G status --short .
 
 command! -nargs=* Grep cexpr system('rg --vimgrep --hidden --smart-case ' . <q-args>)
-command! -nargs=* DD <mods> Terminal ++close ddgr --expand <args>
-command! TmuxHere call system('tmux split-window -c ' . expand('%:p:h'))
-command! TermHere call term_start($SHELL, {'cwd': expand('%:p:h')})
+command! -nargs=* DD Terminal ddgr --expand <args>
+
+function! Terminal(...) abort
+  if a:0 >= 1
+    call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
+  else
+    call term_start($SHELL, {'cwd': expand('%:p:h')})
+  endif
+endfunction
+command! -nargs=* Terminal call Terminal(<f-args>)
 
 function! MakeCompletion(A,L,P) abort
     let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
