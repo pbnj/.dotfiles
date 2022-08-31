@@ -8,17 +8,17 @@ $hostname\
 $directory\
 $localip\
 $shlvl\
-$kubernetes\
 $git_branch\
 $git_commit\
 $git_state\
 $git_metrics\
 $git_status\
 $docker_context\
+$helm\
+$kubernetes\
 $package\
 $deno\
 $golang\
-$helm\
 $nodejs\
 $python\
 $rust\
@@ -31,8 +31,8 @@ $battery\
 $time\
 $status\
 $container\
-$jobs\
 $line_break\
+$jobs\
 $character"""
 
 add_newline = true
@@ -97,6 +97,7 @@ symbol = "nodejs "
 
 [memory_usage]
 symbol = "memory "
+style = ""
 disabled = false
 threshold = 0
 format = ' \[$symbol[$ram( | $swap)]($style)\] '
