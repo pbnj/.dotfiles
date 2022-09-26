@@ -1,3 +1,4 @@
+" vim:ts=2:sts=2:sw=2:et:
 " set mapleader to space
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
@@ -11,9 +12,8 @@ runtime ftplugin/man.vim
 
 let g:ale_completion_enabled = 1
 let g:ale_fix_on_save = 1
-let g:ale_fixers = { '*': ['remove_trailing_lines', 'trim_whitespace'] }
+let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
-let g:ale_open_list = 1
 
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
@@ -22,25 +22,20 @@ endif
 call plug#begin()
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
+Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'https://github.com/junegunn/fzf.vim'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
+Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
-Plug 'https://github.com/sheerun/vim-polyglot'
 call plug#end()
 
-call ale#linter#Define('dockerfile', {
-      \ 'name': 'docker-language-server',
-      \ 'lsp': 'stdio',
-      \ 'executable': 'docker-langserver',
-      \ 'command': '%e --stdio',
-      \ 'language': 'dockerfile',
-      \ 'project_root': { _ -> expand('%p:h') }
-      \})
-
 filetype plugin indent on
+
+let g:fzf_layout = {'down': '40%'}
 
 " options
 
@@ -48,68 +43,66 @@ if !isdirectory(expand('~/.vim/undo/'))
   mkdir(expand('~/.vim/undo/'))
 endif
 
-let &autoindent = 1
-let &autoread = 1
-let &background = 'dark'
-let &backspace = 'indent,eol,start'
-let &backup = 0
-let &breakindent = 1
-let &clipboard = 'unnamed,unnamedplus'
-let &cmdheight = 2
-let &completeopt = 'menuone,noselect'
-let &conceallevel = 0
-let &cursorcolumn = 0
-let &cursorline = 0
-let &display = 'lastline'
-let &encoding = 'utf-8' | scriptencoding utf-8
-let &errorformat = '%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
-let &expandtab = 1
-let &fillchars = 'vert:|,fold:-,eob:~'
-let &formatoptions = 'tcqjno'
-let &grepprg = 'grep -HI --line-number '
-let &hidden = 1
-let &hlsearch = 1
-let &ignorecase = 1
-let &incsearch = 1
-let &infercase = 1
-let &laststatus = 2
-let &lazyredraw = 1
-let &linebreak = 1
-let &list = 0
-let &listchars = 'tab:| ,nbsp:·,trail:·,eol:¬,'
-let &modeline = 1
-let &mouse = ''
-let &number = 0
-let &omnifunc = 'ale#completion#OmniFunc'
-let &relativenumber = 0
-let &ruler = 1
-let &scrolloff = 10
-let &secure = 1
-let &shortmess = 'filnxtToOc'
-let &showbreak = '> '
-let &sidescrolloff = 20
-let &signcolumn = 'no'
-let &smartcase = 1
-let &smarttab = 1
-let &statusline = '%<%f%h%m%r%=%y %l:%c/%L'
-let &swapfile = 0
-let &t_Co = 16
-let &termguicolors = 0
-let &ttimeout = 1
-let &ttimeoutlen = 50
-let &ttyfast = 1
-let &undodir = expand('~/.vim/undo/')
-let &undofile = 1
-let &updatetime = 100
-let &wildignore = '*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*'
-let &wildignorecase = 1
-let &wildmenu = 1
-let &wrap = 0
-let &wrapscan = 0
+set autoindent
+set autoread
+set background=dark
+set backspace=indent,eol,start
+set breakindent
+set clipboard=unnamed,unnamedplus
+set completeopt=menuone,noselect
+set display=lastline
+set encoding=utf-8 | scriptencoding utf-8
+set expandtab
+set formatoptions=tcqjno
+set hidden
+set hlsearch
+set ignorecase
+set incsearch
+set infercase
+set laststatus=2
+set lazyredraw
+set linebreak
+set list
+set listchars=tab:\|\ ,nbsp:·,trail:·
+set modeline
+set mouse=
+set nobackup
+set number
+set norelativenumber
+set noswapfile
+set nowrap
+set nowrapscan
+set omnifunc=ale#completion#OmniFunc
+set ruler
+set scrolloff=10
+set secure
+set shortmess=filnxtToOc
+set sidescrolloff=20
+set signcolumn=number
+set smartcase
+set smarttab
+set t_Co=16
+set ttimeout
+set ttimeoutlen=50
+set ttyfast
+set undodir=~/.vim/undo/
+set undofile
+set updatetime=100
+set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
+set wildignorecase
+set wildmenu
+
+if executable('rg')
+  let &grepprg = 'rg --vimgrep --hidden --smart-case'
+else
+  let &grepprg = 'grep -HI --line-number $* -r .'
+endif
+
+let &errorformat='%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 
 if v:version >= 900
-  let &listchars .= 'multispace:·,leadmultispace:·,'
-  let &wildoptions = 'fuzzy,pum'
+  set listchars+=multispace:·,leadmultispace:·
+  set wildoptions=fuzzy,pum
 endif
 
 augroup ToggleCursorLine
@@ -117,6 +110,9 @@ augroup ToggleCursorLine
   autocmd InsertEnter * setlocal cursorline
   autocmd InsertLeave * setlocal nocursorline
 augroup END
+
+highlight RedundantSpaces ctermbg=Red
+match RedundantSpaces /\s\+$/
 
 function! CopyPath(type) abort
   if a:type ==# 'file'
@@ -150,7 +146,6 @@ function! GitBrowse(args) abort
   execute 'silent ! ' . l:cmd | redraw!
 endfunction
 
-command! BO :%bdelete | edit# | normal `#
 command! -range GB call GitBrowse({
       \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
       \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
@@ -158,15 +153,14 @@ command! -range GB call GitBrowse({
       \ 'line1': <line1>,
       \ 'line2': <line2>,
       \ })
-command! GC    Git commit
-command! GD    Gdiffsplit
-command! GP    Git! push
+command! GC Git commit
+command! GD Gdiffsplit
+command! GP Git! push
 command! GPull Git! pull
 command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
-command! GW    Gwrite
-command! GS    G status --short .
+command! GW Gwrite
+command! GS G status %:h
 
-command! -nargs=* Grep cexpr system('rg --vimgrep --hidden --smart-case ' . <q-args>)
 command! -nargs=* DD Terminal ddgr --expand <args>
 
 function! Terminal(...) abort
@@ -187,6 +181,38 @@ nnoremap m<space> :Make<space><c-d>
 
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
+nnoremap <expr>yob &background ==# 'dark' ? ':let &background="light"<cr>' : ':let &background="dark"<cr>'
+nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<cr>'
+nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
+nnoremap <leader>bb <cmd>b#<cr>
+nnoremap <leader>cd <cmd>GRoot<cr>
+nnoremap <leader>ee :e **/*
+nnoremap <leader>es :sp **/*
+nnoremap <leader>ev :vsp **/*
+nnoremap <leader>ff <cmd>Files<cr>
+nnoremap <leader>fg <cmd>GFiles<cr>
+nnoremap <leader>fG <cmd>GFiles?<cr>
+nnoremap <leader>fs <cmd>Rg<cr>
+nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
+nnoremap <leader>gK <cmd>ALEDocumentation<cr>
+nnoremap <leader>gk <cmd>ALEHover<cr>
+nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
+nnoremap <leader>gq mzgggqG`z
+nnoremap <leader>gr <cmd>ALEFindReferences<cr>
+nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
+nnoremap <leader>lcd <cmd>lcd %:p:h<cr>
+nnoremap <leader>rn <cmd>ALERename<cr>
+nnoremap <leader>tt <cmd>terminal<cr>
+nnoremap <leader>ya <cmd>%y+<cr>
+nnoremap <leader>w <cmd>write<cr>
+nnoremap C "_C
+nnoremap c "_c
+nnoremap cc "_cc
+nnoremap x "_x
+nnoremap Y y$
+tnoremap <esc> <c-\><c-n>
+tnoremap <s-space> <space>
+
 nnoremap [a <cmd>previous<cr>
 nnoremap ]a <cmd>next<cr>
 nnoremap [A <cmd>first<cr>
@@ -195,6 +221,8 @@ nnoremap [b <cmd>bprevious<cr>
 nnoremap ]b <cmd>bnext<cr>
 nnoremap [B <cmd>bfirst<cr>
 nnoremap ]B <cmd>blast<cr>
+nnoremap [e <cmd>move -2<cr>
+nnoremap ]e <cmd>move +1<cr>
 nnoremap [l <cmd>lprevious<cr>
 nnoremap ]l <cmd>lnext<cr>
 nnoremap [L <cmd>lfirst<cr>
@@ -207,32 +235,8 @@ nnoremap [t <cmd>tprevious<cr>
 nnoremap ]t <cmd>tnext<cr>
 nnoremap [T <cmd>tfirst<cr>
 nnoremap ]T <cmd>tlast<cr>
-nnoremap <leader>bb <cmd>b#<cr>
-nnoremap <leader>cd <cmd>GRoot<cr>
-nnoremap <leader>ee :e **/*
-nnoremap <leader>es :sp **/*
-nnoremap <leader>ev :vsp **/*
-nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
-nnoremap <leader>gK <cmd>ALEDocumentation<cr>
-nnoremap <leader>gk <cmd>ALEHover<cr>
-nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
-nnoremap <leader>gq mzgggqG`z
-nnoremap <leader>gr <cmd>ALEFindReferences<cr>
-nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
-nnoremap <leader>lcd <cmd>lcd %:p:h<cr>
-nnoremap <leader>rn <cmd>ALERename<cr>
-nnoremap <leader>ya <cmd>%y+<cr>
-nnoremap C "_C
-nnoremap c "_c
-nnoremap cc "_cc
-nnoremap x "_x
-nnoremap Y y$
-tnoremap <esc> <c-\><c-n>
-tnoremap <s-space> <space>
 
 try
   colorscheme pbnj
 catch
 endtry
-
-" vim:ts=2:sts=2:sw=2:et:

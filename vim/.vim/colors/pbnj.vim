@@ -42,6 +42,7 @@ let g:colors_name='pbnj'
 highlight DiffAdd NONE
 highlight DiffChange NONE
 highlight DiffDelete NONE
+highlight IncSearch NONE
 highlight ModeMsg NONE
 highlight NonText NONE
 highlight Normal NONE
@@ -56,6 +57,7 @@ highlight DiffDelete cterm=NONE ctermfg=DarkRed ctermbg=NONE
 highlight DiffText cterm=bold,underline ctermfg=DarkGreen ctermbg=NONE
 highlight LineNr cterm=NONE ctermfg=DarkGray ctermbg=NONE
 highlight MatchParen cterm=NONE ctermfg=NONE ctermbg=DarkGray
+highlight ModeMsg cterm=bold ctermfg=Black ctermbg=White
 highlight NonText cterm=NONE ctermfg=DarkGray ctermbg=NONE
 highlight PmenuSel cterm=bold ctermfg=Black ctermbg=Magenta
 highlight Search cterm=NONE ctermfg=Black ctermbg=Yellow
@@ -70,8 +72,9 @@ highlight link ALEInfoSign Todo
 highlight link ALEWarningSign Todo
 
 highlight link CurSearch Search
-highlight link ModeMsg IncSearch
+highlight link IncSearch Search
 highlight link SpecialKey NonText
+
 highlight link diffAdded DiffAdd
 highlight link diffChanged DiffChange
 highlight link diffRemoved DiffDelete
