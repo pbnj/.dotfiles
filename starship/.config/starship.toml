@@ -3,8 +3,6 @@
 
 format = """
 $sudo\
-$username\
-$hostname\
 $directory\
 $localip\
 $shlvl\
