@@ -8,11 +8,10 @@ let g:netrw_keepdir = 0
 " plugins
 
 packadd cfilter
-runtime ftplugin/man.vim
 
 let g:ale_completion_enabled = 1
 let g:ale_fix_on_save = 1
-let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
+let g:ale_fixers = { '*': ['remove_trailing_lines', 'trim_whitespace'] }
 let g:ale_floating_preview = 1
 let g:ale_sign_error = 'E'
 let g:ale_sign_info = 'I'
@@ -102,23 +101,21 @@ endif
 
 let &errorformat='%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 
-function! CopyPath(type) abort
-  if a:type ==# 'file'
-    let l:value=expand('%:p')
-  elseif a:type ==# 'filename'
-    let l:value=expand('%:p')->split('/')[-1]
-  elseif a:type ==# 'dir'
-    let l:value=expand('%:p:h')
-  elseif a:type ==# 'dirname'
-    let l:value=expand('%:p:h')->split('/')[-1]
-  endif
-  let @+=l:value
-  echom 'Copied: ' . l:value
-endfunction
-command! CopyFilePath call CopyPath('file')
-command! CopyFileName call CopyPath('filename')
-command! CopyDirPath call CopyPath('dir')
-command! CopyDirName call CopyPath('dirname')
+if exists('g:neovide')
+  let g:neovide_input_use_logo=v:true
+  " select
+  nnoremap <D-a> ggVG
+  " copy
+  vnoremap <D-c> "+y
+  " paste
+  nnoremap <D-v> "+p
+  inoremap <D-v> <Esc>"+pa
+  cnoremap <D-v> <c-r>+
+  tnoremap <D-v> <C-\><C-n>"+pa
+  " undo
+  nnoremap <D-z> u
+  inoremap <D-z> <Esc>ua
+endif
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -149,16 +146,7 @@ command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GW Gwrite
 command! GS G status %:h
 
-command! -nargs=* DD Terminal ddgr --expand <args>
-
-function! Terminal(...) abort
-  if a:0 >= 1
-    call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
-  else
-    call term_start($SHELL, {'cwd': expand('%:p:h')})
-  endif
-endfunction
-command! -nargs=* Terminal call Terminal(<f-args>)
+command! -nargs=* DD terminal ddgr --expand <args>
 
 function! MakeCompletion(A,L,P) abort
     let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
@@ -182,6 +170,7 @@ nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fG <cmd>GFiles?<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
+nnoremap <leader>gg <cmd>Git<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
 nnoremap <leader>gk <cmd>ALEHover<cr>
 nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
@@ -189,8 +178,7 @@ nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
 nnoremap <leader>lcd <cmd>lcd %:p:h<cr>
-nnoremap <leader>rn <cmd>ALERename<cr>
-nnoremap <leader>tt <cmd>terminal<cr>
+nnoremap <leader>tt :terminal<space>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap C "_C
