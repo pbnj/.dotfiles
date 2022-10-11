@@ -14,6 +14,11 @@ let g:ale_completion_enabled = 1
 let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
+let g:ale_sign_error = 'E'
+let g:ale_sign_info = 'I'
+let g:ale_sign_style_error = 'E'
+let g:ale_sign_style_warning = 'W'
+let g:ale_sign_warning = 'W'
 
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
@@ -24,8 +29,8 @@ Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
-Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
+Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
@@ -65,13 +70,13 @@ set linebreak
 set list
 set listchars=tab:\|\ ,nbsp:·,trail:·
 set modeline
-set mouse=
+set mouse=a
 set nobackup
-set number
 set norelativenumber
 set noswapfile
 set nowrap
 set nowrapscan
+set number
 set omnifunc=ale#completion#OmniFunc
 set ruler
 set scrolloff=10
@@ -91,6 +96,7 @@ set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
+set wildmode=longest:full,full
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
@@ -110,9 +116,6 @@ augroup ToggleCursorLine
   autocmd InsertEnter * setlocal cursorline
   autocmd InsertLeave * setlocal nocursorline
 augroup END
-
-highlight RedundantSpaces ctermbg=Red
-match RedundantSpaces /\s\+$/
 
 function! CopyPath(type) abort
   if a:type ==# 'file'
@@ -186,9 +189,9 @@ nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<c
 nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
 nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>cd <cmd>GRoot<cr>
-nnoremap <leader>ee :e **/*
+nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
-nnoremap <leader>ev :vsp **/*
+nnoremap <leader>ev :vs **/*
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fG <cmd>GFiles?<cr>
