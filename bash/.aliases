@@ -19,8 +19,7 @@ alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 
-# top
-alias mtop='top -omem'
+alias grep="grep --color=auto"
 
 # For quick edits
 # shellcheck disable=SC2139
@@ -36,19 +35,19 @@ alias \?rust="ddgr --noprompt '!rust' "
 
 # vim
 alias vi="vim --clean"
-alias vf="vim +Files +only"
-alias vg="vim +Git +only"
-alias vgf="vim +GFiles +only"
+alias vf="vim +Files!"
+alias vg="vim +Git!"
+alias vgf="vim +GFiles!"
 
 # git
-alias ga="git fa"
-alias gb="git fb"
+alias ga="git add"
 alias gc="git commit"
+alias gd="git diff"
 alias gco="git checkout"
-alias gd="git fd"
 alias gp="git push"
 alias gpull="git pull"
 alias groot='cd $(git root)'
+alias gs='git status'
 
 # vault
 hash vault 2>/dev/null && complete -C "$(which vault)" vault

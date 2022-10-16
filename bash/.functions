@@ -2,6 +2,21 @@
 # shellcheck shell=bash
 
 ########################################
+# General functions
+########################################
+
+vimgrep() {
+	if [[ -z "${@}" ]]; then
+		echo "${@}"
+		echo "Error: missing argument(s)"
+		echo "Usage: $ vimgrep <pattern> [<arguments>,...]"
+		echo 'See `vim -c ":h :grep"` for details'
+		return 1
+	fi
+	eval "vim -c \"grep ${@}\""
+}
+
+########################################
 # Kubernetes
 ########################################
 
@@ -41,15 +56,7 @@ complete -o default -o bashdefault -F _fzf_complete_gw gw
 # bconsole **<tab>
 _fzf_complete_bconsole() {
 	_fzf_complete --reverse --prompt="britive console> " -- "$@" < <(
-		npx britive-cli listprofiles 2>/dev/null | yq -r .[].name
+		npx britive-cli listprofiles 2>/dev/null | jq -rc .[].environmentName | awk -F'[()]' '{print $1"\n"$2}'
 	)
 }
 complete -o default -o bashdefault -F _fzf_complete_bconsole bconsole
-
-# bcheckout **<tab>
-_fzf_complete_bcheckout() {
-	_fzf_complete --reverse --prompt="britive checkout> " -- "$@" < <(
-		npx britive-cli@latest listprofiles 2>/dev/null | yq -r .[].name
-	)
-}
-complete -o default -o bashdefault -F _fzf_complete_bcheckout bcheckout
