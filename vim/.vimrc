@@ -19,6 +19,8 @@ let g:ale_sign_info = 'I'
 let g:ale_sign_style_error = 'E'
 let g:ale_sign_style_warning = 'W'
 let g:ale_sign_warning = 'W'
+nmap <C-j> <Plug>(ale_next_wrap)
+nmap <C-k> <Plug>(ale_previous_wrap)
 
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
@@ -33,14 +35,13 @@ Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
+Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
 call plug#end()
 
 filetype plugin indent on
-
-let g:fzf_layout = {'down': '40%'}
 
 " options
 
@@ -54,10 +55,8 @@ set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completeopt=menuone,noselect
-set display=lastline
-set encoding=utf-8 | scriptencoding utf-8
-set expandtab
+set completeopt=menu,longest
+set encoding=utf-8
 set formatoptions=tcqjno
 set hidden
 set hlsearch
@@ -68,9 +67,9 @@ set laststatus=2
 set lazyredraw
 set linebreak
 set list
-set listchars=tab:\|\ ,nbsp:·,trail:·
+set listchars=tab:\|\ ,trail:·
 set modeline
-set mouse=a
+set mouse=
 set nobackup
 set norelativenumber
 set noswapfile
@@ -79,11 +78,9 @@ set nowrapscan
 set number
 set omnifunc=ale#completion#OmniFunc
 set ruler
-set scrolloff=10
 set secure
 set shortmess=filnxtToOc
-set sidescrolloff=20
-set signcolumn=number
+set signcolumn=yes
 set smartcase
 set smarttab
 set t_Co=16
@@ -96,7 +93,6 @@ set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
-set wildmode=longest:full,full
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
@@ -106,34 +102,11 @@ endif
 
 let &errorformat='%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 
-if v:version >= 900
-  set listchars+=multispace:·,leadmultispace:·
-  set wildoptions=fuzzy,pum
-endif
-
 augroup ToggleCursorLine
   autocmd!
   autocmd InsertEnter * setlocal cursorline
   autocmd InsertLeave * setlocal nocursorline
 augroup END
-
-function! CopyPath(type) abort
-  if a:type ==# 'file'
-    let l:value=expand('%:p')
-  elseif a:type ==# 'filename'
-    let l:value=expand('%:p')->split('/')[-1]
-  elseif a:type ==# 'dir'
-    let l:value=expand('%:p:h')
-  elseif a:type ==# 'dirname'
-    let l:value=expand('%:p:h')->split('/')[-1]
-  endif
-  let @+=l:value
-  echom 'Copied: ' . l:value
-endfunction
-command! CopyFilePath call CopyPath('file')
-command! CopyFileName call CopyPath('filename')
-command! CopyDirPath call CopyPath('dir')
-command! CopyDirName call CopyPath('dirname')
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -164,8 +137,6 @@ command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GW Gwrite
 command! GS G status %:h
 
-command! -nargs=* DD Terminal ddgr --expand <args>
-
 function! Terminal(...) abort
   if a:0 >= 1
     call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
@@ -175,37 +146,28 @@ function! Terminal(...) abort
 endfunction
 command! -nargs=* Terminal call Terminal(<f-args>)
 
-function! MakeCompletion(A,L,P) abort
-    let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
-    return filter(l:targets, 'v:val =~ "^' . a:A . '"')
-endfunction
-command! -nargs=* -complete=customlist,MakeCompletion Make !make <args>
-nnoremap m<space> :Make<space><c-d>
-
-nmap <C-j> <Plug>(ale_next_wrap)
-nmap <C-k> <Plug>(ale_previous_wrap)
 nnoremap <expr>yob &background ==# 'dark' ? ':let &background="light"<cr>' : ':let &background="dark"<cr>'
 nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<cr>'
 nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
-nnoremap <leader>bb <cmd>b#<cr>
+nnoremap <leader>bb <cmd>Buffers!<cr>
 nnoremap <leader>cd <cmd>GRoot<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>ff <cmd>Files<cr>
-nnoremap <leader>fg <cmd>GFiles<cr>
-nnoremap <leader>fG <cmd>GFiles?<cr>
+nnoremap <leader>ff <cmd>Files!<cr>
+nnoremap <leader>fg <cmd>GFiles!<cr>
+nnoremap <leader>fG <cmd>GFiles!?<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
+nnoremap <leader>gg <cmd>Git<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
 nnoremap <leader>gk <cmd>ALEHover<cr>
 nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
-nnoremap <leader>lcd <cmd>lcd %:p:h<cr>
-nnoremap <leader>rn <cmd>ALERename<cr>
-nnoremap <leader>tt <cmd>terminal<cr>
+nnoremap <leader>cd <cmd>lcd %:p:h<cr>
+nnoremap <leader>tt :terminal
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap C "_C
