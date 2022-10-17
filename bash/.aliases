@@ -36,8 +36,9 @@ alias \?rust="ddgr --noprompt '!rust' "
 # vim
 alias vi="vim --clean"
 alias vf="vim +Files!"
-alias vg="vim +Git!"
+alias vg="vim +Git +only"
 alias vgf="vim +GFiles!"
+alias vgs="vim +GFiles!?"
 
 # git
 alias ga="git add"
