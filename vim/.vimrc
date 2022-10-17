@@ -146,11 +146,18 @@ function! Terminal(...) abort
 endfunction
 command! -nargs=* Terminal call Terminal(<f-args>)
 
+nnoremap <c-a> ^
+nnoremap <c-e> $
+vnoremap <c-a> ^
+vnoremap <c-e> $
+inoremap <c-a> <esc>^i
+inoremap <c-e> <esc>$a
+cnoremap <c-a> <c-b>
 nnoremap <expr>yob &background ==# 'dark' ? ':let &background="light"<cr>' : ':let &background="dark"<cr>'
 nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<cr>'
 nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
 nnoremap <leader>bb <cmd>Buffers!<cr>
-nnoremap <leader>cd <cmd>GRoot<cr>
+nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
@@ -166,10 +173,9 @@ nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
-nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>tt :terminal
-nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap <leader>w <cmd>write<cr>
+nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
 nnoremap c "_c
 nnoremap cc "_cc
