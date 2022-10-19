@@ -1,0 +1,26 @@
+# https://github.com/alacritty/alacritty/blob/master/alacritty.yml
+---
+live_config_reload: true
+# env:
+#   TERM: screen
+
+window:
+  decorations: buttonless
+  opacity: 0.9
+
+font:
+  normal:
+    family: Iosevka Nerd Font
+    style: Light
+  bold:
+    family: Iosevka Nerd Font
+    style: Bold
+  italic:
+    family: Iosevka Nerd Font
+    style: Italic
+  bold_italic:
+    family: Iosevka Nerd Font
+    style: Bold Italic
+
+selection:
+  save_to_clipboard: true
