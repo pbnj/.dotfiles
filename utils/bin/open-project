@@ -21,7 +21,6 @@ fi
 PROJECTS="$(
 	${FIND_PROG} ${FIND_ARGS} ${FIND_DIR} |
 		fzf-tmux \
-			-p 80% \
 			--reverse \
 			--multi \
 			--header $'Ctrl-s (tmux split-window horizontal) / Ctrl-v (tmux split-window vertical)\n' \
