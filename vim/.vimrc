@@ -10,35 +10,47 @@ let g:netrw_keepdir = 0
 packadd cfilter
 runtime ftplugin/man.vim
 
-let g:ale_completion_enabled = 1
-let g:ale_fix_on_save = 1
-let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
-let g:ale_floating_preview = 1
-let g:ale_sign_error = 'E'
-let g:ale_sign_info = 'I'
-let g:ale_sign_style_error = 'E'
-let g:ale_sign_style_warning = 'W'
-let g:ale_sign_warning = 'W'
-nmap <C-j> <Plug>(ale_next_wrap)
-nmap <C-k> <Plug>(ale_previous_wrap)
-
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
 endif
 
+let g:ale_completion_enabled = 1
+let g:ale_fix_on_save = 1
+let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
+let g:ale_floating_preview = 1
+let g:ale_open_list = 1
+let g:ale_sign_error = 'x'
+let g:ale_sign_info = 'i'
+let g:ale_sign_style_error = 'x'
+let g:ale_sign_style_warning = '!'
+let g:ale_sign_warning = '!'
+nmap <C-j> <Plug>(ale_next_wrap)
+nmap <C-k> <Plug>(ale_previous_wrap)
+
+let g:signify_sign_add               = '+'
+let g:signify_sign_delete            = '_'
+let g:signify_sign_delete_first_line = '‾'
+let g:signify_sign_change            = '~'
+let g:signify_sign_change_delete     = g:signify_sign_change . g:signify_sign_delete_first_line
+
+let g:fzf_layout = {'down': '40%'}
+
 call plug#begin()
 Plug 'https://github.com/dense-analysis/ale'
+Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
 Plug 'https://github.com/machakann/vim-highlightedyank'
-Plug 'https://github.com/pbnj/pbnj.vim'
+Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/sheerun/vim-polyglot'
+Plug 'https://github.com/tommcdo/vim-fubitive'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
+Plug 'https://github.com/vim-airline/vim-airline'
 call plug#end()
 
 filetype plugin indent on
@@ -72,6 +84,7 @@ set modeline
 set mouse=
 set nobackup
 set norelativenumber
+set noshowmode
 set noswapfile
 set nowrap
 set nowrapscan
@@ -83,7 +96,6 @@ set shortmess=filnxtToOc
 set signcolumn=yes
 set smartcase
 set smarttab
-set t_Co=16
 set ttimeout
 set ttimeoutlen=50
 set ttyfast
@@ -93,6 +105,7 @@ set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
+set wildmode=longest:full,full
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
@@ -108,27 +121,6 @@ augroup ToggleCursorLine
   autocmd InsertLeave * setlocal nocursorline
 augroup END
 
-" GitBrowse takes a dictionary and opens files on remote git repo websites.
-function! GitBrowse(args) abort
-  if a:args.filename ==# ''
-    return
-  endif
-  let l:remote = trim(system('git config branch.'.a:args.branch.'.remote || echo "origin" '))
-  if a:args.range == 0
-    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename
-  else
-    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename . ' ' . a:args.line1 . ' ' . a:args.line2
-  endif
-  execute 'silent ! ' . l:cmd | redraw!
-endfunction
-
-command! -range GB call GitBrowse({
-      \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
-      \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
-      \ 'range': <range>,
-      \ 'line1': <line1>,
-      \ 'line2': <line2>,
-      \ })
 command! GC Git commit
 command! GD Gdiffsplit
 command! GP Git! push
@@ -161,10 +153,12 @@ nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>ff <cmd>Files!<cr>
-nnoremap <leader>fg <cmd>GFiles!<cr>
-nnoremap <leader>fG <cmd>GFiles!?<cr>
+nnoremap <leader>ff <cmd>Files<cr>
+nnoremap <leader>fg <cmd>GFiles<cr>
+nnoremap <leader>fG <cmd>GFiles?<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
+nnoremap <leader>fl <cmd>Lines<cr>
+nnoremap <leader>fb <cmd>Buffers<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>Git<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
