@@ -34,11 +34,14 @@ alias \?go="ddgr --noprompt '!gopkg' "
 alias \?rust="ddgr --noprompt '!rust' "
 
 # vim
-alias vi="vim --clean"
+alias vc="vim +Commits!"
 alias vf="vim +Files!"
 alias vg="vim +Git +only"
 alias vgf="vim +GFiles!"
 alias vgs="vim +GFiles!?"
+alias vi="vim --clean"
+alias vl="vim +Lines!"
+alias vrg="vim +Rg!"
 
 # git
 alias ga="git add"
