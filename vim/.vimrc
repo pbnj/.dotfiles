@@ -18,7 +18,6 @@ let g:ale_completion_enabled = 1
 let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
-let g:ale_open_list = 1
 let g:ale_sign_error = 'x'
 let g:ale_sign_info = 'i'
 let g:ale_sign_style_error = 'x'
@@ -27,30 +26,29 @@ let g:ale_sign_warning = '!'
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
 
-let g:signify_sign_add               = '+'
-let g:signify_sign_delete            = '_'
+let g:signify_sign_add = '+'
+let g:signify_sign_delete = '_'
 let g:signify_sign_delete_first_line = '‾'
-let g:signify_sign_change            = '~'
-let g:signify_sign_change_delete     = g:signify_sign_change . g:signify_sign_delete_first_line
+let g:signify_sign_change = '~'
+let g:signify_sign_change_delete = g:signify_sign_change . g:signify_sign_delete_first_line
 
-let g:fzf_layout = {'down': '40%'}
+let g:fzf_layout = {'down': '20%'}
 
 call plug#begin()
 Plug 'https://github.com/dense-analysis/ale'
-Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
+Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
-Plug 'https://github.com/tommcdo/vim-fubitive'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
-Plug 'https://github.com/vim-airline/vim-airline'
+Plug 'https://github.com/arcticicestudio/nord-vim'
 call plug#end()
 
 filetype plugin indent on
@@ -67,7 +65,7 @@ set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completeopt=menu,longest
+set completeopt=menuone,longest,noinsert
 set encoding=utf-8
 set formatoptions=tcqjno
 set hidden
@@ -75,7 +73,6 @@ set hlsearch
 set ignorecase
 set incsearch
 set infercase
-set laststatus=2
 set lazyredraw
 set linebreak
 set list
@@ -93,7 +90,6 @@ set omnifunc=ale#completion#OmniFunc
 set ruler
 set secure
 set shortmess=filnxtToOc
-set signcolumn=yes
 set smartcase
 set smarttab
 set ttimeout
@@ -115,19 +111,40 @@ endif
 
 let &errorformat='%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 
-augroup ToggleCursorLine
-  autocmd!
-  autocmd InsertEnter * setlocal cursorline
-  autocmd InsertLeave * setlocal nocursorline
-augroup END
+" augroup ToggleCursorLine
+"   autocmd!
+"   autocmd InsertEnter * setlocal cursorline
+"   autocmd InsertLeave * setlocal nocursorline
+" augroup END
 
-command! GC Git commit
-command! GD Gdiffsplit
-command! GP Git! push
+" GitBrowse takes a dictionary and opens files on remote git repo websites.
+function! GitBrowse(args) abort
+  if a:args.filename ==# ''
+    return
+  endif
+  let l:remote = trim(system('git config branch.'.a:args.branch.'.remote || echo "origin" '))
+  if a:args.range == 0
+    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename
+  else
+    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename . ' ' . a:args.line1 . ' ' . a:args.line2
+  endif
+  execute 'silent ! ' . l:cmd | redraw!
+endfunction
+
+command! -range GB call GitBrowse({
+      \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
+      \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
+      \ 'range': <range>,
+      \ 'line1': <line1>,
+      \ 'line2': <line2>,
+      \ })
+command! GCommit Git commit
+command! GDiff Gdiffsplit
+command! GPush Git! push
 command! GPull Git! pull
 command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
-command! GW Gwrite
-command! GS G status %:h
+command! GWrite Gwrite
+command! GStatus G status %:h
 
 function! Terminal(...) abort
   if a:0 >= 1
@@ -148,7 +165,7 @@ cnoremap <c-a> <c-b>
 nnoremap <expr>yob &background ==# 'dark' ? ':let &background="light"<cr>' : ':let &background="dark"<cr>'
 nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<cr>'
 nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
-nnoremap <leader>bb <cmd>Buffers!<cr>
+nnoremap <leader>bb <cmd>Buffers<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
@@ -202,6 +219,6 @@ nnoremap [T <cmd>tfirst<cr>
 nnoremap ]T <cmd>tlast<cr>
 
 try
-  colorscheme pbnj
+  colorscheme nord
 catch
 endtry
