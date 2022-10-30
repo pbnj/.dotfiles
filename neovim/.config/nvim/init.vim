@@ -25,11 +25,11 @@ let g:ale_sign_warning = '!'
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
 
-let g:signify_sign_add               = '+'
-let g:signify_sign_delete            = '_'
+let g:signify_sign_add = '+'
+let g:signify_sign_delete = '_'
 let g:signify_sign_delete_first_line = '‾'
-let g:signify_sign_change            = '~'
-let g:signify_sign_change_delete     = g:signify_sign_change . g:signify_sign_delete_first_line
+let g:signify_sign_change = '~'
+let g:signify_sign_change_delete = g:signify_sign_change . g:signify_sign_delete_first_line
 
 let g:fzf_layout = {'down': '20%'}
 
@@ -60,7 +60,7 @@ set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completeopt=menu,longest,noinsert
+set completeopt=menuone,longest,noinsert
 set encoding=utf-8
 set formatoptions=tcqjno
 set hidden
