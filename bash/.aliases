@@ -21,6 +21,12 @@ alias mv='mv -i'
 
 alias grep="grep --color=auto"
 
+# if [[ "$(uname -s)" == "Darwin" ]]; then
+# 	echo auth sufficient pam_tid.so | sudo tee -a /etc/pam.d/sudo
+# 	sudo systemsetup -getremotelogin
+# 	sudo systemsetup -setremotelogin on
+# fi
+
 # For quick edits
 # shellcheck disable=SC2139
 alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
@@ -32,16 +38,6 @@ alias \?gh="ddgr --noprompt '!gh' "
 alias \?npm="ddgr --noprompt '!npm' "
 alias \?go="ddgr --noprompt '!gopkg' "
 alias \?rust="ddgr --noprompt '!rust' "
-
-# vim
-alias vc="vim +Commits!"
-alias vf="vim +Files!"
-alias vg="vim +Git +only"
-alias vgf="vim +GFiles!"
-alias vgs="vim +GFiles!?"
-alias vi="vim --clean"
-alias vl="vim +Lines!"
-alias vrg="vim +Rg!"
 
 # git
 alias ga="git add"
