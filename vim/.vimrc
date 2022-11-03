@@ -57,8 +57,14 @@ filetype plugin indent on
 
 " options
 
-if !isdirectory(expand('~/.vim/undo/'))
-  mkdir(expand('~/.vim/undo/'))
+if has('nvim')
+  set inccommand=split
+else
+  if !isdirectory(expand('~/.vim/undo/'))
+    mkdir(expand('~/.vim/undo/'))
+  endif
+  set undodir=~/.vim/undo/
+  set ttyfast
 endif
 
 set autoindent
@@ -97,8 +103,6 @@ set smartcase
 set smarttab
 set ttimeout
 set ttimeoutlen=50
-set ttyfast
-set undodir=~/.vim/undo/
 set undofile
 set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
@@ -128,7 +132,6 @@ function! GitBrowse(args) abort
   endif
   execute 'silent ! ' . l:cmd | redraw!
 endfunction
-
 command! -range GB call GitBrowse({
       \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
       \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
@@ -136,6 +139,7 @@ command! -range GB call GitBrowse({
       \ 'line1': <line1>,
       \ 'line2': <line2>,
       \ })
+
 command! GCommit Git commit
 command! GDiff Gdiffsplit
 command! GPush Git! push
@@ -147,6 +151,8 @@ command! GStatus G status %:h
 function! Terminal(...) abort
   if !empty($TMUX)
     call system(printf('tmux split-pane -c %s %s', expand('%:p:h'), join(a:000, ' ')))
+  elseif has('nvim')
+  " TODO
   else
     if a:0 >= 1
       call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
@@ -164,9 +170,6 @@ vnoremap <c-e> $
 inoremap <c-a> <esc>^i
 inoremap <c-e> <esc>$a
 cnoremap <c-a> <c-b>
-nnoremap <expr>yob &background ==# 'dark' ? ':let &background="light"<cr>' : ':let &background="dark"<cr>'
-nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<cr>'
-nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
 nnoremap <leader>bb <cmd>Buffers<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
@@ -197,6 +200,10 @@ nnoremap Y y$
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
+" vim-unimpaired inspired mappings
+nnoremap <expr>yob &background ==# 'dark' ? ':let &background="light"<cr>' : ':let &background="dark"<cr>'
+nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<cr>'
+nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
 nnoremap [a <cmd>previous<cr>
 nnoremap ]a <cmd>next<cr>
 nnoremap [A <cmd>first<cr>
