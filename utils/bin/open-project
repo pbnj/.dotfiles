@@ -26,8 +26,6 @@ PROJECTS="$(
 			--header $'Ctrl-s (tmux split-window horizontal) / Ctrl-v (tmux split-window vertical)\n' \
 			--bind "ctrl-v:execute:tmux split-window -h -c {}" \
 			--bind "ctrl-s:execute:tmux split-window -v -c {}" \
-			--preview-window down \
-			--preview "ls -1F {}" \
 			--prompt "${FIND_PROG} ${FIND_ARGS} ${FIND_DIR}> " ||
 		true
 )"
