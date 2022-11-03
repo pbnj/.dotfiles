@@ -1,14 +1,13 @@
 " vim:ts=2:sts=2:sw=2:et:
-" set mapleader to space
-nnoremap <silent><nowait><space> <nop>
-let g:mapleader = ' '
-
-let g:netrw_keepdir = 0
+let g:mapleader = ','
 
 " plugins
 
 packadd cfilter
-runtime ftplugin/man.vim
+
+" disable netrw
+let g:loaded_netrw = 1
+let g:loaded_netrwPlugin = 1
 
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
@@ -18,13 +17,17 @@ let g:ale_completion_enabled = 1
 let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
+let g:ale_hover_cursor = 0
 let g:ale_sign_error = 'x'
 let g:ale_sign_info = 'i'
 let g:ale_sign_style_error = 'x'
 let g:ale_sign_style_warning = '!'
 let g:ale_sign_warning = '!'
+
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
+nnoremap <leader>K <cmd>ALEHover<cr>
+inoremap <silent> <C-@> <C-\><C-O>:ALEComplete<CR>
 
 let g:signify_sign_add = '+'
 let g:signify_sign_delete = '_'
@@ -48,7 +51,6 @@ Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
-Plug 'https://github.com/arcticicestudio/nord-vim'
 call plug#end()
 
 filetype plugin indent on
@@ -73,6 +75,7 @@ set hlsearch
 set ignorecase
 set incsearch
 set infercase
+set laststatus=2
 set lazyredraw
 set linebreak
 set list
@@ -84,12 +87,12 @@ set norelativenumber
 set noshowmode
 set noswapfile
 set nowrap
-set nowrapscan
 set number
 set omnifunc=ale#completion#OmniFunc
 set ruler
 set secure
 set shortmess=filnxtToOc
+set showmode
 set smartcase
 set smarttab
 set ttimeout
@@ -102,6 +105,7 @@ set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt
 set wildignorecase
 set wildmenu
 set wildmode=longest:full,full
+set statusline=%f\ %m%r%h%w%y%q\ %l,%c
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
@@ -110,12 +114,6 @@ else
 endif
 
 let &errorformat='%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
-
-" augroup ToggleCursorLine
-"   autocmd!
-"   autocmd InsertEnter * setlocal cursorline
-"   autocmd InsertLeave * setlocal nocursorline
-" augroup END
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -170,7 +168,7 @@ nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>ff <cmd>Files<cr>
+nnoremap <leader>ff <cmd>Files!<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fG <cmd>GFiles?<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
@@ -219,6 +217,6 @@ nnoremap [T <cmd>tfirst<cr>
 nnoremap ]T <cmd>tlast<cr>
 
 try
-  colorscheme nord
+  colorscheme pbnj
 catch
 endtry
