@@ -145,10 +145,14 @@ command! GWrite Gwrite
 command! GStatus G status %:h
 
 function! Terminal(...) abort
-  if a:0 >= 1
-    call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
+  if !empty($TMUX)
+    call system(printf('tmux split-pane -c %s %s', expand('%:p:h'), join(a:000, ' ')))
   else
-    call term_start($SHELL, {'cwd': expand('%:p:h')})
+    if a:0 >= 1
+      call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
+    else
+      call term_start($SHELL, {'cwd': expand('%:p:h')})
+    endif
   endif
 endfunction
 command! -nargs=* Terminal call Terminal(<f-args>)
@@ -168,11 +172,10 @@ nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>ff <cmd>Files!<cr>
-nnoremap <leader>fg <cmd>GFiles<cr>
-nnoremap <leader>fG <cmd>GFiles?<cr>
-nnoremap <leader>fs <cmd>Rg<cr>
-nnoremap <leader>fl <cmd>Lines<cr>
+nnoremap <leader>ff <cmd>GFiles!<cr>
+nnoremap <leader>fg <cmd>GFiles!?<cr>
+nnoremap <leader>fs <cmd>Rg!<cr>
+nnoremap <leader>fl <cmd>Lines!<cr>
 nnoremap <leader>fb <cmd>Buffers<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>Git<cr>
@@ -182,7 +185,8 @@ nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
-nnoremap <leader>tt :terminal
+nnoremap <leader>tt :terminal<space>
+nnoremap <leader>tT :Terminal<space>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
