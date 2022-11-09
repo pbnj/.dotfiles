@@ -2,9 +2,7 @@
 let g:mapleader = ','
 
 " plugins
-
 packadd cfilter
-
 let g:netrw_keepdir = 0
 
 if filereadable(glob('~/.vim/work.vim'))
@@ -25,7 +23,6 @@ let g:ale_sign_warning = '!'
 nmap <C-j> <Plug>(ale_next_wrap)
 nmap <C-k> <Plug>(ale_previous_wrap)
 nnoremap <leader>K <cmd>ALEHover<cr>
-inoremap <silent> <C-@> <C-\><C-O>:ALEComplete<CR>
 
 let g:signify_sign_add = '+'
 let g:signify_sign_delete = '_'
@@ -47,18 +44,24 @@ Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
-Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
+Plug 'https://github.com/vim-airline/vim-airline'
 call plug#end()
 
 filetype plugin indent on
 
 " options
 
+if has('nvim')
+  set inccommand=split
+else
 if !isdirectory(expand('~/.vim/undo/'))
   mkdir(expand('~/.vim/undo/'))
+endif
+  set ttyfast
+  set undodir=~/.vim/undo/
 endif
 
 set autoindent
@@ -79,7 +82,7 @@ set laststatus=2
 set lazyredraw
 set linebreak
 set list
-set listchars=tab:\|\ ,trail:·
+set listchars=tab:\│\ ,trail:·
 set modeline
 set mouse=a
 set nobackup
@@ -95,11 +98,9 @@ set shortmess=filnxtToOc
 set showmode
 set smartcase
 set smarttab
-set statusline=%f\ %{FugitiveStatusline()}\ %m%r%h%w%y%q\ %l,%c
+" set statusline=%f\ %{FugitiveStatusline()}\ %m%r%h%w%y%q\ %l,%c
 set ttimeout
 set ttimeoutlen=50
-set ttyfast
-set undodir=~/.vim/undo/
 set undofile
 set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
@@ -156,6 +157,13 @@ function! Terminal(...) abort
 endfunction
 command! -nargs=* Terminal call Terminal(<f-args>)
 
+function! MakeCompletion(A,L,P) abort
+    let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
+    return filter(l:targets, 'v:val =~ "^' . a:A . '"')
+endfunction
+command! -nargs=* -complete=customlist,MakeCompletion Make terminal make <args>
+nnoremap m<space> :Make<space><c-d>
+
 nnoremap <c-a> ^
 nnoremap <c-e> $
 vnoremap <c-a> ^
@@ -184,7 +192,6 @@ nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
 nnoremap <leader>tt :terminal<space>
-nnoremap <leader>tT :Terminal<space>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
@@ -227,13 +234,16 @@ try
 catch
 endtry
 
-if has('gui_running')
+if has('gui_running') || exists('g:neovide')
+  if has('gui_macvim')
+    set wildoptions=fuzzy,pum
+  endif
   set background=light
   set guifont=Iosevka:h14
-  set guioptions-=l
+  set guioptions+=k
   set guioptions-=L
-  set guioptions-=r
+  set guioptions-=l
   set guioptions-=R
-  set wildoptions=fuzzy,pum
+  set guioptions-=r
   colorscheme iceberg
 endif
