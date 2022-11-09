@@ -10,29 +10,27 @@
 set -eou pipefail
 
 FIND_PROG="$(which fd)"
-FIND_ARGS=". --type=directory"
+FIND_TYPE="${1:-"d"}"
+FIND_ARGS=". --type=${FIND_TYPE}"
 FIND_DIR="${HOME}/Projects"
 
 if [[ -z "${FIND_PROG}" ]]; then
 	FIND_PROG="$(which find)"
-	FIND_ARGS="-type d \( -path *.git -or -path *.terraform -or -path *node_modules \) -prune -print"
+	FIND_ARGS="-type ${FIND_TYPE} \( -path *.git -or -path *.terraform -or -path *node_modules \) -prune -print"
 fi
 
-PROJECTS="$(
+SELECTED="$(
 	${FIND_PROG} ${FIND_ARGS} ${FIND_DIR} |
 		fzf-tmux \
 			--reverse \
 			--multi \
-			--header $'Ctrl-s (tmux split-window horizontal) / Ctrl-v (tmux split-window vertical)\n' \
-			--bind "ctrl-v:execute:tmux split-window -h -c {}" \
-			--bind "ctrl-s:execute:tmux split-window -v -c {}" \
 			--prompt "${FIND_PROG} ${FIND_ARGS} ${FIND_DIR}> " ||
 		true
 )"
 
-if test -n "${PROJECTS}"; then
-	for p in ${PROJECTS}; do
-		tmux new-window -c "${p}"
+if test -n "${SELECTED}"; then
+	for s in ${SELECTED}; do
+		tmux new-window "vim ${s}"
 	done
 else
 	exit 0
