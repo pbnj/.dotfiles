@@ -136,13 +136,12 @@ command! -range GB call GitBrowse({
       \ 'line2': <line2>,
       \ })
 
-command! GCommit Git commit
-command! GDiff Gdiffsplit
-command! GPush Git! push
-command! GPull Git! pull
-command! GRoot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
-command! GWrite Gwrite
-command! GStatus G status %:h
+command! GC Git commit
+command! GD Gdiffsplit
+command! GP Git! push
+command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
+command! GW Gwrite
+command! GS Git! status %:h
 
 function! Terminal(...) abort
   if !empty($TMUX)
