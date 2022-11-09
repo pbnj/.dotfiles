@@ -3,11 +3,7 @@
 
 # General
 
-if hash nvim 2>/dev/null; then
-	export EDITOR=nvim
-else
-	export EDITOR=vim
-fi
+export EDITOR=vim
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
 # export FZF_DEFAULT_COMMAND='rg --files || find * -type f'
