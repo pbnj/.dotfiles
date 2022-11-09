@@ -5,9 +5,7 @@ let g:mapleader = ','
 
 packadd cfilter
 
-" disable netrw
-let g:loaded_netrw = 1
-let g:loaded_netrwPlugin = 1
+let g:netrw_keepdir = 0
 
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
@@ -38,10 +36,12 @@ let g:signify_sign_change_delete = g:signify_sign_change . g:signify_sign_delete
 let g:fzf_layout = {'down': '20%'}
 
 call plug#begin()
+Plug 'https://github.com/cocopon/iceberg.vim'
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
+Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
@@ -57,24 +57,18 @@ filetype plugin indent on
 
 " options
 
-if has('nvim')
-  set inccommand=split
-else
-  if !isdirectory(expand('~/.vim/undo/'))
-    mkdir(expand('~/.vim/undo/'))
-  endif
-  set undodir=~/.vim/undo/
-  set ttyfast
+if !isdirectory(expand('~/.vim/undo/'))
+  mkdir(expand('~/.vim/undo/'))
 endif
 
 set autoindent
 set autoread
-set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
 set completeopt=menuone,longest,noinsert
 set encoding=utf-8
+set fillchars=vert:\│,fold:-,eob:~
 set formatoptions=tcqjno
 set hidden
 set hlsearch
@@ -87,7 +81,7 @@ set linebreak
 set list
 set listchars=tab:\|\ ,trail:·
 set modeline
-set mouse=
+set mouse=a
 set nobackup
 set norelativenumber
 set noshowmode
@@ -101,15 +95,17 @@ set shortmess=filnxtToOc
 set showmode
 set smartcase
 set smarttab
+set statusline=%f\ %{FugitiveStatusline()}\ %m%r%h%w%y%q\ %l,%c
 set ttimeout
 set ttimeoutlen=50
+set ttyfast
+set undodir=~/.vim/undo/
 set undofile
 set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
 set wildmode=longest:full,full
-set statusline=%f\ %m%r%h%w%y%q\ %l,%c
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
@@ -151,8 +147,6 @@ command! GStatus G status %:h
 function! Terminal(...) abort
   if !empty($TMUX)
     call system(printf('tmux split-pane -c %s %s', expand('%:p:h'), join(a:000, ' ')))
-  elseif has('nvim')
-  " TODO
   else
     if a:0 >= 1
       call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
@@ -171,12 +165,14 @@ inoremap <c-a> <esc>^i
 inoremap <c-e> <esc>$a
 cnoremap <c-a> <c-b>
 nnoremap <leader>bb <cmd>Buffers<cr>
+nnoremap <leader>bd <cmd>bd!<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>ff <cmd>GFiles!<cr>
-nnoremap <leader>fg <cmd>GFiles!?<cr>
+nnoremap <leader>ff <cmd>Files!<cr>
+nnoremap <leader>fg <cmd>GFiles!<cr>
+nnoremap <leader>fG <cmd>GFiles!?<cr>
 nnoremap <leader>fs <cmd>Rg!<cr>
 nnoremap <leader>fl <cmd>Lines!<cr>
 nnoremap <leader>fb <cmd>Buffers<cr>
@@ -231,3 +227,14 @@ try
   colorscheme pbnj
 catch
 endtry
+
+if has('gui_running')
+  set background=light
+  set guifont=Iosevka:h14
+  set guioptions-=l
+  set guioptions-=L
+  set guioptions-=r
+  set guioptions-=R
+  set wildoptions=fuzzy,pum
+  colorscheme iceberg
+endif
