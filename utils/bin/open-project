@@ -30,7 +30,7 @@ SELECTED="$(
 
 if test -n "${SELECTED}"; then
 	for s in ${SELECTED}; do
-		tmux new-window "vim ${s}"
+		tmux new-window "${EDITOR} ${s}"
 	done
 else
 	exit 0
