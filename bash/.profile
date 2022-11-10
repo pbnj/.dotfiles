@@ -12,9 +12,6 @@ if [[ "${BASH_VERSINFO:-0}" -ge 4 ]]; then
 	shopt -s globstar
 fi
 
-# BREW
-[[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
-
 # BASH COMPLETION
 [[ -f "/usr/local/etc/bash_completion" ]] && source "/usr/local/etc/bash_completion"
 [[ -r "/usr/local/etc/profile.d/bash_completion.sh" ]] && source "/usr/local/etc/profile.d/bash_completion.sh"
