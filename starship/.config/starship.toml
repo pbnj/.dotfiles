@@ -24,9 +24,6 @@ $terraform\
 $aws\
 $gcloud\
 $azure\
-$memory_usage\
-$battery\
-$time\
 $status\
 $container\
 $line_break\
