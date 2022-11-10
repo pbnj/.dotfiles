@@ -1,5 +1,6 @@
 " vim:ts=2:sts=2:sw=2:et:
-let g:mapleader = ','
+nnoremap <silent><nowait><space> <nop>
+let g:mapleader = ' '
 
 " plugins
 packadd cfilter
@@ -30,7 +31,7 @@ let g:signify_sign_delete_first_line = '‾'
 let g:signify_sign_change = '~'
 let g:signify_sign_change_delete = g:signify_sign_change . g:signify_sign_delete_first_line
 
-let g:fzf_layout = {'down': '20%'}
+let g:fzf_layout = {'down': '40%'}
 
 call plug#begin()
 Plug 'https://github.com/cocopon/iceberg.vim'
@@ -48,6 +49,10 @@ Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/vim-airline/vim-airline'
+
+if has('nvim')
+  Plug 'https://github.com/williamboman/mason.nvim'
+endif
 call plug#end()
 
 filetype plugin indent on
@@ -56,12 +61,16 @@ filetype plugin indent on
 
 if has('nvim')
   set inccommand=split
+  set termguicolors
+  lua require("mason").setup()
+  colorscheme iceberg
 else
-if !isdirectory(expand('~/.vim/undo/'))
-  mkdir(expand('~/.vim/undo/'))
-endif
+  if !isdirectory(expand('~/.vim/undo/'))
+    mkdir(expand('~/.vim/undo/'))
+  endif
   set ttyfast
   set undodir=~/.vim/undo/
+  colorscheme pbnj
 endif
 
 set autoindent
@@ -98,7 +107,6 @@ set shortmess=filnxtToOc
 set showmode
 set smartcase
 set smarttab
-" set statusline=%f\ %{FugitiveStatusline()}\ %m%r%h%w%y%q\ %l,%c
 set ttimeout
 set ttimeoutlen=50
 set undofile
@@ -228,11 +236,6 @@ nnoremap [t <cmd>tprevious<cr>
 nnoremap ]t <cmd>tnext<cr>
 nnoremap [T <cmd>tfirst<cr>
 nnoremap ]T <cmd>tlast<cr>
-
-try
-  colorscheme pbnj
-catch
-endtry
 
 if has('gui_running') || exists('g:neovide')
   if has('gui_macvim')
