@@ -10,13 +10,12 @@
 set -eou pipefail
 
 FIND_PROG="$(which fd)"
-FIND_TYPE="${1:-"d"}"
-FIND_ARGS=". --type=${FIND_TYPE}"
+FIND_ARGS=". --type=d"
 FIND_DIR="${HOME}/Projects"
 
 if [[ -z "${FIND_PROG}" ]]; then
 	FIND_PROG="$(which find)"
-	FIND_ARGS="-type ${FIND_TYPE} \( -path *.git -or -path *.terraform -or -path *node_modules \) -prune -print"
+	FIND_ARGS="-type d \( -path *.git -or -path *.terraform -or -path *node_modules \) -prune -print"
 fi
 
 SELECTED="$(
@@ -30,7 +29,7 @@ SELECTED="$(
 
 if test -n "${SELECTED}"; then
 	for s in ${SELECTED}; do
-		tmux new-window "${EDITOR} ${s}"
+		tmux new-window -c "${s}"
 	done
 else
 	exit 0

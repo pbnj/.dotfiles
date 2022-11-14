@@ -5,12 +5,14 @@ let g:mapleader = ' '
 " plugins
 packadd cfilter
 let g:netrw_keepdir = 0
+let g:netrw_altfile = 0
 
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
 endif
 
 let g:ale_completion_enabled = 1
+let g:ale_lint_on_text_changed = 1
 let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
@@ -21,19 +23,18 @@ let g:ale_sign_style_error = 'x'
 let g:ale_sign_style_warning = '!'
 let g:ale_sign_warning = '!'
 
-nmap <C-j> <Plug>(ale_next_wrap)
-nmap <C-k> <Plug>(ale_previous_wrap)
 nnoremap <leader>K <cmd>ALEHover<cr>
 
-let g:signify_sign_add = '+'
-let g:signify_sign_delete = '_'
-let g:signify_sign_delete_first_line = '‾'
-let g:signify_sign_change = '~'
+let g:signify_sign_add = '│'
+let g:signify_sign_delete = '│'
+let g:signify_sign_delete_first_line = '│'
+let g:signify_sign_change = '│'
 let g:signify_sign_change_delete = g:signify_sign_change . g:signify_sign_delete_first_line
 
 let g:fzf_layout = {'down': '40%'}
 
 call plug#begin()
+Plug 'https://github.com/christoomey/vim-tmux-navigator'
 Plug 'https://github.com/cocopon/iceberg.vim'
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
@@ -48,33 +49,21 @@ Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-surround'
+Plug 'https://github.com/tpope/vim-vinegar'
 Plug 'https://github.com/vim-airline/vim-airline'
-
-if has('nvim')
-  Plug 'https://github.com/williamboman/mason.nvim'
-endif
 call plug#end()
 
 filetype plugin indent on
 
 " options
 
-if has('nvim')
-  set inccommand=split
-  set termguicolors
-  lua require("mason").setup()
-  colorscheme iceberg
-else
-  if !isdirectory(expand('~/.vim/undo/'))
-    mkdir(expand('~/.vim/undo/'))
-  endif
-  set ttyfast
-  set undodir=~/.vim/undo/
-  colorscheme pbnj
+if !isdirectory(expand('~/.vim/undo/'))
+  mkdir(expand('~/.vim/undo/'))
 endif
 
 set autoindent
 set autoread
+set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
@@ -109,12 +98,15 @@ set smartcase
 set smarttab
 set ttimeout
 set ttimeoutlen=50
+set ttyfast
+set undodir=~/.vim/undo/
 set undofile
 set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
 set wildmode=longest:full,full
+set wildoptions=pum
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
@@ -147,7 +139,7 @@ command! -range GB call GitBrowse({
 
 command! GC Git commit
 command! GD Gdiffsplit
-command! GP Git! push
+command! -nargs=* GP Git! push <args>
 command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GW Gwrite
 command! GS Git! status %:h
@@ -237,11 +229,12 @@ nnoremap ]t <cmd>tnext<cr>
 nnoremap [T <cmd>tfirst<cr>
 nnoremap ]T <cmd>tlast<cr>
 
-if has('gui_running') || exists('g:neovide')
-  if has('gui_macvim')
-    set wildoptions=fuzzy,pum
-  endif
-  set background=light
+try
+  colorscheme pbnj
+catch
+endtry
+
+if has('gui_running')
   set guifont=Iosevka:h14
   set guioptions+=k
   set guioptions-=L
