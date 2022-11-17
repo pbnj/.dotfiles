@@ -2,21 +2,6 @@
 # shellcheck shell=bash
 
 ########################################
-# General functions
-########################################
-
-vimgrep() {
-	if [[ -z "${@}" ]]; then
-		echo "${@}"
-		echo "Error: missing argument(s)"
-		echo "Usage: $ vimgrep <pattern> [<arguments>,...]"
-		echo 'See `vim -c ":h :grep"` for details'
-		return 1
-	fi
-	eval "vim -c \"grep ${@}\""
-}
-
-########################################
 # Kubernetes
 ########################################
 
