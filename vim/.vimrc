@@ -29,13 +29,12 @@ let g:signify_sign_add = '│'
 let g:signify_sign_delete = '│'
 let g:signify_sign_delete_first_line = '│'
 let g:signify_sign_change = '│'
-let g:signify_sign_change_delete = g:signify_sign_change . g:signify_sign_delete_first_line
+let g:signify_sign_change_delete = g:signify_sign_change
 
 let g:fzf_layout = {'down': '40%'}
 
 call plug#begin()
 Plug 'https://github.com/christoomey/vim-tmux-navigator'
-Plug 'https://github.com/cocopon/iceberg.vim'
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
@@ -48,22 +47,61 @@ Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
+Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
+Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
-Plug 'https://github.com/vim-airline/vim-airline'
+" Plug 'https://github.com/vim-airline/vim-airline'
 call plug#end()
+
+" language servers, linters, fixers
+  " bash-language-server
+  " commitlint
+  " dockerfile-language-server
+  " goimports
+  " golangci-lint
+  " golangci-lint-langserver
+  " gopls
+  " gotests
+  " hadolint
+  " json-lsp
+  " jsonlint
+  " markdownlint
+  " prettier
+  " rust-analyzer
+  " rustfmt
+  " shellcheck
+  " shfmt
+  " terraform-ls
+  " tflint
+  " yaml-language-server
+  " yamllint
 
 filetype plugin indent on
 
 " options
 
+if system("defaults read -g AppleInterfaceStyle") =~ '^Dark'
+  set background=dark
+else
+  set background=light
+endif
+
+colorscheme pbnj
+
 if !isdirectory(expand('~/.vim/undo/'))
   mkdir(expand('~/.vim/undo/'))
 endif
 
+if has('nvim')
+  set inccommand=split
+else
+  set ttyfast
+  set undodir=~/.vim/undo/
+endif
+
 set autoindent
 set autoread
-set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
@@ -85,7 +123,6 @@ set modeline
 set mouse=a
 set nobackup
 set norelativenumber
-set noshowmode
 set noswapfile
 set nowrap
 set number
@@ -96,10 +133,9 @@ set shortmess=filnxtToOc
 set showmode
 set smartcase
 set smarttab
+set statusline=%f\ %{FugitiveStatusline()}\ %m%r%h%w%y%q\ %-3l,%-3c\ %P
 set ttimeout
 set ttimeoutlen=50
-set ttyfast
-set undodir=~/.vim/undo/
 set undofile
 set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
@@ -137,25 +173,30 @@ command! -range GB call GitBrowse({
       \ 'line2': <line2>,
       \ })
 
-command! GC Git commit
-command! GD Gdiffsplit
-command! -nargs=* GP Git! push <args>
-command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
-command! GW Gwrite
-command! GS Git! status %:h
+command! -nargs=* Gpull Git! pull <args>
+command! -nargs=* Gpush Git! push <args>
+command! Gcommit Git commit
+command! Groot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
+command! Gstatus Git! status %:h
 
 function! Terminal(...) abort
-  if !empty($TMUX)
-    call system(printf('tmux split-pane -c %s %s', expand('%:p:h'), join(a:000, ' ')))
+  if has('nvim')
+    if a:0 >= 1
+      new
+      call termopen(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
+    else
+      new
+      call termopen(split(&shell), {'cwd': expand('%:p:h')})
+    endif
   else
     if a:0 >= 1
-      call term_start([$SHELL, '-lc', join(a:000,' ')], {'cwd': expand('%:p:h')})
+      call term_start(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
     else
-      call term_start($SHELL, {'cwd': expand('%:p:h')})
+      call term_start(split(&shell), {'cwd': expand('%:p:h')})
     endif
   endif
 endfunction
-command! -nargs=* Terminal call Terminal(<f-args>)
+command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
 
 function! MakeCompletion(A,L,P) abort
     let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
@@ -164,13 +205,6 @@ endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make terminal make <args>
 nnoremap m<space> :Make<space><c-d>
 
-nnoremap <c-a> ^
-nnoremap <c-e> $
-vnoremap <c-a> ^
-vnoremap <c-e> $
-inoremap <c-a> <esc>^i
-inoremap <c-e> <esc>$a
-cnoremap <c-a> <c-b>
 nnoremap <leader>bb <cmd>Buffers<cr>
 nnoremap <leader>bd <cmd>bd!<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
@@ -202,44 +236,11 @@ nnoremap Y y$
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-" vim-unimpaired inspired mappings
-nnoremap <expr>yob &background ==# 'dark' ? ':let &background="light"<cr>' : ':let &background="dark"<cr>'
-nnoremap <expr>yoh &hlsearch == 1 ? ':let &hlsearch=0<cr>' : ':let &hlsearch=1<cr>'
-nnoremap <expr>yol &list == 1 ? ':let &list=0<cr>' : ':let &list=1<cr>'
-nnoremap [a <cmd>previous<cr>
-nnoremap ]a <cmd>next<cr>
-nnoremap [A <cmd>first<cr>
-nnoremap ]A <cmd>last<cr>
-nnoremap [b <cmd>bprevious<cr>
-nnoremap ]b <cmd>bnext<cr>
-nnoremap [B <cmd>bfirst<cr>
-nnoremap ]B <cmd>blast<cr>
-nnoremap [e <cmd>move -2<cr>
-nnoremap ]e <cmd>move +1<cr>
-nnoremap [l <cmd>lprevious<cr>
-nnoremap ]l <cmd>lnext<cr>
-nnoremap [L <cmd>lfirst<cr>
-nnoremap ]L <cmd>llast<cr>
-nnoremap [q <cmd>cprevious<cr>
-nnoremap ]q <cmd>cnext<cr>
-nnoremap [Q <cmd>cfirst<cr>
-nnoremap ]Q <cmd>clast<cr>
-nnoremap [t <cmd>tprevious<cr>
-nnoremap ]t <cmd>tnext<cr>
-nnoremap [T <cmd>tfirst<cr>
-nnoremap ]T <cmd>tlast<cr>
-
-try
-  colorscheme pbnj
-catch
-endtry
-
 if has('gui_running')
-  set guifont=Iosevka:h14
+  set guifont=Iosevka:h11
   set guioptions+=k
   set guioptions-=L
   set guioptions-=l
   set guioptions-=R
   set guioptions-=r
-  colorscheme iceberg
 endif
