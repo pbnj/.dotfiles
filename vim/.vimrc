@@ -51,7 +51,6 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
-" Plug 'https://github.com/vim-airline/vim-airline'
 call plug#end()
 
 " language servers, linters, fixers
@@ -95,6 +94,7 @@ endif
 
 if has('nvim')
   set inccommand=split
+  set termguicolors
 else
   set ttyfast
   set undodir=~/.vim/undo/
@@ -236,8 +236,13 @@ nnoremap Y y$
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-if has('gui_running')
-  set guifont=Iosevka:h11
+if has('gui_running') || exists('g:neovide')
+  let g:neovide_input_use_logo=v:true
+  vnoremap <D-c> "+y
+  nnoremap <D-v> "+p
+  inoremap <D-v> <Esc>"+pa
+  cnoremap <D-v> <c-r>+
+  tnoremap <D-v> <C-\><C-n>"+pa
   set guioptions+=k
   set guioptions-=L
   set guioptions-=l
