@@ -51,6 +51,7 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
+Plug 'https://github.com/vim-test/vim-test'
 call plug#end()
 
 " language servers, linters, fixers
@@ -80,14 +81,6 @@ filetype plugin indent on
 
 " options
 
-if system("defaults read -g AppleInterfaceStyle") =~ '^Dark'
-  set background=dark
-else
-  set background=light
-endif
-
-colorscheme pbnj
-
 if !isdirectory(expand('~/.vim/undo/'))
   mkdir(expand('~/.vim/undo/'))
 endif
@@ -102,6 +95,7 @@ endif
 
 set autoindent
 set autoread
+set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
@@ -120,7 +114,7 @@ set linebreak
 set list
 set listchars=tab:\│\ ,trail:·
 set modeline
-set mouse=a
+set mouse=
 set nobackup
 set norelativenumber
 set noswapfile
@@ -134,6 +128,7 @@ set showmode
 set smartcase
 set smarttab
 set statusline=%f\ %{FugitiveStatusline()}\ %m%r%h%w%y%q\ %-3l,%-3c\ %P
+set t_Co=16
 set ttimeout
 set ttimeoutlen=50
 set undofile
@@ -143,6 +138,8 @@ set wildignorecase
 set wildmenu
 set wildmode=longest:full,full
 set wildoptions=pum
+
+colorscheme pbnj
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
@@ -203,20 +200,25 @@ function! MakeCompletion(A,L,P) abort
     return filter(l:targets, 'v:val =~ "^' . a:A . '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make terminal make <args>
-nnoremap m<space> :Make<space><c-d>
+nnoremap m<space> :Make <c-d>
 
-nnoremap <leader>bb <cmd>Buffers<cr>
+command! -nargs=* DDGR vert terminal ddgr --expand <args>
+command! -nargs=1 Cheat vert terminal curl http://cheat.sh/<args>
+
+nnoremap <expr> n 'Nn'[v:searchforward]
+nnoremap <expr> N 'nN'[v:searchforward]
+nnoremap <leader>bb :b <c-d>
 nnoremap <leader>bd <cmd>bd!<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
+nnoremap <leader>fb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files!<cr>
 nnoremap <leader>fg <cmd>GFiles!<cr>
 nnoremap <leader>fG <cmd>GFiles!?<cr>
-nnoremap <leader>fs <cmd>Rg!<cr>
 nnoremap <leader>fl <cmd>Lines!<cr>
-nnoremap <leader>fb <cmd>Buffers<cr>
+nnoremap <leader>fs <cmd>Rg!<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>Git<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
