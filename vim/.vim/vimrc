@@ -34,7 +34,6 @@ let g:signify_sign_change_delete = g:signify_sign_change
 let g:fzf_layout = {'down': '40%'}
 
 call plug#begin()
-Plug 'https://github.com/christoomey/vim-tmux-navigator'
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
