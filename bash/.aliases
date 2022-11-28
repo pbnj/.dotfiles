@@ -17,7 +17,7 @@ alias ll="ls -alFh"
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
-alias grep="grep --color=auto"
+alias grep="grep --color=auto --line-buffered"
 alias vf="vim +Files!"
 alias vgf="vim +GFiles!"
 alias vrg="vim +Rg!"
