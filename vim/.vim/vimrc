@@ -2,42 +2,56 @@
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
-" plugins
+"-------------------------------------------------------------------------------
+" Plugins
+"-------------------------------------------------------------------------------
+
+" Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
+
+" Settings for built-in file explorer
 let g:netrw_keepdir = 0
 let g:netrw_altfile = 0
+let g:netrw_liststyle = 3
 
+" Custom, priavte work-related configs
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
 endif
 
+" ale
 let g:ale_completion_enabled = 1
 let g:ale_lint_on_text_changed = 1
 let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
 let g:ale_hover_cursor = 0
-let g:ale_sign_error = 'x'
-let g:ale_sign_info = 'i'
-let g:ale_sign_style_error = 'x'
-let g:ale_sign_style_warning = '!'
-let g:ale_sign_warning = '!'
+let g:ale_sign_error = '●'
+let g:ale_sign_info = '●'
+let g:ale_sign_style_error = '●'
+let g:ale_sign_style_warning = '●'
+let g:ale_sign_warning = '●'
 
 nnoremap <leader>K <cmd>ALEHover<cr>
 
+" vim-signify
 let g:signify_sign_add = '│'
 let g:signify_sign_delete = '│'
 let g:signify_sign_delete_first_line = '│'
 let g:signify_sign_change = '│'
 let g:signify_sign_change_delete = g:signify_sign_change
 
-let g:fzf_layout = {'down': '40%'}
+" mucomplete
+let g:mucomplete#chains = {}
+let g:mucomplete#chains.default = ['path', 'omni', 'c-n', 'keyn', 'dict', 'uspl']
+let g:mucomplete#chains.vim = ['path', 'cmd', 'keyn', 'c-n']
 
 call plug#begin()
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
+Plug 'https://github.com/lifepillar/vim-mucomplete'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
@@ -53,32 +67,18 @@ Plug 'https://github.com/tpope/vim-vinegar'
 Plug 'https://github.com/vim-test/vim-test'
 call plug#end()
 
-" language servers, linters, fixers
-  " bash-language-server
-  " commitlint
-  " dockerfile-language-server
-  " goimports
-  " golangci-lint
-  " golangci-lint-langserver
-  " gopls
-  " gotests
-  " hadolint
-  " json-lsp
-  " jsonlint
-  " markdownlint
-  " prettier
-  " rust-analyzer
-  " rustfmt
-  " shellcheck
-  " shfmt
-  " terraform-ls
-  " tflint
-  " yaml-language-server
-  " yamllint
-
 filetype plugin indent on
 
-" options
+"-------------------------------------------------------------------------------
+" Options
+"-------------------------------------------------------------------------------
+
+" Auto-toggle background based on system theme
+" if system("defaults read -g AppleInterfaceStyle") =~ '^Dark'
+"   set background=dark
+" else
+"   set background=light
+" endif
 
 if !isdirectory(expand('~/.vim/undo/'))
   mkdir(expand('~/.vim/undo/'))
@@ -86,7 +86,6 @@ endif
 
 if has('nvim')
   set inccommand=split
-  set termguicolors
 else
   set ttyfast
   set undodir=~/.vim/undo/
@@ -94,16 +93,13 @@ endif
 
 set autoindent
 set autoread
-set background=dark
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completeopt=menuone,longest,noinsert
 set encoding=utf-8
 set fillchars=vert:\│,fold:-,eob:~
 set formatoptions=tcqjno
 set hidden
-set hlsearch
 set ignorecase
 set incsearch
 set infercase
@@ -113,8 +109,9 @@ set linebreak
 set list
 set listchars=tab:\│\ ,trail:·
 set modeline
-set mouse=
+set mouse=a
 set nobackup
+set nohlsearch
 set norelativenumber
 set noswapfile
 set nowrap
@@ -124,9 +121,10 @@ set ruler
 set secure
 set shortmess=filnxtToOc
 set showmode
+set signcolumn=yes
 set smartcase
 set smarttab
-set statusline=%f\ %{FugitiveStatusline()}\ %m%r%h%w%y%q\ %-3l,%-3c\ %P
+set splitbelow
 set t_Co=16
 set ttimeout
 set ttimeoutlen=50
@@ -138,19 +136,34 @@ set wildmenu
 set wildmode=longest:full,full
 set wildoptions=pum
 
-colorscheme pbnj
+set statusline=%f
+set statusline+=\ %{FugitiveStatusline()}
+set statusline+=\ %#Error#%m%*%r%h%w%y%q\ %-3l,%-3c\ %P
+set statusline+=\ %#SpellRare#%{ale#engine#IsCheckingBuffer(bufnr())?'\ Checking\ ':''}%*
+set statusline+=\ %#Error#%{(ale#statusline#Count(bufnr()).error)?'\ E:'.ale#statusline#Count(bufnr()).error.'\ ':''}%*
+set statusline+=\ %#Todo#%{(ale#statusline#Count(bufnr()).warning)?'\ W:'.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
 
 if executable('rg')
   let &grepprg = 'rg --vimgrep --hidden --smart-case'
 else
-  let &grepprg = 'grep -HI --line-number $* -r .'
+  let &grepprg = 'grep -HIn $* -r .'
 endif
 
 let &errorformat='%f|%l| %m,%f:%l:%m,%f:%l:%c:%m'
 
+"-------------------------------------------------------------------------------
+" Commands
+"-------------------------------------------------------------------------------
+
+command! -nargs=* DDGR
+      \ <mods> terminal ddgr --expand <args>
+command! -nargs=1 Cheat
+      \ <mods> terminal curl http://cheat.sh/<args>
+
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
   if a:args.filename ==# ''
+    echoerr "Failed to `git browse`. Filename is missing or invalid."
     return
   endif
   let l:remote = trim(system('git config branch.'.a:args.branch.'.remote || echo "origin" '))
@@ -169,55 +182,25 @@ command! -range GB call GitBrowse({
       \ 'line2': <line2>,
       \ })
 
-command! -nargs=* Gpull Git! pull <args>
-command! -nargs=* Gpush Git! push <args>
-command! Gcommit Git commit
-command! Groot execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
-command! Gstatus Git! status %:h
+command! GC Git commit
+command! GP Git! push
+command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
+command! GS Git! status %:h
+command! GW Gwrite
 
-function! Terminal(...) abort
-  if has('nvim')
-    if a:0 >= 1
-      new
-      call termopen(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
-    else
-      new
-      call termopen(split(&shell), {'cwd': expand('%:p:h')})
-    endif
-  else
-    if a:0 >= 1
-      call term_start(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
-    else
-      call term_start(split(&shell), {'cwd': expand('%:p:h')})
-    endif
-  endif
-endfunction
-command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
-
-function! MakeCompletion(A,L,P) abort
-    let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
-    return filter(l:targets, 'v:val =~ "^' . a:A . '"')
-endfunction
-command! -nargs=* -complete=customlist,MakeCompletion Make terminal make <args>
-nnoremap m<space> :Make <c-d>
-
-command! -nargs=* DDGR vert terminal ddgr --expand <args>
-command! -nargs=1 Cheat vert terminal curl http://cheat.sh/<args>
+"-------------------------------------------------------------------------------
+" Mappings
+"-------------------------------------------------------------------------------
 
 nnoremap <expr> n 'Nn'[v:searchforward]
 nnoremap <expr> N 'nN'[v:searchforward]
 nnoremap <leader>bb :b <c-d>
-nnoremap <leader>bd <cmd>bd!<cr>
+nnoremap <leader>cc <cmd>cc<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>fb <cmd>Buffers<cr>
-nnoremap <leader>ff <cmd>Files!<cr>
-nnoremap <leader>fg <cmd>GFiles!<cr>
-nnoremap <leader>fG <cmd>GFiles!?<cr>
-nnoremap <leader>fl <cmd>Lines!<cr>
-nnoremap <leader>fs <cmd>Rg!<cr>
+nnoremap <leader>ff :Cfind * -name<space>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>Git<cr>
 nnoremap <leader>gK <cmd>ALEDocumentation<cr>
@@ -226,7 +209,9 @@ nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>gr <cmd>ALEFindReferences<cr>
 nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
-nnoremap <leader>tt :terminal<space>
+nnoremap <leader>ll <cmd>ll<cr>
+nnoremap <leader>mm <cmd>lcd %:p:h<cr>:!clear; make<space>
+nnoremap <leader>tt <cmd>lcd %:p:h<cr>:terminal<space>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
@@ -237,16 +222,5 @@ nnoremap Y y$
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-if has('gui_running') || exists('g:neovide')
-  let g:neovide_input_use_logo=v:true
-  vnoremap <D-c> "+y
-  nnoremap <D-v> "+p
-  inoremap <D-v> <Esc>"+pa
-  cnoremap <D-v> <c-r>+
-  tnoremap <D-v> <C-\><C-n>"+pa
-  set guioptions+=k
-  set guioptions-=L
-  set guioptions-=l
-  set guioptions-=R
-  set guioptions-=r
-endif
+" Colorscheme
+colorscheme pbnj
