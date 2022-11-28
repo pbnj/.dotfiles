@@ -1,0 +1,24 @@
+if exists('g:neovide')
+  let g:neovide_input_use_logo=v:true
+  vnoremap <D-c> "+y
+  nnoremap <D-v> "+p
+  inoremap <D-v> <Esc>"+pa
+  cnoremap <D-v> <c-r>+
+  tnoremap <D-v> <C-\><C-n>"+pa
+  let g:gui_font_family = 'Victor Mono'
+  let g:gui_font_size = '14'
+  let &guifont= g:gui_font_family . ':h' . g:gui_font_size
+  function! ResizeFont(delta) abort
+    let g:gui_font_size = g:gui_font_size + a:delta
+    let &guifont= g:gui_font_family . ':h' . g:gui_font_size
+  endfunction
+  nnoremap <expr><D-=> ResizeFont(1)
+  nnoremap <expr><D--> ResizeFont(-1)
+endif
+
+set guioptions+=k
+set guioptions-=L
+set guioptions-=l
+set guioptions-=R
+set guioptions-=r
+set termguicolors
