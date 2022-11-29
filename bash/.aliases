@@ -18,9 +18,8 @@ alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
-alias vf="vim +Files!"
-alias vgf="vim +GFiles!"
-alias vrg="vim +Rg!"
+
+hash nvim 2>/dev/null && alias nv=nvim
 
 # if [[ "$(uname -s)" == "Darwin" ]]; then
 # 	echo auth sufficient pam_tid.so | sudo tee -a /etc/pam.d/sudo
@@ -32,13 +31,8 @@ alias vrg="vim +Rg!"
 # shellcheck disable=SC2139
 alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
 
-# ddgr
-alias \?='ddgr --expand'
-alias \?g="ddgr --noprompt '!g' "
-alias \?gh="ddgr --noprompt '!gh' "
-alias \?npm="ddgr --noprompt '!npm' "
-alias \?go="ddgr --noprompt '!gopkg' "
-alias \?rust="ddgr --noprompt '!rust' "
+# (neo)vim
+vgrep() { ${EDITOR} -c "grep $*"; }
 
 # git
 alias ga="git add"
