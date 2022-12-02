@@ -20,7 +20,6 @@ endif
 
 " ale
 let g:ale_completion_enabled = 1
-let g:ale_lint_on_text_changed = 1
 let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
@@ -42,12 +41,14 @@ let g:signify_sign_change_delete = g:signify_sign_change
 
 " mucomplete
 let g:mucomplete#chains = {}
-let g:mucomplete#chains.default = ['path', 'omni', 'c-n', 'keyn', 'dict', 'uspl']
+let g:mucomplete#chains.default = ['path', 'omni', 'keyn','c-n', 'dict', 'uspl']
 let g:mucomplete#chains.vim = ['path', 'cmd', 'keyn', 'c-n']
 
 call plug#begin()
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
+Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'https://github.com/junegunn/fzf.vim'
 Plug 'https://github.com/lifepillar/vim-mucomplete'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
@@ -55,6 +56,7 @@ Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
+Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-rsi'
@@ -92,6 +94,7 @@ set autoread
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
+set completeopt-=preview
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
 set fillchars=vert:\│,fold:-,eob:~
@@ -122,6 +125,8 @@ set showmode
 set signcolumn=yes
 set smartcase
 set smarttab
+set splitbelow
+set splitright
 set ttimeout
 set ttimeoutlen=50
 set undofile
@@ -131,6 +136,10 @@ set wildignorecase
 set wildmenu
 set wildmode=longest:full,full
 set wildoptions=pum
+
+if v:version >= 900
+  set wildoptions+=fuzzy
+endif
 
 " Better grep
 if executable('rg')
@@ -142,10 +151,12 @@ endif
 " Minimal, yet pleasant statusline
 set statusline=%f
 set statusline+=\ %#DiffAdd#%{FugitiveStatusline()}%*
-set statusline+=\ %#Error#%m%*%r%h%w%y%q\ %-3l,%-3c\ %P
+set statusline+=\ %#Error#%m%*%r%h%w%y%q
+set statusline+=%=
 set statusline+=\ %#Todo#%{ale#engine#IsCheckingBuffer(bufnr())?'\ Checking\ ':''}%*
-set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'\ E:'.ale#statusline#Count(bufnr()).error.'\ ':''}%*
-set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'\ W:'.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
+set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'\ ●\ '.ale#statusline#Count(bufnr()).error.'\ ':''}%*
+set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'\ ●\ '.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
+set statusline+=%-3l,%-3c\ %P
 
 if exists('g:neovide')
   source ~/.vim/gvimrc
@@ -174,20 +185,22 @@ function! GitBrowse(args) abort
   endif
   execute 'silent ! ' . l:cmd | redraw!
 endfunction
-command! -range GB call GitBrowse({
+" View git repo, branch, & file in the browser
+command! -range GB
+      \ call GitBrowse({
       \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
       \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
       \ 'range': <range>,
       \ 'line1': <line1>,
       \ 'line2': <line2>,
       \ })
-
 command! GC Git commit
 command! GP Git! push
 command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GS Git! status %:h
 command! GW Gwrite
 
+" Custom function & command to launch the integrated terminal shell in the working directory of the current buffer as a split
 function! Terminal(...) abort
   if has('nvim')
     if a:0 >= 1

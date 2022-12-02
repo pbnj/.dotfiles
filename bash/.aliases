@@ -29,10 +29,10 @@ hash nvim 2>/dev/null && alias nv=nvim
 
 # For quick edits
 # shellcheck disable=SC2139
-alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
+alias dotfiles="vim ${HOME}/.dotfiles"
 
-# (neo)vim
-vgrep() { ${EDITOR} -c "grep $*"; }
+# vim
+vimgrep() { vim -c "grep $*"; }
 
 # git
 alias ga="git add"
