@@ -3,7 +3,11 @@
 
 # General
 
-export EDITOR=vim
+if hash nvim 2>/dev/null; then
+	export EDITOR=nvim
+else
+	export EDITOR=vim
+fi
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
 export FZF_DEFAULT_OPTS='--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up'
