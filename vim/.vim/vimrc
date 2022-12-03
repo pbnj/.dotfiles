@@ -18,20 +18,6 @@ if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
 endif
 
-" ale
-let g:ale_completion_enabled = 1
-let g:ale_fix_on_save = 1
-let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
-let g:ale_floating_preview = 1
-let g:ale_hover_cursor = 0
-let g:ale_sign_error = '●'
-let g:ale_sign_info = '●'
-let g:ale_sign_style_error = '●'
-let g:ale_sign_style_warning = '●'
-let g:ale_sign_warning = '●'
-
-nnoremap <leader>K <cmd>ALEHover<cr>
-
 " vim-signify
 let g:signify_sign_add = '│'
 let g:signify_sign_delete = '│'
@@ -45,7 +31,6 @@ let g:mucomplete#chains.default = ['path', 'omni', 'keyn','c-n', 'dict', 'uspl']
 let g:mucomplete#chains.vim = ['path', 'cmd', 'keyn', 'c-n']
 
 call plug#begin()
-Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
@@ -82,7 +67,7 @@ if has('nvim')
   augroup END
 else
   if !isdirectory(expand('~/.vim/undo/'))
-    mkdir(expand('~/.vim/undo/'))
+    call mkdir(expand('~/.vim/undo/'))
   endif
   set t_Co=16
   set ttyfast
@@ -110,14 +95,14 @@ set linebreak
 set list
 set listchars=tab:\│\ ,trail:·
 set modeline
-set mouse=a
+set mouse=
 set nobackup
 set nohlsearch
 set norelativenumber
 set noswapfile
 set nowrap
 set number
-set omnifunc=ale#completion#OmniFunc
+set omnifunc=syntaxcomplete#Complete
 set ruler
 set secure
 set shortmess=filnxtToOc
@@ -144,23 +129,17 @@ endif
 " Better grep
 if executable('rg')
   set grepprg=rg\ --vimgrep\ --line-number\ --column\ $*
-else
+elseif executable('git')
   set grepprg=git\ grep\ --line-number\ --column\ $*
+else
+  set grepprg=grep\ -HIn\ --line-buffered\ $*
 endif
 
-" Minimal, yet pleasant statusline
+" Minimal statusline
 set statusline=%f
-set statusline+=\ %#DiffAdd#%{FugitiveStatusline()}%*
-set statusline+=\ %#Error#%m%*%r%h%w%y%q
-set statusline+=%=
-set statusline+=\ %#Todo#%{ale#engine#IsCheckingBuffer(bufnr())?'\ Checking\ ':''}%*
-set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'\ ●\ '.ale#statusline#Count(bufnr()).error.'\ ':''}%*
-set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'\ ●\ '.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
-set statusline+=%-3l,%-3c\ %P
-
-if exists('g:neovide')
-  source ~/.vim/gvimrc
-endif
+set statusline+=\ %{FugitiveStatusline()}%*
+set statusline+=\ %#ErrorMsg#%m%*%r%h%w%y%q
+set statusline+=\ %l:%c/%L\ [%P]
 
 "-------------------------------------------------------------------------------
 " Commands
