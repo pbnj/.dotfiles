@@ -25,16 +25,10 @@ let g:signify_sign_delete_first_line = '│'
 let g:signify_sign_change = '│'
 let g:signify_sign_change_delete = g:signify_sign_change
 
-" mucomplete
-let g:mucomplete#chains = {}
-let g:mucomplete#chains.default = ['path', 'omni', 'keyn','c-n', 'dict', 'uspl']
-let g:mucomplete#chains.vim = ['path', 'cmd', 'keyn', 'c-n']
-
 call plug#begin()
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
-Plug 'https://github.com/lifepillar/vim-mucomplete'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
@@ -119,8 +113,6 @@ set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
-set wildmode=longest:full,full
-set wildoptions=pum
 
 if v:version >= 900
   set wildoptions+=fuzzy
@@ -140,6 +132,17 @@ set statusline=%f
 set statusline+=\ %{FugitiveStatusline()}%*
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%y%q
 set statusline+=\ %l:%c/%L\ [%P]
+set statusline+=%=
+set statusline+=%#QFErrMarker#%{(g:qfsigns_error>0)?'[E:'.g:qfsigns_error.']':''}%*
+set statusline+=%#QFWarnMarker#%{(g:qfsigns_warn>0)?'[W:'.g:qfsigns_warn.']':''}%*
+set statusline+=%#QFInfoMarker#%{(g:qfsigns_info>0)?'[I:'.g:qfsigns_info.']':''}%*
+set statusline+=\ [compiler:\ %{&makeprg}]
+
+augroup quickfix
+  autocmd!
+  autocmd QuickFixCmdPost [^l]* cwindow
+  autocmd QuickFixCmdPost l* lwindow
+augroup END
 
 "-------------------------------------------------------------------------------
 " Commands
@@ -198,6 +201,19 @@ function! Terminal(...) abort
   endif
 endfunction
 command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
+
+function! StripTrailingSpaces() abort
+  %s/\s\+$//e
+endfunction
+
+function! StripTrailingNewLines() abort
+  %s/\($\n\s*\)\+\%$//e
+endfunction
+
+augroup prewrites
+  autocmd!
+  autocmd BufWritePre,FileWritePre * call StripTrailingSpaces() | call StripTrailingNewLines()
+augroup END
 
 "-------------------------------------------------------------------------------
 " Mappings
