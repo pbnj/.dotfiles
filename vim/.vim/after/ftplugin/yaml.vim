@@ -7,12 +7,9 @@ setlocal shiftwidth=2
 setlocal softtabstop=2
 setlocal formatprg=prettier\ --parser=yaml
 
+compiler yamllint
+
 " Convert YAML to JSON or JSON to YAML
 " Requires: yq
-command! YJ Dispatch yq eval --tojson % > %:r.json
-command! YAMLtoJSON Dispatch yq eval --tojson % > %:r.json
-
-" Formatter
-command! FMT Dispatch npx prettier --write %
-
-let b:ale_fixers = ['prettier']
+command! YJ terminal yq eval --tojson % > %:r.json
+command! YAMLtoJSON terminal yq eval --tojson % > %:r.json
