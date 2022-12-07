@@ -9,10 +9,6 @@ let g:mapleader = ' '
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
-" Settings for built-in file explorer
-let g:netrw_keepdir = 0
-let g:netrw_altfile = 0
-
 " Custom, priavte work-related configs
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
@@ -27,6 +23,7 @@ let g:signify_sign_change_delete = g:signify_sign_change
 
 call plug#begin()
 Plug 'https://github.com/editorconfig/editorconfig-vim'
+Plug 'https://github.com/godlygeek/tabular'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
@@ -34,6 +31,7 @@ Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
+Plug 'https://github.com/thalesmello/webcomplete.vim'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
@@ -73,7 +71,9 @@ set autoread
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
+set completefunc=webcomplete#complete
 set completeopt-=preview
+set dictionary+=/usr/share/dict/words
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
 set fillchars=vert:\│,fold:-,eob:~
@@ -91,6 +91,7 @@ set listchars=tab:\│\ ,trail:·
 set modeline
 set mouse=
 set nobackup
+set nofoldenable
 set nohlsearch
 set norelativenumber
 set noswapfile
@@ -131,17 +132,14 @@ endif
 set statusline=%f
 set statusline+=\ %{FugitiveStatusline()}%*
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%y%q
-set statusline+=\ %l:%c/%L\ [%P]
 set statusline+=%=
-set statusline+=%#QFErrMarker#%{(g:qfsigns_error>0)?'[E:'.g:qfsigns_error.']':''}%*
-set statusline+=%#QFWarnMarker#%{(g:qfsigns_warn>0)?'[W:'.g:qfsigns_warn.']':''}%*
-set statusline+=%#QFInfoMarker#%{(g:qfsigns_info>0)?'[I:'.g:qfsigns_info.']':''}%*
 set statusline+=\ [compiler:\ %{&makeprg}]
+set statusline+=\ %l:%c/%L\ [%P]
 
 augroup quickfix
   autocmd!
   autocmd QuickFixCmdPost [^l]* cwindow
-  autocmd QuickFixCmdPost l* lwindow
+  autocmd QuickFixCmdPost l*    lwindow
 augroup END
 
 "-------------------------------------------------------------------------------
@@ -208,6 +206,10 @@ endfunction
 
 function! StripTrailingNewLines() abort
   %s/\($\n\s*\)\+\%$//e
+endfunction
+
+function! StripNewLines() abort
+  g/^$/d
 endfunction
 
 augroup prewrites
