@@ -7,11 +7,7 @@
 alias ..="cd .."
 alias ...="cd ../.."
 
-if hash exa 2>/dev/null; then
-	alias ls="exa --group-directories-first"
-elif hash gls 2>/dev/null; then
-	alias ls="gls --group-directories-first"
-fi
+alias ls="ls -F"
 alias ll="ls -alFh"
 
 alias rm='rm -i'
