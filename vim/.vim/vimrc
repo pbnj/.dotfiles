@@ -9,6 +9,8 @@ let g:mapleader = ' '
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
+let g:netrw_keepdir=0
+
 " Custom, priavte work-related configs
 if filereadable(glob('~/.vim/work.vim'))
   source ~/.vim/work.vim
@@ -115,10 +117,6 @@ set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
-
-if v:version >= 900
-  set wildoptions+=fuzzy
-endif
 
 " Better grep
 if executable('rg')
