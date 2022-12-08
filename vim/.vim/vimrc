@@ -43,7 +43,6 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
-Plug 'https://github.com/vim-test/vim-test'
 call plug#end()
 
 filetype plugin indent on
@@ -132,7 +131,6 @@ set statusline=%f
 set statusline+=\ %{FugitiveStatusline()}%*
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%y%q
 set statusline+=%=
-set statusline+=\ [compiler:\ %{&makeprg}]
 set statusline+=\ %l:%c/%L\ [%P]
 
 augroup quickfix
