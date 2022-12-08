@@ -211,7 +211,7 @@ function! StripNewLines() abort
   g/^$/d
 endfunction
 
-augroup prewrites
+augroup stripper
   autocmd!
   autocmd BufWritePre,FileWritePre * call StripTrailingSpaces() | call StripTrailingNewLines()
 augroup END
