@@ -75,6 +75,7 @@ set breakindent
 set clipboard=unnamed,unnamedplus
 set completefunc=webcomplete#complete
 set completeopt-=preview
+set cursorline
 set dictionary+=/usr/share/dict/words
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
