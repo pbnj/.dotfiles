@@ -6,8 +6,8 @@ PROJECT_DIR := $(HOME)/Projects
 SUDO := $(shell which sudo)
 
 .PHONY: help
-help: ## print help
-	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//' | sort
+help: ## Show this help.
+	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk -F':.*?##' '{printf "%-30s %s\n", $$1, $$2}'
 
 .PHONY: md-toc
 md-toc: ## generate markdown toc
