@@ -26,8 +26,6 @@ let g:signify_sign_change_delete = g:signify_sign_change
 call plug#begin()
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/godlygeek/tabular'
-Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
-Plug 'https://github.com/junegunn/fzf.vim'
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
@@ -117,6 +115,7 @@ set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
+set wildoptions=pum
 
 " Better grep
 if executable('rg')
@@ -129,9 +128,9 @@ endif
 
 " Minimal statusline
 set statusline=%f
-set statusline+=\ %{FugitiveStatusline()}%*
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%y%q
 set statusline+=%=
+set statusline+=%#DiffAdd#%{FugitiveStatusline()}%*
 set statusline+=\ %l:%c/%L\ [%P]
 
 augroup quickfix
@@ -145,7 +144,7 @@ augroup END
 "-------------------------------------------------------------------------------
 
 command! -nargs=* DDGR
-      \ <mods> terminal ddgr --expand --num 5 <args>
+      \ <mods> terminal ++close ddgr --expand --num 5 <args>
 command! -nargs=1 Cheat
       \ <mods> terminal curl http://cheat.sh/<args>
 
@@ -219,8 +218,10 @@ augroup END
 " Mappings
 "-------------------------------------------------------------------------------
 
-nnoremap <expr> n 'Nn'[v:searchforward]
-nnoremap <expr> N 'nN'[v:searchforward]
+" inoremap <c-]> <c-x><c-]>
+inoremap <c-f> <c-x><c-f>
+inoremap <c-l> <c-x><c-l>
+nnoremap <expr> <leader>ss '/\<'.expand('<cword>').'\><cr>'
 nnoremap <leader>bb :b <c-d>
 nnoremap <leader>cc <cmd>cc<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
@@ -228,23 +229,19 @@ nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
 nnoremap <leader>ff :Cfind * -name *
-nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>Git<cr>
-nnoremap <leader>gK <cmd>ALEDocumentation<cr>
-nnoremap <leader>gk <cmd>ALEHover<cr>
-nnoremap <leader>gm <cmd>ALEGoToImplementation<cr>
 nnoremap <leader>gq mzgggqG`z
-nnoremap <leader>gr <cmd>ALEFindReferences<cr>
-nnoremap <leader>gy <cmd>ALEGoToTypeDefinition<cr>
 nnoremap <leader>ll <cmd>ll<cr>
 nnoremap <leader>tt :Terminal<space>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
+nnoremap N Nzz
+nnoremap Y y$
 nnoremap c "_c
 nnoremap cc "_cc
+nnoremap n nzz
 nnoremap x "_x
-nnoremap Y y$
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
