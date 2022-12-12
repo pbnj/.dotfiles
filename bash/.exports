@@ -3,7 +3,8 @@
 
 # General
 
-export AWS_CLI_AUTO_PROMPT=on
+export BROWSER=lynx
+export DOTFILES="${HOME}/.dotfiles"
 export EDITOR=vim
 export FZF_DEFAULT_OPTS='--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up'
 export GIT_TERMINAL_PROMPT=1
