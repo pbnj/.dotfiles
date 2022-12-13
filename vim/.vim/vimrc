@@ -58,9 +58,7 @@ if has('nvim')
     autocmd TermLeave * stopinsert  | setlocal number
   augroup END
 else
-  if !isdirectory(expand('~/.vim/undo/'))
-    call mkdir(expand('~/.vim/undo/'))
-  endif
+  if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
   set t_Co=16
   set ttyfast
   set undodir=~/.vim/undo/
