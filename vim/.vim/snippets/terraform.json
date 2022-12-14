@@ -1,0 +1,57 @@
+{
+	"tf resource": {
+		"description": "terraform resource block",
+		"prefix": "tfr",
+		"body": [
+			"resource \"$1\" \"$2\" {",
+			"\t$3",
+			"}$0"
+		]
+	},
+	"tf data": {
+		"description": "terraform data block",
+		"prefix": "tfd",
+		"body": [
+			"data \"$1\" \"$2\" {",
+			"\t$3",
+			"}$0"
+		]
+	},
+	"tf aws iam user": {
+		"description": "terraform resource aws iam user block",
+		"prefix": "tfraiu",
+		"body": [
+			"resource \"aws_iam_user\" \"$1\" {",
+			"\tname = \"$2\"",
+			"\ttags = {$3}",
+			"}$0"
+		]
+	},
+	"tf aws iam role": {
+		"description": "terraform resource aws iam role block",
+		"prefix": "tfrair",
+		"body": [
+			"resource \"aws_iam_role\" \"$1\" {",
+			"\tname = \"$2\"",
+			"\ttags = {$3}",
+			"\tassume_role_policy = jsonencode($4)",
+			"\tmanaged_policy_arns = [$5]",
+			"\tinline_policy {",
+			"\t\tname = \"$6\"",
+			"\t\tpolicy = jsonencode($7)",
+			"\t}",
+			"}$0"
+		]
+	},
+	"tf aws iam policy": {
+		"description": "terraform resource aws iam policy block",
+		"prefix": "tfraip",
+		"body": [
+			"resource \"aws_iam_policy\" \"$1\" {",
+			"\tname = \"$2\"",
+			"\ttags = {$3}",
+			"\tpolicy = jsonencode($4)",
+			"}$0"
+		]
+	}
+}
