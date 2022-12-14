@@ -7,10 +7,7 @@ endfunction
 command! -nargs=? -complete=customlist,TerraformStateCompletion TerraformStateShow
             \ terminal terraform state show <args>
 
-inoreabbrev tfr resource "" "" {}
-inoreabbrev tfd data "" "" {}
-
-augroup terraform_fmt_on_save
+augroup fixer_terraform
     autocmd! * <buffer>
     autocmd BufWritePre,FileWritePre <buffer> TerraformFmt
 augroup END
