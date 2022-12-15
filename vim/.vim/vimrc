@@ -222,6 +222,8 @@ augroup END
 " Mappings
 "-------------------------------------------------------------------------------
 
+cnoremap <c-p> <c-Up>
+cnoremap <c-n> <c-Down>
 inoremap <c-f> <c-x><c-f>
 nnoremap <expr> <leader>ss '/\<'.expand('<cword>').'\><cr>'
 nnoremap <leader>bb :b <c-d>
@@ -245,26 +247,15 @@ nnoremap x "_x
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-" Expand
-imap <expr> <C-j>   vsnip#expandable()  ? '<Plug>(vsnip-expand)'         : '<C-j>'
-smap <expr> <C-j>   vsnip#expandable()  ? '<Plug>(vsnip-expand)'         : '<C-j>'
-
-" Expand or jump
-imap <expr> <C-l>   vsnip#available(1)  ? '<Plug>(vsnip-expand-or-jump)' : ''
-smap <expr> <C-l>   vsnip#available(1)  ? '<Plug>(vsnip-expand-or-jump)' : ''
-
-" Jump forward or backward
-imap <expr> <Tab>   vsnip#jumpable(1)   ? '<Plug>(vsnip-jump-next)'      : '<Tab>'
-smap <expr> <Tab>   vsnip#jumpable(1)   ? '<Plug>(vsnip-jump-next)'      : '<Tab>'
-imap <expr> <S-Tab> vsnip#jumpable(-1)  ? '<Plug>(vsnip-jump-prev)'      : '<S-Tab>'
-smap <expr> <S-Tab> vsnip#jumpable(-1)  ? '<Plug>(vsnip-jump-prev)'      : '<S-Tab>'
-
-" Select or cut text to use as $TM_SELECTED_TEXT in the next snippet.
-" See https://github.com/hrsh7th/vim-vsnip/pull/50
-nmap        s   <Plug>(vsnip-select-text)
-xmap        s   <Plug>(vsnip-select-text)
-nmap        S   <Plug>(vsnip-cut-text)
-xmap        S   <Plug>(vsnip-cut-text)
+" Snippets
+imap  <expr>  <C-j>    vsnip#expandable()  ?  '<Plug>(vsnip-expand)'          :  ''
+smap  <expr>  <C-j>    vsnip#expandable()  ?  '<Plug>(vsnip-expand)'          :  ''
+imap  <expr>  <C-l>    vsnip#available(1)  ?  '<Plug>(vsnip-expand-or-jump)'  :  ''
+smap  <expr>  <C-l>    vsnip#available(1)  ?  '<Plug>(vsnip-expand-or-jump)'  :  ''
+imap  <expr>  <Tab>    vsnip#jumpable(1)   ?  '<Plug>(vsnip-jump-next)'       :  '<Tab>'
+smap  <expr>  <Tab>    vsnip#jumpable(1)   ?  '<Plug>(vsnip-jump-next)'       :  '<Tab>'
+imap  <expr>  <S-Tab>  vsnip#jumpable(-1)  ?  '<Plug>(vsnip-jump-prev)'       :  '<S-Tab>'
+smap  <expr>  <S-Tab>  vsnip#jumpable(-1)  ?  '<Plug>(vsnip-jump-prev)'       :  '<S-Tab>'
 
 " Colorscheme
 colorscheme pbnj
