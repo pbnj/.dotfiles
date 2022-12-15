@@ -28,13 +28,11 @@ let g:vsnip_snippet_dir = "~/.vim/snippets"
 call plug#begin()
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/godlygeek/tabular'
-Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
-Plug 'https://github.com/thalesmello/webcomplete.vim'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
@@ -55,20 +53,7 @@ filetype plugin indent on
 " Options
 "-------------------------------------------------------------------------------
 
-if has('nvim')
-  set inccommand=split
-  augroup Terminal
-    autocmd!
-    autocmd TermOpen  * startinsert
-    autocmd TermEnter * startinsert | setlocal nonumber nolist signcolumn=no
-    autocmd TermLeave * stopinsert  | setlocal number
-  augroup END
-else
-  if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
-  set t_Co=16
-  set ttyfast
-  set undodir=~/.vim/undo/
-endif
+if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
 
 set autoindent
 set autoread
@@ -112,8 +97,11 @@ set smartcase
 set smarttab
 set splitbelow
 set splitright
+set t_Co=16
 set ttimeout
 set ttimeoutlen=50
+set ttyfast
+set undodir=~/.vim/undo/
 set undofile
 set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
@@ -136,12 +124,6 @@ set statusline+=\ %#ErrorMsg#%m%*%r%h%w%y%q
 set statusline+=%=
 set statusline+=%#DiffAdd#%{FugitiveStatusline()}%*
 set statusline+=\ %l:%c/%L\ [%P]
-
-augroup quickfix
-  autocmd!
-  autocmd QuickFixCmdPost [^l]* cwindow
-  autocmd QuickFixCmdPost l*    lwindow
-augroup END
 
 "-------------------------------------------------------------------------------
 " Commands
@@ -183,20 +165,10 @@ command! GW Gwrite
 
 " Custom function & command to launch the integrated terminal shell in the working directory of the current buffer as a split
 function! Terminal(...) abort
-  if has('nvim')
-    if a:0 >= 1
-      new
-      call termopen(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
-    else
-      new
-      call termopen(split(&shell), {'cwd': expand('%:p:h')})
-    endif
+  if a:0 >= 1
+    call term_start(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
   else
-    if a:0 >= 1
-      call term_start(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
-    else
-      call term_start(split(&shell), {'cwd': expand('%:p:h')})
-    endif
+    call term_start(split(&shell), {'cwd': expand('%:p:h')})
   endif
 endfunction
 command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
@@ -213,7 +185,7 @@ function! StripNewLines() abort
   g/^$/d
 endfunction
 
-augroup stripper
+augroup fixer_general
   autocmd!
   autocmd BufWritePre,FileWritePre * call StripTrailingSpaces() | call StripTrailingNewLines()
 augroup END
