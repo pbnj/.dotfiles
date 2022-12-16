@@ -43,9 +43,6 @@
 	email = "petermbenjamin@gmail.com"
 	; signingkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C"
 
-[credential]
-	helper = store
-
 [pull]
 	rebase = true
 
@@ -75,3 +72,10 @@
 ; 	format = ssh
 ; [gpg "ssh"]
 ; 	allowedSignersFile = ~/.ssh/allowed_signers
+
+[credential]
+	helper = store
+
+[credential "https://github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
