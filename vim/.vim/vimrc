@@ -70,6 +70,7 @@ set fillchars=vert:\│,fold:-,eob:~
 set formatoptions=tcqjno
 set grepformat^=%f:%l:%c:%m
 set hidden
+set hlsearch
 set ignorecase
 set incsearch
 set infercase
@@ -82,7 +83,6 @@ set modeline
 set mouse=
 set nobackup
 set nofoldenable
-set nohlsearch
 set norelativenumber
 set noswapfile
 set nowrap
@@ -160,7 +160,6 @@ command! GC Git commit
 command! GP Git! push
 command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GS Git! status %:h
-command! GW Gwrite
 
 " Custom function & command to launch the integrated terminal shell in the working directory of the current buffer as a split
 function! Terminal(...) abort
@@ -197,7 +196,7 @@ cnoremap <c-p> <c-Up>
 cnoremap <c-n> <c-Down>
 inoremap <c-f> <c-x><c-f>
 nnoremap <expr> <leader>ss '/\<'.expand('<cword>').'\><cr>'
-nnoremap <leader>bb :b <c-d>
+nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>cc <cmd>cc<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
