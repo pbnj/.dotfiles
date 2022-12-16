@@ -107,7 +107,6 @@ set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/tmp/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
-set wildoptions=pum
 
 " Better grep
 if executable('rg')
