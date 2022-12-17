@@ -32,12 +32,12 @@
 		"prefix": "tfrair",
 		"body": [
 			"resource \"aws_iam_role\" \"$1\" {",
-			"\tname = \"$2\"",
-			"\ttags = {$3}",
-			"\tassume_role_policy = jsonencode($4)",
+			"\tname                = \"$2\"",
+			"\ttags                = {$3}",
+			"\tassume_role_policy  = jsonencode($4)",
 			"\tmanaged_policy_arns = [$5]",
 			"\tinline_policy {",
-			"\t\tname = \"$6\"",
+			"\t\tname   = \"$6\"",
 			"\t\tpolicy = jsonencode($7)",
 			"\t}",
 			"}$0"
@@ -48,8 +48,8 @@
 		"prefix": "tfraip",
 		"body": [
 			"resource \"aws_iam_policy\" \"$1\" {",
-			"\tname = \"$2\"",
-			"\ttags = {$3}",
+			"\tname   = \"$2\"",
+			"\ttags   = {$3}",
 			"\tpolicy = jsonencode($4)",
 			"}$0"
 		]
