@@ -1,25 +1,25 @@
 {
-	"tf resource": {
-		"description": "terraform resource block",
-		"prefix": "tfr",
+	"resource": {
+		"description": "resource block",
+		"prefix": "res",
 		"body": [
 			"resource \"$1\" \"$2\" {",
 			"\t$3",
 			"}$0"
 		]
 	},
-	"tf data": {
-		"description": "terraform data block",
-		"prefix": "tfd",
+	"data": {
+		"description": "data block",
+		"prefix": "dat",
 		"body": [
 			"data \"$1\" \"$2\" {",
 			"\t$3",
 			"}$0"
 		]
 	},
-	"tf aws iam user": {
-		"description": "terraform resource aws iam user block",
-		"prefix": "tfraiu",
+	"aws iam user resource": {
+		"description": "resource for aws iam user",
+		"prefix": "resaiu",
 		"body": [
 			"resource \"aws_iam_user\" \"$1\" {",
 			"\tname = \"$2\"",
@@ -27,9 +27,9 @@
 			"}$0"
 		]
 	},
-	"tf aws iam role": {
-		"description": "terraform resource aws iam role block",
-		"prefix": "tfrair",
+	"aws iam role": {
+		"description": "resource for aws iam role",
+		"prefix": "resair",
 		"body": [
 			"resource \"aws_iam_role\" \"$1\" {",
 			"\tname                = \"$2\"",
@@ -43,9 +43,9 @@
 			"}$0"
 		]
 	},
-	"tf aws iam policy": {
-		"description": "terraform resource aws iam policy block",
-		"prefix": "tfraip",
+	"aws iam policy": {
+		"description": "resource for aws iam policy",
+		"prefix": "resaip",
 		"body": [
 			"resource \"aws_iam_policy\" \"$1\" {",
 			"\tname   = \"$2\"",
