@@ -20,7 +20,7 @@ else
 	OPEN_PROG="echo"
 fi
 
-FZF_TMUX=$(find ~ -name fzf-tmux)
+FZF_TMUX="$(which fzf-tmux || ~/.vim/plugged/fzf/bin/fzf-tmux)"
 
 URLS="$(tmux capture-pane -J -p | grep -oE "https?://[^[:space:]'\")]+" | ${FZF_TMUX} --reverse --height=20 --multi || true)"
 
