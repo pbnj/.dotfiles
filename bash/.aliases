@@ -8,6 +8,7 @@ alias ..="cd .."
 alias ...="cd ../.."
 
 alias ls="ls -F"
+hash exa 2>/dev/null && alias ls="exa -F"
 alias ll="ls -alFh"
 
 alias rm='rm -i'
