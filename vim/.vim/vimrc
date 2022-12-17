@@ -23,6 +23,10 @@ let g:signify_sign_delete_first_line = '│'
 let g:signify_sign_change = '│'
 let g:signify_sign_change_delete = g:signify_sign_change
 
+" vim-mucomplete
+let g:mucomplete#enable_auto_at_startup = 1
+
+" vim-vsnip
 let g:vsnip_snippet_dir = "~/.vim/snippets"
 
 call plug#begin()
@@ -32,6 +36,7 @@ Plug 'https://github.com/hrsh7th/vim-vsnip'
 Plug 'https://github.com/hrsh7th/vim-vsnip-integ'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
+Plug 'https://github.com/lifepillar/vim-mucomplete'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
@@ -62,7 +67,7 @@ set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
 set completefunc=webcomplete#complete
-set completeopt-=preview
+set completeopt=menuone,noinsert,noselect
 set cursorline
 set dictionary+=/usr/share/dict/words
 set encoding=utf-8
@@ -175,14 +180,17 @@ command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
 function! StripTrailingSpaces() abort
   %s/\s\+$//e
 endfunction
+command! StripTrailingSpaces call StripTrailingSpaces()
 
 function! StripTrailingNewLines() abort
   %s/\($\n\s*\)\+\%$//e
 endfunction
+command! StripTrailingNewLines call StripTrailingNewLines()
 
 function! StripNewLines() abort
   g/^$/d
 endfunction
+command! StripNewLines call StripNewLines()
 
 augroup fixer_general
   autocmd!
@@ -193,8 +201,8 @@ augroup END
 " Mappings
 "-------------------------------------------------------------------------------
 
-cnoremap <c-p> <c-Up>
 cnoremap <c-n> <c-Down>
+cnoremap <c-p> <c-Up>
 inoremap <c-f> <c-x><c-f>
 nnoremap <expr> <leader>ss '/\<'.expand('<cword>').'\><cr>'
 nnoremap <leader>bb <cmd>b#<cr>
@@ -203,8 +211,9 @@ nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>ff :Cfind * -name *
-nnoremap <leader>gg <cmd>Git<cr>
+nnoremap <leader>ex <cmd>20Lexplore<cr>
+nnoremap <leader>ff <cmd>Files<cr>
+nnoremap <leader>gg <cmd>GFiles<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>ll <cmd>ll<cr>
 nnoremap <leader>tt :Terminal<space>
@@ -219,14 +228,14 @@ tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
 " Snippets
-imap  <expr>  <C-j>    vsnip#expandable()  ?  '<Plug>(vsnip-expand)'          :  ''
-smap  <expr>  <C-j>    vsnip#expandable()  ?  '<Plug>(vsnip-expand)'          :  ''
-imap  <expr>  <C-l>    vsnip#available(1)  ?  '<Plug>(vsnip-expand-or-jump)'  :  ''
-smap  <expr>  <C-l>    vsnip#available(1)  ?  '<Plug>(vsnip-expand-or-jump)'  :  ''
-imap  <expr>  <Tab>    vsnip#jumpable(1)   ?  '<Plug>(vsnip-jump-next)'       :  '<Tab>'
-smap  <expr>  <Tab>    vsnip#jumpable(1)   ?  '<Plug>(vsnip-jump-next)'       :  '<Tab>'
-imap  <expr>  <S-Tab>  vsnip#jumpable(-1)  ?  '<Plug>(vsnip-jump-prev)'       :  '<S-Tab>'
-smap  <expr>  <S-Tab>  vsnip#jumpable(-1)  ?  '<Plug>(vsnip-jump-prev)'       :  '<S-Tab>'
+" imap  <expr>  <C-j>    vsnip#expandable()  ?  '<Plug>(vsnip-expand)'          :  ''
+" smap  <expr>  <C-j>    vsnip#expandable()  ?  '<Plug>(vsnip-expand)'          :  ''
+" imap  <expr>  <C-l>    vsnip#available(1)  ?  '<Plug>(vsnip-expand-or-jump)'  :  ''
+" smap  <expr>  <C-l>    vsnip#available(1)  ?  '<Plug>(vsnip-expand-or-jump)'  :  ''
+" imap  <expr>  <Tab>    vsnip#jumpable(1)   ?  '<Plug>(vsnip-jump-next)'       :  '<Tab>'
+" smap  <expr>  <Tab>    vsnip#jumpable(1)   ?  '<Plug>(vsnip-jump-next)'       :  '<Tab>'
+" imap  <expr>  <S-Tab>  vsnip#jumpable(-1)  ?  '<Plug>(vsnip-jump-prev)'       :  '<S-Tab>'
+" smap  <expr>  <S-Tab>  vsnip#jumpable(-1)  ?  '<Plug>(vsnip-jump-prev)'       :  '<S-Tab>'
 
 " Colorscheme
 colorscheme pbnj
