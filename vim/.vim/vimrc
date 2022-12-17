@@ -231,6 +231,7 @@ tnoremap <s-space> <space>
 
 " Snippets
 imap <expr> <C-l> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : ''
+imap <expr> <C-y> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : '<C-y>'
 
 " Colorscheme
 colorscheme pbnj

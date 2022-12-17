@@ -9,20 +9,20 @@
 
 set -eou pipefail
 
-OPEN_PROG="npx open-cli"
+OS="$(uname)"
+OPEN_PROG=""
 
-if hash open >/dev/null 2>&1; then
-	OPEN_PROG="$(which open)"
-elif hash xdg-open >/dev/null 2>&1; then
-	OPEN_PROG="$(which xdg-open)"
+if [[ "${OS}" == "Linux" ]] && hash xdg-open 2>/dev/null; then
+	OPEN_PROG="xdg-open"
+elif [[ "${OS}" == "Darwin" ]] && hash open 2>/dev/null; then
+	OPEN_PROG="open"
+else
+	OPEN_PROG="echo"
 fi
 
-URLS="$(
-	tmux capture-pane -J -p |
-		gw url |
-		fzf-tmux --reverse --height=20 --multi ||
-		true
-)"
+FZF_TMUX=$(find ~ -name fzf-tmux)
+
+URLS="$(tmux capture-pane -J -p | grep -oE "https?://[^[:space:]'\")]+" | ${FZF_TMUX} --reverse --height=20 --multi || true)"
 
 if test -n "${URLS}"; then
 	for u in ${URLS}; do
