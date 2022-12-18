@@ -126,11 +126,11 @@ else
 endif
 
 " Minimal statusline
-set statusline=%f
-set statusline+=\ %#ErrorMsg#%m%*%r%h%w%y%q
+set statusline=\ %#ModeMsg#%f%*
+set statusline+=\ %{FugitiveStatusline()}
+set statusline+=\ %#ColorColumn#%m%*%r%h%w%q
 set statusline+=%=
-set statusline+=%#DiffAdd#%{FugitiveStatusline()}%*
-set statusline+=\ %l:%c/%L\ [%P]
+set statusline+=%y
 
 "-------------------------------------------------------------------------------
 " Commands

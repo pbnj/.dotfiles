@@ -10,7 +10,7 @@
 	},
 	"data": {
 		"description": "data block",
-		"prefix": "dat",
+		"prefix": "data",
 		"body": [
 			"data \"$1\" \"$2\" {",
 			"\t$3",
