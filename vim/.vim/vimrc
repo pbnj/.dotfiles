@@ -17,17 +17,17 @@ if filereadable(glob('~/.vim/work.vim'))
 endif
 
 " vim-signify
-let g:signify_sign_add = '│'
-let g:signify_sign_delete = '│'
+let g:signify_sign_add               = '│'
+let g:signify_sign_delete            = '│'
 let g:signify_sign_delete_first_line = '│'
-let g:signify_sign_change = '│'
-let g:signify_sign_change_delete = g:signify_sign_change
+let g:signify_sign_change            = '│'
+let g:signify_sign_change_delete     = g:signify_sign_change
 
 " vim-mucomplete
 let g:mucomplete#enable_auto_at_startup = 1
-let g:mucomplete#chains = {}
-let g:mucomplete#chains.vim = ['path', 'cmd', 'c-n' , 'keyn' ]
-let g:mucomplete#chains.default = ['path', 'omni', 'vsnip', 'c-n' , 'keyn', 'dict']
+let g:mucomplete#chains                 = {}
+let g:mucomplete#chains.vim             = [ 'path', 'cmd', 'c-n' , 'keyn' ]
+let g:mucomplete#chains.default         = [ 'path', 'omni', 'vsnip', 'c-n' , 'keyn', 'dict' ]
 
 " vim-vsnip
 let g:vsnip_snippet_dir = "~/.vim/snippets"
@@ -74,7 +74,7 @@ set cursorline
 set dictionary+=/usr/share/dict/words
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
-set fillchars=vert:\│,fold:-,eob:~
+set fillchars=vert:\│,fold:-,eob:~,stl:-,stlnc:=
 set formatoptions=tcqjno
 set grepformat^=%f:%l:%c:%m
 set hidden
@@ -92,11 +92,11 @@ set mouse=
 set nobackup
 set nofoldenable
 set norelativenumber
+set noruler
 set noswapfile
 set nowrap
 set number
 set omnifunc=syntaxcomplete#Complete
-set ruler
 set secure
 set shortmess=filnxtToOc
 set showmode
@@ -105,6 +105,7 @@ set smartcase
 set smarttab
 set splitbelow
 set splitright
+set statusline=\ [%n]\ %f\ %{FugitiveStatusline()}%y\ %#Error#%m%*%r%h%w%q
 set t_Co=16
 set ttimeout
 set ttimeoutlen=50
@@ -124,13 +125,6 @@ elseif executable('git')
 else
   set grepprg=grep\ -HIn\ --line-buffered\ $*
 endif
-
-" Minimal statusline
-set statusline=\ %#ModeMsg#%f%*
-set statusline+=\ %{FugitiveStatusline()}
-set statusline+=\ %#ColorColumn#%m%*%r%h%w%q
-set statusline+=%=
-set statusline+=%y
 
 "-------------------------------------------------------------------------------
 " Commands
