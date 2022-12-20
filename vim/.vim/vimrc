@@ -9,7 +9,8 @@ let g:mapleader = ' '
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
-let g:netrw_keepdir=0
+let g:netrw_keepdir    = 0
+let g:netrw_localrmdir = 'rm -r'
 
 " Custom, priavte work-related configs
 if filereadable(glob('~/.vim/work.vim'))
@@ -47,7 +48,6 @@ Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/rafamadriz/friendly-snippets'
 Plug 'https://github.com/sheerun/vim-polyglot'
 Plug 'https://github.com/tpope/vim-commentary'
-Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-rsi'
@@ -74,7 +74,7 @@ set cursorline
 set dictionary+=/usr/share/dict/words
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
-set fillchars=vert:\│,fold:-,eob:~,stl:-,stlnc:=
+set fillchars=vert:\│,fold:-,eob:~
 set formatoptions=tcqjno
 set grepformat^=%f:%l:%c:%m
 set hidden
@@ -105,7 +105,7 @@ set smartcase
 set smarttab
 set splitbelow
 set splitright
-set statusline=\ [%n]\ %f\ %{FugitiveStatusline()}%y\ %#Error#%m%*%r%h%w%q
+set statusline=\ %f\ %{FugitiveStatusline()}%y\ %#Error#%m%*%r%h%w%q
 set t_Co=16
 set ttimeout
 set ttimeoutlen=50
@@ -163,15 +163,15 @@ command! GP Git! push
 command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GS Git! status %:h
 
-" Custom function & command to launch the integrated terminal shell in the working directory of the current buffer as a split
-function! Terminal(...) abort
-  if a:0 >= 1
-    call term_start(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
-  else
-    call term_start(split(&shell), {'cwd': expand('%:p:h')})
-  endif
-endfunction
-command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
+" " Custom function & command to launch the integrated terminal shell in the working directory of the current buffer as a split
+" function! Terminal(...) abort
+"   if a:0 >= 1
+"     call term_start(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
+"   else
+"     call term_start(split(&shell), {'cwd': expand('%:p:h')})
+"   endif
+" endfunction
+" command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
 
 function! StripTrailingSpaces() abort
   %s/\s\+$//e
@@ -220,6 +220,8 @@ nnoremap Y y$
 nnoremap c "_c
 nnoremap cc "_cc
 nnoremap x "_x
+noremap <expr> N 'nN'[v:searchforward]
+noremap <expr> n 'Nn'[v:searchforward]
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
