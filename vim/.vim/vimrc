@@ -67,6 +67,7 @@ if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | e
 set autoindent
 set autoread
 set backspace=indent,eol,start
+set background=light
 set breakindent
 set clipboard=unnamed,unnamedplus
 set completeopt=menuone,noinsert,noselect
