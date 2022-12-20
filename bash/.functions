@@ -1,6 +1,13 @@
 # vim:ft=bash:
 # shellcheck shell=bash
 
+rmc() {
+	local previewer="$(which bat || which cat)"
+	echo "Preview:"
+	$previewer $1
+	rm -i $1
+}
+
 ########################################
 # Kubernetes
 ########################################

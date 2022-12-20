@@ -16,7 +16,7 @@ alias cp='cp -i'
 alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
-hash nvim 2>/dev/null && alias nv=nvim
+alias vi="vim --clean"
 
 # if [[ "$(uname -s)" == "Darwin" ]]; then
 # 	echo auth sufficient pam_tid.so | sudo tee -a /etc/pam.d/sudo
