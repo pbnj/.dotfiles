@@ -1,7 +1,8 @@
 # vim:ft=bash:
 # shellcheck shell=bash
 
-rmc() {
+# Preview before deleting files
+rmp() {
 	local previewer="$(which bat || which cat)"
 	echo "Preview:"
 	$previewer $1
