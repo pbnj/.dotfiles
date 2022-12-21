@@ -1,27 +1,17 @@
 #!/bin/bash
 
 # Open any URL in the tmux buffer without using the mouse to select text, copy, paste.
-# How it works:
-# 1. Dump content of tmux buffer to stdout
-# 2. Grep for URL patterns using `gw` customer wrapper (see https://github.com/pbnj/dotfiles/tree/main/gw)
-# 3. Search & select one or more URLs via `fzf` fuzzy finder
-# 4. Open selected URL(s). If native file openers do not exist, fallback to `open-cli`
 
 set -eou pipefail
 
-OS="$(uname)"
-OPEN_PROG=""
-
-if [[ "${OS}" == "Linux" ]] && hash xdg-open 2>/dev/null; then
-	OPEN_PROG="xdg-open"
-elif [[ "${OS}" == "Darwin" ]] && hash open 2>/dev/null; then
-	OPEN_PROG="open"
-else
-	OPEN_PROG="echo"
-fi
-
+OPEN_PROG="$(which xdg-open || which open)"
 FZF_TMUX="$(which fzf-tmux || ~/.vim/plugged/fzf/bin/fzf-tmux)"
 
+# How it works:
+# 	1. Dump content of tmux buffer to stdout.
+# 	2. Grep for URL patterns.
+# 	3. Search & select one or more URLs via `fzf` fuzzy finder.
+# 	4. Open selected URL(s).
 URLS="$(tmux capture-pane -J -p | grep -oE "https?://[^[:space:]'\")]+" | ${FZF_TMUX} --reverse --height=20 --multi || true)"
 
 if test -n "${URLS}"; then

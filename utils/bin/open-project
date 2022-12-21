@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Project Manager.
+# Launch any project from ~/Projects directory in a new tmux window.
+
+set -eou pipefail
+
+FZF_TMUX="$(which fzf-tmux || ~/.vim/plugged/fzf/bin/fzf-tmux)"
+
+SELECTED="$(find ~/Projects -type d -not \( -path '*.git*' -prune \) -not \( -path '*.terraform*' -prune \) | ${FZF_TMUX} --multi --prompt 'Project(s)> ' || true)"
+
+if test -n "${SELECTED}"; then
+	for s in ${SELECTED}; do
+		tmux new-window -c "${s}"
+	done
+else
+	exit 0
+fi
