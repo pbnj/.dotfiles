@@ -136,7 +136,6 @@ function! GitStatusLine() abort
   if l:git_root =~# "(.*)"
     return trim(system('git -C '.l:git_root.' prompt'))
   endif
-  return ""
 endfunction
 
 # (main *?$=)
