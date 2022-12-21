@@ -124,14 +124,28 @@ set signcolumn=yes
 set smarttab
 set splitbelow
 set splitright
-set statusline=\ %f\ %{FugitiveStatusline()}%y\ %#Error#%m%*%r%h%w%q
 set ttimeout
 set ttimeoutlen=50
 set undofile
-set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
 set wildmenu
+
+function! GitStatusLine() abort
+  let l:git_root = finddir('.git', expand('%:p:h').';')
+  if l:git_root is# ""
+    return ""
+  endif
+  return trim(system('git -C '.l:git_root.' prompt'))
+endfunction
+
+augroup git_prompt
+  autocmd!
+  autocmd BufWinEnter * let g:git_prompt = GitStatusLine()
+augroup END
+
+" set statusline=\ %f\ %y\ %#DiffAdd#%{FugitiveStatusline()}%*\ %#Error#%m%*%r%h%w%q
+set statusline=\ %f\ %y\ %#DiffAdd#%{g:git_prompt}%*\ %#Error#%m%*%r%h%w%q
 
 " Better grep
 if executable('rg')
