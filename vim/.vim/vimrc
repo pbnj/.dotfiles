@@ -132,7 +132,7 @@ set wildignorecase
 set wildmenu
 
 function! GitStatusLine() abort
-  let l:git_root = finddir('.git', expand('%:p:h').';')
+  let l:git_root = finddir('.git/..', expand('%:p:h').';')
   let l:git_prompt = trim(system('git -C '.l:git_root.' prompt'))
   if l:git_prompt =~# "(.*)"
     return l:git_prompt
@@ -143,6 +143,7 @@ endfunction
 augroup git_prompt
   autocmd!
   autocmd BufWinEnter * let g:git_prompt = GitStatusLine()
+  autocmd User FugitiveChanged let g:git_prompt = GitStatusLine()
 augroup END
 
 " set statusline=\ %f\ %y\ %#DiffAdd#%{FugitiveStatusline()}%*\ %#Error#%m%*%r%h%w%q
