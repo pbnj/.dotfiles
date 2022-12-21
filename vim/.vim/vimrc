@@ -6,6 +6,13 @@ let g:mapleader = ' '
 " Plugins
 "-------------------------------------------------------------------------------
 
+" https://github.com/junegunn/vim-plug/wiki/tips
+let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
+if empty(glob(data_dir . '/autoload/plug.vim'))
+  silent execute '!curl -fLo '.data_dir.'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+endif
+
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
@@ -28,7 +35,7 @@ let g:signify_sign_change_delete     = g:signify_sign_change
 let g:mucomplete#enable_auto_at_startup = 1
 let g:mucomplete#chains                 = {}
 let g:mucomplete#chains.vim             = [ 'path', 'cmd', 'c-n' , 'keyn' ]
-let g:mucomplete#chains.default         = [ 'path', 'omni', 'vsnip', 'c-n' , 'keyn', 'dict' ]
+let g:mucomplete#chains.default         = [ 'path', 'omni', 'vsnip', 'c-n' , 'keyn' ]
 
 " vim-vsnip
 let g:vsnip_snippet_dir = "~/.vim/snippets"
@@ -62,12 +69,25 @@ filetype plugin indent on
 " Options
 "-------------------------------------------------------------------------------
 
-if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
+if has('nvim')
+  set inccommand=split
+  augroup Terminal
+    autocmd!
+    autocmd TermEnter * setlocal nonumber
+    autocmd TermLeave * setlocal   number
+    autocmd TermOpen * startinsert
+  augroup END
+else
+  if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
+  set undodir=~/.vim/undo/
+  set t_Co=16
+  set ttyfast
+endif
 
 set autoindent
 set autoread
-set backspace=indent,eol,start
 set background=light
+set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
 set completeopt=menuone,noinsert,noselect
@@ -80,7 +100,6 @@ set formatoptions=tcqjno
 set grepformat^=%f:%l:%c:%m
 set hidden
 set hlsearch
-set ignorecase
 set incsearch
 set infercase
 set laststatus=2
@@ -102,16 +121,12 @@ set secure
 set shortmess=filnxtToOc
 set showmode
 set signcolumn=yes
-set smartcase
 set smarttab
 set splitbelow
 set splitright
 set statusline=\ %f\ %{FugitiveStatusline()}%y\ %#Error#%m%*%r%h%w%q
-set t_Co=16
 set ttimeout
 set ttimeoutlen=50
-set ttyfast
-set undodir=~/.vim/undo/
 set undofile
 set updatetime=100
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
@@ -164,16 +179,6 @@ command! GP Git! push
 command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GS Git! status %:h
 
-" " Custom function & command to launch the integrated terminal shell in the working directory of the current buffer as a split
-" function! Terminal(...) abort
-"   if a:0 >= 1
-"     call term_start(split(&shell) + split(&shellcmdflag) + [join(a:000,' ')], {'cwd': expand('%:p:h')})
-"   else
-"     call term_start(split(&shell), {'cwd': expand('%:p:h')})
-"   endif
-" endfunction
-" command! -nargs=* -complete=shellcmd Terminal call Terminal(<f-args>)
-
 function! StripTrailingSpaces() abort
   %s/\s\+$//e
 endfunction
@@ -213,7 +218,7 @@ nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>gg <cmd>GFiles<cr>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>ll <cmd>ll<cr>
-nnoremap <leader>tt :Terminal<space>
+nnoremap <leader>tt :terminal<space>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
@@ -230,5 +235,4 @@ tnoremap <s-space> <space>
 imap <expr> <C-l> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : ''
 imap <expr> <C-y> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : '<C-y>'
 
-" Colorscheme
 colorscheme pbnj

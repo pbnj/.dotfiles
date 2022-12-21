@@ -3,4 +3,3 @@ setlocal comments=b:#,fb:-
 setlocal commentstring=#\ %s
 
 setlocal formatprg=opa\ fmt
-let b:ale_fixers = ['opa']
