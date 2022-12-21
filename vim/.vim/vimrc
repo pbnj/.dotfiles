@@ -131,6 +131,7 @@ set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt
 set wildignorecase
 set wildmenu
 
+let g:git_prompt=''
 function! GitStatusLine() abort
   let l:git_root = finddir('.git/..', expand('%:p:h').';')
   let l:git_prompt = trim(system('git -C '.l:git_root.' prompt'))
