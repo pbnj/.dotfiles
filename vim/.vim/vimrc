@@ -133,12 +133,13 @@ set wildmenu
 
 function! GitStatusLine() abort
   let l:git_root = finddir('.git', expand('%:p:h').';')
-  if l:git_root =~# "(.*)"
-    return trim(system('git -C '.l:git_root.' prompt'))
+  let l:git_prompt = trim(system('git -C '.l:git_root.' prompt'))
+  if l:git_prompt =~# "(.*)"
+    return l:git_prompt
   endif
+  return g:git_prompt
 endfunction
 
-# (main *?$=)
 augroup git_prompt
   autocmd!
   autocmd BufWinEnter * let g:git_prompt = GitStatusLine()
