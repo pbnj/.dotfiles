@@ -100,6 +100,7 @@ set formatoptions=tcqjno
 set grepformat^=%f:%l:%c:%m
 set hidden
 set hlsearch
+set ignorecase
 set incsearch
 set infercase
 set laststatus=2
@@ -113,14 +114,15 @@ set nobackup
 set nofoldenable
 set norelativenumber
 set noruler
+set noshowmode
 set noswapfile
 set nowrap
 set number
 set omnifunc=syntaxcomplete#Complete
 set secure
 set shortmess=filnxtToOc
-set showmode
 set signcolumn=yes
+set smartcase
 set smarttab
 set splitbelow
 set splitright
@@ -131,6 +133,10 @@ set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt
 set wildignorecase
 set wildmenu
 
+"----------------------------------------
+" Statusline
+"----------------------------------------
+" git status
 let g:git_prompt=''
 function! GitStatusLine() abort
   let l:git_root = finddir('.git/..', expand('%:p:h').';')
@@ -147,8 +153,21 @@ augroup git_prompt
   autocmd User FugitiveChanged let g:git_prompt = GitStatusLine()
 augroup END
 
-" set statusline=\ %f\ %y\ %#DiffAdd#%{FugitiveStatusline()}%*\ %#Error#%m%*%r%h%w%q
-set statusline=\ %f\ %y\ %#DiffAdd#%{g:git_prompt}%*\ %#Error#%m%*%r%h%w%q
+" modes
+let g:statusline_mode = {}
+let g:statusline_mode.n = 'NORMAL'
+let g:statusline_mode.i = 'INSERT'
+let g:statusline_mode.R = 'REPLACE'
+let g:statusline_mode.v = 'VISUAL'
+let g:statusline_mode.V = 'V-LINE'
+let g:statusline_mode[''] = 'V-BLOCK'
+let g:statusline_mode.c = 'COMMAND'
+let g:statusline_mode.s = 'SELECT'
+let g:statusline_mode.S = 'S-LINE'
+let g:statusline_mode[''] = 'S-BLOCK'
+let g:statusline_mode.t = 'TERMINAL'
+
+set statusline=\ %{g:statusline_mode[mode()]}\ %f\ %y\ %#DiffAdd#%{g:git_prompt}%*\ %#ErrorMsg#%m%*%r%h%w%q
 
 " Better grep
 if executable('rg')
@@ -160,8 +179,16 @@ else
 endif
 
 "-------------------------------------------------------------------------------
-" Commands
+" Functions & Commands
 "-------------------------------------------------------------------------------
+
+function! MakeCompletion(A,L,P) abort
+    let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
+    return filter(l:targets, 'v:val =~ "^' . a:A . '"')
+endfunction
+command! -nargs=* -complete=customlist,MakeCompletion Make
+      \ terminal make <args>
+nnoremap m<space> :Make<space><c-d>
 
 command! -nargs=* DDGR
       \ <mods> terminal ++close ddgr --expand --num 5 <args>
