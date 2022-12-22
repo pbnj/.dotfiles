@@ -257,13 +257,15 @@ nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
-nnoremap <leader>ex <cmd>20Lexplore<cr>
 nnoremap <leader>ff <cmd>Files<cr>
-nnoremap <leader>gg <cmd>GFiles<cr>
+nnoremap <leader>fg <cmd>GFiles<cr>
+nnoremap <leader>fs <cmd>Rg<cr>
+nnoremap <leader>gg :G<space>
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>ll <cmd>ll<cr>
 nnoremap <leader>tt :terminal<space>
 nnoremap <leader>w <cmd>write<cr>
+nnoremap <leader>xx <cmd>20Lexplore<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
 nnoremap Y y$
