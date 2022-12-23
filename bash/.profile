@@ -1,8 +1,6 @@
 # shellcheck shell=bash
+
 # SHELL OPTIONS
-
-# set -o xtrace
-
 if [[ "${BASH_VERSINFO:-0}" -ge 4 ]]; then
 	shopt -s nocaseglob
 	shopt -s histappend
