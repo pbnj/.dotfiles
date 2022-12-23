@@ -34,8 +34,8 @@ let g:signify_sign_change_delete     = g:signify_sign_change
 " vim-mucomplete
 let g:mucomplete#enable_auto_at_startup = 1
 let g:mucomplete#chains                 = {}
-let g:mucomplete#chains.vim             = [ 'path', 'cmd', 'c-n' , 'keyn' ]
-let g:mucomplete#chains.default         = [ 'path', 'omni', 'vsnip', 'c-n' , 'keyn' ]
+let g:mucomplete#chains.vim             = [ 'path', 'cmd', 'c-n' ]
+let g:mucomplete#chains.default         = [ 'path', 'omni', 'vsnip', 'c-n' ]
 
 " vim-vsnip
 let g:vsnip_snippet_dir = "~/.vim/snippets"
@@ -95,7 +95,6 @@ set cursorline
 set dictionary+=/usr/share/dict/words
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
-set fillchars=vert:\│,fold:-,eob:~
 set formatoptions=tcqjno
 set grepformat^=%f:%l:%c:%m
 set hidden
@@ -133,9 +132,19 @@ set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt
 set wildignorecase
 set wildmenu
 
+" Better grep
+if executable('rg')
+  set grepprg=rg\ --vimgrep\ --line-number\ --column\ $*
+elseif executable('git')
+  set grepprg=git\ grep\ --line-number\ --column\ $*
+else
+  set grepprg=grep\ -HIn\ --line-buffered\ $*
+endif
+
 "----------------------------------------
 " Statusline
 "----------------------------------------
+
 " git status
 let g:git_prompt=''
 function! GitStatusLine() abort
@@ -167,16 +176,11 @@ let g:statusline_mode.S = 'S-LINE'
 let g:statusline_mode[''] = 'S-BLOCK'
 let g:statusline_mode.t = 'TERMINAL'
 
-set statusline=\ %{g:statusline_mode[mode()]}\ %f\ %y\ %#DiffAdd#%{g:git_prompt}%*\ %#ErrorMsg#%m%*%r%h%w%q
-
-" Better grep
-if executable('rg')
-  set grepprg=rg\ --vimgrep\ --line-number\ --column\ $*
-elseif executable('git')
-  set grepprg=git\ grep\ --line-number\ --column\ $*
-else
-  set grepprg=grep\ -HIn\ --line-buffered\ $*
-endif
+set statusline=\ %{g:statusline_mode[mode()]}
+set statusline+=\ %f
+set statusline+=\ %y
+set statusline+=\ %{g:git_prompt}
+set statusline+=\ %#ErrorMsg#%m%*%r%h%w%q
 
 "-------------------------------------------------------------------------------
 " Functions & Commands
@@ -187,7 +191,7 @@ function! MakeCompletion(A,L,P) abort
     return filter(l:targets, 'v:val =~ "^' . a:A . '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
-      \ terminal make <args>
+      \ terminal make -C %:p:h <args>
 nnoremap m<space> :Make<space><c-d>
 
 command! -nargs=* DDGR
@@ -243,6 +247,27 @@ augroup fixer_general
   autocmd BufWritePre,FileWritePre * call StripTrailingSpaces() | call StripTrailingNewLines()
 augroup END
 
+function! PInsert2(item)
+  let @z=a:item
+  norm "zp
+  call feedkeys('a')
+endfunction
+
+function! CompleteInf()
+  let nl=[]
+  let l=complete_info()
+  for k in l['items']
+    if k['info'] isnot# "" || k['menu'] isnot# ""
+      call add(nl, k['word']. ' : ' .k['info'] . ' '. k['menu'] )
+    else
+      call add(nl, k['word'])
+    endif
+  endfor
+  call fzf#vim#complete(fzf#wrap({ 'source': nl,'reducer': { lines -> split(lines[0], '\zs :')[0] },'sink':function('PInsert2')}))
+endfunction
+
+inoremap <c-@> <CMD>:call CompleteInf()<CR>
+
 "-------------------------------------------------------------------------------
 " Mappings
 "-------------------------------------------------------------------------------
@@ -260,7 +285,7 @@ nnoremap <leader>ev :vs **/*
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
-nnoremap <leader>gg :G<space>
+nnoremap <leader>gg :G
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>ll <cmd>ll<cr>
 nnoremap <leader>tt :terminal<space>
@@ -276,9 +301,5 @@ noremap <expr> N 'nN'[v:searchforward]
 noremap <expr> n 'Nn'[v:searchforward]
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
-
-" Snippets
-imap <expr> <C-l> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : ''
-imap <expr> <C-y> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : '<C-y>'
 
 colorscheme pbnj
