@@ -9,6 +9,10 @@ rmp() {
 	rm -i $1
 }
 
+ly() {
+	lynx -useragent='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' $*
+}
+
 ########################################
 # Kubernetes
 ########################################
