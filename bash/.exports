@@ -3,7 +3,7 @@
 
 # General
 
-export BROWSER=lynx
+export BROWSER=w3m
 export DOTFILES="${HOME}/.dotfiles"
 export EDITOR=vim
 export FZF_DEFAULT_OPTS='--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up'
