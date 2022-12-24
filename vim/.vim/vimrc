@@ -113,13 +113,13 @@ set nobackup
 set nofoldenable
 set norelativenumber
 set noruler
-set noshowmode
 set noswapfile
 set nowrap
 set number
 set omnifunc=syntaxcomplete#Complete
 set secure
 set shortmess=filnxtToOc
+set showmode
 set signcolumn=yes
 set smartcase
 set smarttab
@@ -145,42 +145,12 @@ endif
 " Statusline
 "----------------------------------------
 
-" git status
-let g:git_prompt=''
-function! GitStatusLine() abort
-  let l:git_root = finddir('.git/..', expand('%:p:h').';')
-  let l:git_prompt = trim(system('git -C '.l:git_root.' prompt'))
-  if l:git_prompt =~# "(.*)"
-    return l:git_prompt
-  endif
-  return g:git_prompt
-endfunction
-
-augroup git_prompt
-  autocmd!
-  autocmd BufWinEnter * let g:git_prompt = GitStatusLine()
-  autocmd User FugitiveChanged let g:git_prompt = GitStatusLine()
-augroup END
-
-" modes
-let g:statusline_mode = {}
-let g:statusline_mode.n = 'NORMAL'
-let g:statusline_mode.i = 'INSERT'
-let g:statusline_mode.R = 'REPLACE'
-let g:statusline_mode.v = 'VISUAL'
-let g:statusline_mode.V = 'V-LINE'
-let g:statusline_mode[''] = 'V-BLOCK'
-let g:statusline_mode.c = 'COMMAND'
-let g:statusline_mode.s = 'SELECT'
-let g:statusline_mode.S = 'S-LINE'
-let g:statusline_mode[''] = 'S-BLOCK'
-let g:statusline_mode.t = 'TERMINAL'
-
-set statusline=\ %{g:statusline_mode[mode()]}
-set statusline+=\ %f
+set fillchars=vert:\│,stl:―,stlnc:―
+set statusline=\ %f
 set statusline+=\ %y
-set statusline+=\ %{g:git_prompt}
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%q
+set statusline+=%=
+set statusline+=\ %3l:%3c\ (%P)
 
 "-------------------------------------------------------------------------------
 " Functions & Commands
