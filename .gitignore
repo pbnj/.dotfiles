@@ -27,3 +27,4 @@ work.lua
 packer_compiled.lua
 demo.tape
 *.bak
+out.gif
