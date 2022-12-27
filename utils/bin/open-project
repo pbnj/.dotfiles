@@ -11,7 +11,11 @@ SELECTED="$(find ~/Projects -type d -not \( -path '*.git*' -prune \) -not \( -pa
 
 if test -n "${SELECTED}"; then
 	for s in ${SELECTED}; do
-		tmux new-window -c "${s}"
+		if [[ -n "${TMUX:-""}" ]]; then
+			tmux new-window -c "${s}"
+		else
+			${EDITOR} "${s}"
+		fi
 	done
 else
 	exit 0
