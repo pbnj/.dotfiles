@@ -25,10 +25,10 @@ if filereadable(glob('~/.vim/work.vim'))
 endif
 
 " vim-signify
-let g:signify_sign_add               = '│'
-let g:signify_sign_delete            = '│'
-let g:signify_sign_delete_first_line = '│'
-let g:signify_sign_change            = '│'
+let g:signify_sign_add               = '|'
+let g:signify_sign_delete            = '|'
+let g:signify_sign_delete_first_line = '|'
+let g:signify_sign_change            = '|'
 let g:signify_sign_change_delete     = g:signify_sign_change
 
 " vim-mucomplete
@@ -54,6 +54,8 @@ Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/rafamadriz/friendly-snippets'
 Plug 'https://github.com/sheerun/vim-polyglot'
+Plug 'https://github.com/skywind3000/asyncrun.vim'
+Plug 'https://github.com/skywind3000/asynctasks.vim'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
@@ -61,6 +63,7 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
+Plug 'https://github.com/voldikss/vim-floaterm'
 call plug#end()
 
 filetype plugin indent on
@@ -106,7 +109,7 @@ set laststatus=2
 set lazyredraw
 set linebreak
 set list
-set listchars=tab:\│\ ,trail:·
+set listchars=tab:\|\ ,trail:·
 set modeline
 set mouse=
 set nobackup
@@ -140,6 +143,11 @@ elseif executable('git')
 else
   set grepprg=grep\ -HIn\ --line-buffered\ $*
 endif
+
+augroup quickfix
+  autocmd QuickFixCmdPost [^l]* nested cwindow
+  autocmd QuickFixCmdPost    l* nested lwindow
+augroup END
 
 "----------------------------------------
 " Statusline
@@ -240,7 +248,11 @@ function! CompleteInf()
 endfunction
 
 " trigger fuzzy ins-completion with <c-space>
-inoremap <c-@> <CMD>:call CompleteInf()<CR>
+if has('nvim')
+  inoremap <c-space> <CMD>:call CompleteInf()<CR>
+else
+  inoremap <c-@> <CMD>:call CompleteInf()<CR>
+endif
 
 "-------------------------------------------------------------------------------
 " Mappings
@@ -262,7 +274,7 @@ nnoremap <leader>fs <cmd>Rg<cr>
 nnoremap <leader>gg :G
 nnoremap <leader>gq mzgggqG`z
 nnoremap <leader>ll <cmd>ll<cr>
-nnoremap <leader>tt :terminal<space>
+nnoremap <leader>tt <cmd>FloatermToggle<cr>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>xx <cmd>20Lexplore<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
