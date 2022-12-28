@@ -31,23 +31,34 @@ let g:signify_sign_delete_first_line = '|'
 let g:signify_sign_change            = '|'
 let g:signify_sign_change_delete     = g:signify_sign_change
 
-" vim-mucomplete
-let g:mucomplete#enable_auto_at_startup = 1
-let g:mucomplete#chains                 = {}
-let g:mucomplete#chains.vim             = [ 'path', 'cmd', 'c-n' ]
-let g:mucomplete#chains.default         = [ 'path', 'omni', 'vsnip', 'c-n' ]
+" " vim-mucomplete
+" let g:mucomplete#enable_auto_at_startup = 1
+" let g:mucomplete#chains                 = {}
+" let g:mucomplete#chains.vim             = [ 'path', 'cmd', 'c-n' ]
+" let g:mucomplete#chains.default         = [ 'path', 'omni','c-n' ]
 
-" vim-vsnip
-let g:vsnip_snippet_dir = "~/.vim/snippets"
+" ale
+let g:ale_completion_enabled = 1
+let g:ale_fix_on_save = 1
+let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
+let g:ale_floating_preview = 1
+let g:ale_hover_cursor = 0
+let g:ale_sign_error = '●'
+let g:ale_sign_info = '●'
+let g:ale_sign_style_error = '●'
+let g:ale_sign_style_warning = '●'
+let g:ale_sign_warning = '●'
+let g:ale_virtualtext_cursor = 0
 
 call plug#begin()
+Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/godlygeek/tabular'
-Plug 'https://github.com/hrsh7th/vim-vsnip'
-Plug 'https://github.com/hrsh7th/vim-vsnip-integ'
+" Plug 'https://github.com/hrsh7th/vim-vsnip'
+" Plug 'https://github.com/hrsh7th/vim-vsnip-integ'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
-Plug 'https://github.com/lifepillar/vim-mucomplete'
+" Plug 'https://github.com/lifepillar/vim-mucomplete'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
@@ -119,7 +130,8 @@ set noruler
 set noswapfile
 set nowrap
 set number
-set omnifunc=syntaxcomplete#Complete
+" set omnifunc=syntaxcomplete#Complete
+set omnifunc=ale#completion#OmniFunc
 set secure
 set shortmess=filnxtToOc
 set showmode
@@ -156,8 +168,12 @@ augroup END
 set statusline=\ %f
 set statusline+=\ %y
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%q
+set statusline+=\ %#DiffAdd#%{FugitiveStatusline()}%*
+set statusline+=\ %#Todo#%{ale#engine#IsCheckingBuffer(bufnr())?'Checking':''}%*
+set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'●'.ale#statusline#Count(bufnr()).error.'\ ':''}%*
+set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'●'.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
 set statusline+=%=
-set statusline+=\ %3l:%3c\ (%P)
+set statusline+=%3l:%3c\ (%P)
 
 "-------------------------------------------------------------------------------
 " Functions & Commands
@@ -287,5 +303,9 @@ noremap <expr> N 'nN'[v:searchforward]
 noremap <expr> n 'Nn'[v:searchforward]
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
+
+" " vsnip
+" smap <expr> <C-l> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : ''
+" imap <expr> <C-l> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : ''
 
 colorscheme pbnj

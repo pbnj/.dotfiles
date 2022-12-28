@@ -1,3 +1,5 @@
+let b:ale_linters = ['analyzer', 'cargo']
+
 command! -bar WatchCargoCheck
                   \ <mods> call term_start('watchexec --clear cargo check')
 

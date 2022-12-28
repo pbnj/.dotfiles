@@ -1,3 +1,6 @@
+let b:ale_fixers  = [ 'terraform', 'remove_trailing_lines', 'trim_whitespace']
+let b:ale_linters = [ 'terraform', 'terraform_ls', 'tflint', 'tfsec' ]
+
 setlocal formatprg=terraform\ fmt\ -
 
 function! TerraformStateCompletion(A,L,P) abort
@@ -21,8 +24,3 @@ command! -bar WatchTFLint
 
 command! -bar WatchTFSec
             \ <mods> terminal watchexec -c tfsec
-
-augroup fixer_terraform
-    autocmd! * <buffer>
-    autocmd BufWritePre,FileWritePre <buffer> TerraformFmt
-augroup END
