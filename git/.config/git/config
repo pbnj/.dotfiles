@@ -15,7 +15,7 @@
 	dd = !git status --short $GIT_PREFIX | awk '{print $2}' | fzf --multi --preview 'git diff --color=always {}'
 	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
 	ignore = !echo "${1}" >>.gitignore
-	l = log --pretty=oneline -n 20 --graph --abbrev-commit
+	l = log --pretty=oneline --graph --abbrev-commit
 	ls = ls-files
 	p = push
 	remotes = remote -v
