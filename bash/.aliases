@@ -18,12 +18,6 @@ alias grep="grep --color=auto --line-buffered"
 
 alias vi="vim --clean"
 
-# if [[ "$(uname -s)" == "Darwin" ]]; then
-# 	echo auth sufficient pam_tid.so | sudo tee -a /etc/pam.d/sudo
-# 	sudo systemsetup -getremotelogin
-# 	sudo systemsetup -setremotelogin on
-# fi
-
 # For quick edits
 # shellcheck disable=SC2139
 alias dotfiles="vim ${HOME}/.dotfiles"
@@ -58,17 +52,20 @@ fi
 
 # osx
 if [[ $(uname) == "Darwin" ]]; then
+	# enable remote login
+	alias remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on"
 	# desktop
-	alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
-	alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
-
+	alias desktop_hide="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
+	alias desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 	# .DS_Store
 	alias dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
-
 fi
 
 # brew
 if hash brew &>/dev/null; then
-	test "$(uname)" == "Darwin" && alias brew="arch -arm64 brew"
+	alias brew="arch -arm64 brew"
 	alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
+elif hash apt &>/dev/null; then
+	SUDO=$(which sudo)
+	alias auau="${SUDO} apt update && ${SUDO} apt upgrade -y"
 fi
