@@ -18,9 +18,6 @@ fi
 # FUNCTIONS
 [ -f "${HOME}/.functions" ] && source "${HOME}/.functions"
 
-# FZF
-[[ -f "${HOME}/.fzf.bash" ]] && source "${HOME}/.fzf.bash"
-
 # CARGO
 [[ -f "${HOME}/.cargo/env" ]] && source "$HOME/.cargo/env"
 
@@ -39,13 +36,13 @@ hash direnv 2>/dev/null && eval "$(direnv hook bash)"
 
 # PROMPT
 if hash __git_ps1 2>/dev/null; then
-  export GIT_PS1_SHOWDIRTYSTATE="true"
-  export GIT_PS1_SHOWUNTRACKEDFILES="true"
-  export GIT_PS1_SHOWUPSTREAM="auto"
-  export GIT_PS1_SHOWSTASHSTATE="true"
-  export GIT_PS1_HIDE_IF_PWD_IGNORED="false"
-  export GIT_PS1_SHOWCOLORHINTS="true"
-  export PROMPT_COMMAND='__git_ps1 "\\n\w" "\\n\\\$ "'
+	export GIT_PS1_SHOWDIRTYSTATE="true"
+	export GIT_PS1_SHOWUNTRACKEDFILES="true"
+	export GIT_PS1_SHOWUPSTREAM="auto"
+	export GIT_PS1_SHOWSTASHSTATE="true"
+	export GIT_PS1_HIDE_IF_PWD_IGNORED="false"
+	export GIT_PS1_SHOWCOLORHINTS="true"
+	export PROMPT_COMMAND='__git_ps1 "\\n\w" "\\n\\\$ "'
 else
-  export PS1="\\n\w\\n\\$ "
+	export PS1="\\n\w\\n\\$ "
 fi

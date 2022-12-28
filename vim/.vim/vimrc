@@ -31,12 +31,6 @@ let g:signify_sign_delete_first_line = '|'
 let g:signify_sign_change            = '|'
 let g:signify_sign_change_delete     = g:signify_sign_change
 
-" " vim-mucomplete
-" let g:mucomplete#enable_auto_at_startup = 1
-" let g:mucomplete#chains                 = {}
-" let g:mucomplete#chains.vim             = [ 'path', 'cmd', 'c-n' ]
-" let g:mucomplete#chains.default         = [ 'path', 'omni','c-n' ]
-
 " ale
 let g:ale_completion_enabled = 1
 let g:ale_fix_on_save = 1
@@ -48,25 +42,26 @@ let g:ale_sign_info = '●'
 let g:ale_sign_style_error = '●'
 let g:ale_sign_style_warning = '●'
 let g:ale_sign_warning = '●'
-let g:ale_virtualtext_cursor = 0
+if has('nvim')
+  let g:ale_echo_cursor = 0
+  let g:ale_virtualtext_cursor = 2
+else
+  let g:ale_echo_cursor = 1
+  let g:ale_virtualtext_cursor = 0
+endif
 
 call plug#begin()
+
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/godlygeek/tabular'
-" Plug 'https://github.com/hrsh7th/vim-vsnip'
-" Plug 'https://github.com/hrsh7th/vim-vsnip-integ'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
-" Plug 'https://github.com/lifepillar/vim-mucomplete'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
-Plug 'https://github.com/rafamadriz/friendly-snippets'
 Plug 'https://github.com/sheerun/vim-polyglot'
-Plug 'https://github.com/skywind3000/asyncrun.vim'
-Plug 'https://github.com/skywind3000/asynctasks.vim'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
@@ -74,7 +69,11 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
-Plug 'https://github.com/voldikss/vim-floaterm'
+
+if !has('nvim')
+  Plug 'https://github.com/machakann/vim-highlightedyank'
+endif
+
 call plug#end()
 
 filetype plugin indent on
@@ -85,11 +84,12 @@ filetype plugin indent on
 
 if has('nvim')
   set inccommand=split
-  augroup Terminal
+  augroup neovim_autocmds
     autocmd!
     autocmd TermEnter * setlocal nonumber
     autocmd TermLeave * setlocal   number
     autocmd TermOpen * startinsert
+    autocmd TextYankPost * silent! lua vim.highlight.on_yank()
   augroup END
 else
   if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
@@ -130,7 +130,6 @@ set noruler
 set noswapfile
 set nowrap
 set number
-" set omnifunc=syntaxcomplete#Complete
 set omnifunc=ale#completion#OmniFunc
 set secure
 set shortmess=filnxtToOc
@@ -169,7 +168,7 @@ set statusline=\ %f
 set statusline+=\ %y
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%q
 set statusline+=\ %#DiffAdd#%{FugitiveStatusline()}%*
-set statusline+=\ %#Todo#%{ale#engine#IsCheckingBuffer(bufnr())?'Checking':''}%*
+set statusline+=\ %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?'⟳':''}%*
 set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'●'.ale#statusline#Count(bufnr()).error.'\ ':''}%*
 set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'●'.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
 set statusline+=%=
@@ -287,10 +286,8 @@ nnoremap <leader>ev :vs **/*
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
-nnoremap <leader>gg :G
-nnoremap <leader>gq mzgggqG`z
+nnoremap <leader>gg <cmd>G<cr>
 nnoremap <leader>ll <cmd>ll<cr>
-nnoremap <leader>tt <cmd>FloatermToggle<cr>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>xx <cmd>20Lexplore<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
@@ -304,8 +301,10 @@ noremap <expr> n 'Nn'[v:searchforward]
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-" " vsnip
-" smap <expr> <C-l> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : ''
-" imap <expr> <C-l> vsnip#available(1) ? '<Plug>(vsnip-expand-or-jump)' : ''
+if has('nvim')
+  nnoremap <leader>tt <cmd>new +terminal<cr>
+else
+  nnoremap <leader>tt <cmd>terminal<cr>
+endif
 
 colorscheme pbnj

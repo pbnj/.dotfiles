@@ -6,7 +6,7 @@
 export BROWSER=w3m
 export EDITOR=$(which nvim || which vim)
 if [[ -n "${FLOATERM}" ]]; then
-  export EDITOR=floaterm
+	export EDITOR=floaterm
 fi
 export DOTFILES="${HOME}/.dotfiles"
 export FZF_DEFAULT_OPTS='--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up'
@@ -16,7 +16,7 @@ export LYNX_CFG="${HOME}/.config/lynx/lynx.cfg"
 export LYNX_LSS="${HOME}/.config/lynx/lynx.lss"
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
 if [[ "$(uname)" == "Darwin" ]]; then
-  export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+	export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
 fi
 
 # BREW
@@ -33,11 +33,6 @@ export DOTFILES="${HOME}/.dotfiles"
 # Paths
 ## General
 [ -d "${HOME}/bin" ] && export PATH="${PATH}:${HOME}/bin"
-
-## nvm
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
 ## go
 export GODEBUG=x509ignoreCN=0
