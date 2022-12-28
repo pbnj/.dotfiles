@@ -8,10 +8,6 @@ proseWrap: "preserve"
 endOfLine: "lf"
 overrides:
   - files:
-      - "*.md"
-    options:
-      proseWrap: "always"
-  - files:
       - "*.yml"
       - "*.yaml"
     options:

@@ -12,7 +12,6 @@
   - [Formatters](#formatters)
   - [Linters](#linters)
   - [Language Servers](#language-servers)
-- [Screenshots](#screenshots)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -94,7 +93,3 @@ Optional:
 - terraform-ls
 - vscode-langservers-extracted (json, css, html)
 - yaml-language-server
-
-## Screenshots
-
-![cool-retro-term with night-owl theme](https://i.imgur.com/hqpV0ML.jpeg)
