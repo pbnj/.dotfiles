@@ -17,6 +17,7 @@ alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
 alias vi="vim --clean"
+alias nv=nvim
 
 # For quick edits
 # shellcheck disable=SC2139
