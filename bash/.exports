@@ -2,12 +2,15 @@
 # shellcheck shell=bash
 
 # General
+export PATH="${HOME}/.local/bin:${PATH}"
+
+# Go
+export GODEBUG=x509ignoreCN=0
+export GOPATH="${HOME}/go"
+export PATH="${PATH}:${GOPATH}/bin"
 
 export BROWSER=w3m
 export EDITOR=$(which nvim || which vim)
-if [[ -n "${FLOATERM}" ]]; then
-	export EDITOR=floaterm
-fi
 export DOTFILES="${HOME}/.dotfiles"
 export FZF_DEFAULT_OPTS='--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up'
 export GIT_TERMINAL_PROMPT=1
@@ -15,6 +18,8 @@ export HISTCONTROL=ignoreboth
 export LYNX_CFG="${HOME}/.config/lynx/lynx.cfg"
 export LYNX_LSS="${HOME}/.config/lynx/lynx.lss"
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
+
+# 1Password Agent
 if [[ "$(uname)" == "Darwin" ]]; then
 	export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
 fi
@@ -29,12 +34,3 @@ fi
 
 # MISC
 export DOTFILES="${HOME}/.dotfiles"
-
-# Paths
-## General
-[ -d "${HOME}/bin" ] && export PATH="${PATH}:${HOME}/bin"
-
-## go
-export GODEBUG=x509ignoreCN=0
-export GOPATH="${HOME}/go"
-export PATH="${PATH}:${GOPATH}/bin"
