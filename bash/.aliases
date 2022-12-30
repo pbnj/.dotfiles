@@ -21,7 +21,7 @@ alias nv=nvim
 
 # For quick edits
 # shellcheck disable=SC2139
-alias dotfiles="vim ${HOME}/.dotfiles"
+alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
 
 # vim
 vimgrep() { vim -c "grep $*"; }
