@@ -33,7 +33,6 @@ let g:signify_sign_change_delete     = g:signify_sign_change
 
 " ale
 let g:ale_completion_enabled = 1
-let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
 let g:ale_hover_cursor = 0
@@ -121,7 +120,7 @@ set laststatus=2
 set lazyredraw
 set linebreak
 set list
-set listchars=tab:\|\ ,trail:·
+set listchars=tab:>\ ,trail:·
 set modeline
 set mouse=
 set nobackup
