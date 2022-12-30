@@ -54,10 +54,10 @@ call plug#begin()
 
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
+Plug 'https://github.com/ervandew/supertab'
 Plug 'https://github.com/godlygeek/tabular'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
-Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
@@ -84,6 +84,7 @@ filetype plugin indent on
 
 if has('nvim')
   set inccommand=split
+  set termguicolors
   augroup neovim_autocmds
     autocmd!
     autocmd TermEnter * setlocal nonumber
@@ -104,7 +105,7 @@ set background=light
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completeopt=menuone,noinsert,noselect
+set completeopt-=preview
 set cursorline
 set dictionary+=/usr/share/dict/words
 set encoding=utf-8
@@ -239,34 +240,11 @@ augroup fixer_general
   autocmd BufWritePre,FileWritePre * call StripTrailingSpaces() | call StripTrailingNewLines()
 augroup END
 
-"----------------------------------------
-" fuzzy ins-completion
-" credit: https://vim.fandom.com/wiki/Fuzzy_insert_mode_completion_(using_FZF)
-"----------------------------------------
-function! PInsert2(item)
-  let @z=a:item
-  norm "zp
-  call feedkeys('a')
-endfunction
-
-function! CompleteInf()
-  let nl=[]
-  let l=complete_info()
-  for k in l['items']
-    if k['info'] isnot# "" || k['menu'] isnot# ""
-      call add(nl, k['word']. ' : ' .k['info'] . ' '. k['menu'] )
-    else
-      call add(nl, k['word'])
-    endif
-  endfor
-  call fzf#vim#complete(fzf#wrap({ 'source': nl,'reducer': { lines -> split(lines[0], '\zs :')[0] },'sink':function('PInsert2')}))
-endfunction
-
-" trigger fuzzy ins-completion with <c-space>
+" trigger <c-x><c-o> ins-completion with <c-space>
 if has('nvim')
-  inoremap <c-space> <CMD>:call CompleteInf()<CR>
+  inoremap <c-space> <c-x><c-o>
 else
-  inoremap <c-@> <CMD>:call CompleteInf()<CR>
+  inoremap <c-@> <c-x><c-o>
 endif
 
 "-------------------------------------------------------------------------------
