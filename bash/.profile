@@ -31,9 +31,6 @@ fi
 [[ -f "/usr/share/bash-completion/bash_completion" ]] && source "/usr/share/bash-completion/bash_completion"
 [[ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ]] && source "/opt/homebrew/etc/profile.d/bash_completion.sh"
 
-# DIRENV
-hash direnv 2>/dev/null && eval "$(direnv hook bash)"
-
 # PROMPT
 if hash __git_ps1 2>/dev/null; then
 	export GIT_PS1_SHOWDIRTYSTATE="true"
@@ -46,3 +43,6 @@ if hash __git_ps1 2>/dev/null; then
 else
 	export PS1="\\n\w\\n\\$ "
 fi
+
+# DIRENV
+hash direnv 2>/dev/null && eval "$(direnv hook bash)"
