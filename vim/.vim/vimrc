@@ -7,9 +7,8 @@ let g:mapleader = ' '
 "-------------------------------------------------------------------------------
 
 " https://github.com/junegunn/vim-plug/wiki/tips
-let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
-if empty(glob(data_dir . '/autoload/plug.vim'))
-  silent execute '!curl -fLo '.data_dir.'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+if empty(glob('~/.vim/autoload/plug.vim'))
+  silent execute '!curl -fLo ~/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
   autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
 endif
 
@@ -33,6 +32,8 @@ let g:signify_sign_change_delete     = g:signify_sign_change
 
 " ale
 let g:ale_completion_enabled = 1
+let g:ale_echo_cursor = 1
+let g:ale_fix_on_save = 1
 let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
 let g:ale_floating_preview = 1
 let g:ale_hover_cursor = 0
@@ -41,13 +42,7 @@ let g:ale_sign_info = '●'
 let g:ale_sign_style_error = '●'
 let g:ale_sign_style_warning = '●'
 let g:ale_sign_warning = '●'
-if has('nvim')
-  let g:ale_echo_cursor = 0
-  let g:ale_virtualtext_cursor = 2
-else
-  let g:ale_echo_cursor = 1
-  let g:ale_virtualtext_cursor = 0
-endif
+let g:ale_virtualtext_cursor = 0
 
 call plug#begin()
 
@@ -57,10 +52,12 @@ Plug 'https://github.com/ervandew/supertab'
 Plug 'https://github.com/godlygeek/tabular'
 Plug 'https://github.com/junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
+Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/sheerun/vim-polyglot'
+Plug 'https://github.com/thalesmello/webcomplete.vim'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
 Plug 'https://github.com/tpope/vim-fugitive'
@@ -68,10 +65,6 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
-
-if !has('nvim')
-  Plug 'https://github.com/machakann/vim-highlightedyank'
-endif
 
 call plug#end()
 
@@ -81,22 +74,7 @@ filetype plugin indent on
 " Options
 "-------------------------------------------------------------------------------
 
-if has('nvim')
-  set inccommand=split
-  set termguicolors
-  augroup neovim_autocmds
-    autocmd!
-    autocmd TermEnter * setlocal nonumber
-    autocmd TermLeave * setlocal   number
-    autocmd TermOpen * startinsert
-    autocmd TextYankPost * silent! lua vim.highlight.on_yank()
-  augroup END
-else
-  if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
-  set undodir=~/.vim/undo/
-  set t_Co=16
-  set ttyfast
-endif
+if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
 
 set autoindent
 set autoread
@@ -104,6 +82,7 @@ set background=light
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
+set completefunc=webcomplete#complete
 set completeopt-=preview
 set cursorline
 set dictionary+=/usr/share/dict/words
@@ -116,6 +95,7 @@ set hlsearch
 set ignorecase
 set incsearch
 set infercase
+set keywordprg=:DDGR
 set laststatus=1
 set lazyredraw
 set linebreak
@@ -139,8 +119,11 @@ set smartcase
 set smarttab
 set splitbelow
 set splitright
+set t_Co=16
 set ttimeout
 set ttimeoutlen=50
+set ttyfast
+set undodir=~/.vim/undo/
 set undofile
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
 set wildignorecase
@@ -186,10 +169,8 @@ command! -nargs=* -complete=customlist,MakeCompletion Make
       \ terminal make -C %:p:h <args>
 nnoremap m<space> :Make<space><c-d>
 
-command! -nargs=* DDGR
-      \ <mods> terminal ++close ddgr --expand --num 5 <args>
-command! -nargs=1 Cheat
-      \ <mods> terminal curl http://cheat.sh/<args>
+command! -nargs=* -bang DDGR
+      \ execute '<mods> terminal ++close ddgr ' . (expand('<bang>') == '!' ? '--gb --np <bang>' : '--expand --num 5 ') . '<args>'
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -246,6 +227,33 @@ else
   inoremap <c-@> <c-x><c-o>
 endif
 
+function! Open(...) abort
+  if executable('xdg-open')
+    silent call system('xdg-open ' . join(a:000, ' '))
+  elseif executable('open')
+    silent call system('open ' . join(a:000, ' '))
+  elseif executable('open-cli')
+    silent call system('open-cli ' . join(a:000, ' '))
+  elseif executable('lynx')
+    for url in a:000
+      silent call term_start(['lynx', url])
+    endfor
+  elseif executable('w3m')
+    for url in a:000
+      silent call term_start(['w3m', url])
+    endfor
+  else
+    echoerr "TODO: support more programs"
+  endif
+endfunction
+command! -nargs=* Open
+      \ call Open(<q-args>)
+
+command! Projects
+      \ call fzf#run(fzf#wrap({'source': 'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'}))
+command! URLs
+      \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': 'Open', 'options': '--multi'}))
+
 "-------------------------------------------------------------------------------
 " Mappings
 "-------------------------------------------------------------------------------
@@ -265,6 +273,7 @@ nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
 nnoremap <leader>gg <cmd>G<cr>
 nnoremap <leader>ll <cmd>ll<cr>
+nnoremap <leader>tt <cmd>terminal<cr>
 nnoremap <leader>w <cmd>write<cr>
 nnoremap <leader>xx <cmd>20Lexplore<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
@@ -277,11 +286,5 @@ noremap <expr> N 'nN'[v:searchforward]
 noremap <expr> n 'Nn'[v:searchforward]
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
-
-if has('nvim')
-  nnoremap <leader>tt <cmd>new +terminal<cr>
-else
-  nnoremap <leader>tt <cmd>terminal<cr>
-endif
 
 colorscheme pbnj
