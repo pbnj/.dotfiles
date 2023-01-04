@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -eou pipefail
+
+awk -F'[()]' 'match($2, "youtube.com") {print $2}' <(curl -L https://raw.githubusercontent.com/bnb/awesome-developer-streams/master/README.md) |
+	sort -ui |
+	fzf-tmux |
+	xargs -I{} "mpv {} &"
