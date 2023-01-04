@@ -12,16 +12,16 @@ window:
 font:
   size: 13
   normal:
-    family: Fira Code
+    family: Input Mono
     style: Light
   bold:
-    family: Fira Code
+    family: Input Mono
     style: Bold
   italic:
-    family: Fira Code
+    family: Input Mono
     style: Italic
   bold_italic:
-    family: Fira Code
+    family: Input Mono
     style: Bold Italic
 
 selection:
