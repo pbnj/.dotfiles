@@ -151,7 +151,7 @@ augroup END
 set statusline=\ %f
 set statusline+=\ %y
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%q
-set statusline+=\ %#DiffAdd#%{FugitiveStatusline()}%*
+set statusline+=\ %{FugitiveStatusline()}
 set statusline+=\ %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?'⟳':''}%*
 set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'●'.ale#statusline#Count(bufnr()).error.'\ ':''}%*
 set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'●'.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
