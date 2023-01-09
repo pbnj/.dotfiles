@@ -218,13 +218,6 @@ augroup fixer_general
   autocmd BufWritePre,FileWritePre * call StripTrailingSpaces() | call StripTrailingNewLines()
 augroup END
 
-" trigger <c-x><c-o> ins-completion with <c-space>
-if has('nvim')
-  inoremap <c-space> <c-x><c-o>
-else
-  inoremap <c-@> <c-x><c-o>
-endif
-
 function! Open(...) abort
   if executable('xdg-open')
     silent call system('xdg-open ' . join(a:000, ' '))
@@ -258,7 +251,6 @@ command! URLs
 
 cnoremap <c-n> <c-Down>
 cnoremap <c-p> <c-Up>
-inoremap <c-f> <c-x><c-f>
 nnoremap <expr> <leader>ss '/\<'.expand('<cword>').'\><cr>'
 nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>cc <cmd>cc<cr>
