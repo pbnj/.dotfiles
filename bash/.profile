@@ -39,9 +39,9 @@ if hash __git_ps1 2>/dev/null; then
 	export GIT_PS1_SHOWSTASHSTATE="true"
 	export GIT_PS1_HIDE_IF_PWD_IGNORED="false"
 	export GIT_PS1_SHOWCOLORHINTS="true"
-	export PROMPT_COMMAND='__git_ps1 "\\n\w" "\\n\\\$ "'
+	export PROMPT_COMMAND='__git_ps1 "\\n" "\\n\\\$ "'
 else
-	export PS1="\\n\w\\n\\$ "
+	export PS1="\\n\\$ "
 fi
 
 # DIRENV
