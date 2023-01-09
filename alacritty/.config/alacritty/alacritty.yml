@@ -27,6 +27,10 @@ font:
 selection:
   save_to_clipboard: true
 
+key_bindings:
+  - { key: F, mods: Alt, chars: "\x1bf" }
+  - { key: B, mods: Alt, chars: "\x1bb" }
+
 colors:
   # Default colors
   primary:
