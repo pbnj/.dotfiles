@@ -1,0 +1,12 @@
+# Config: https://yamllint.readthedocs.io/en/stable/configuration.html
+# Rules: https://yamllint.readthedocs.io/en/stable/rules.html
+---
+extends: default
+
+rules:
+  braces:
+    max-spaces-inside: 1
+  line-length: disable
+  document-start: disable
+  comments:
+    min-spaces-from-content: 1
