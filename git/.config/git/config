@@ -8,6 +8,7 @@
 	bci = browse-ci # `browse-ci` available from `git-extras`
 	branches = branch -a --sort=-committerdate
 	c = commit
+	c-m = commit -m
 	co = checkout
 	contributors = shortlog --summary --numbered
 	czc = cz commit
