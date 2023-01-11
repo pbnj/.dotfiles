@@ -154,8 +154,8 @@ set statusline+=\ %y
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%q
 set statusline+=\ %{FugitiveStatusline()}
 set statusline+=\ %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?'⟳':''}%*
-set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'●'.ale#statusline#Count(bufnr()).error.'\ ':''}%*
-set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'●'.ale#statusline#Count(bufnr()).warning.'\ ':''}%*
+set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'●'.ale#statusline#Count(bufnr()).error:''}%*
+set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'●'.ale#statusline#Count(bufnr()).warning:''}%*
 set statusline+=%=
 set statusline+=%3l:%3c\ (%P)
 

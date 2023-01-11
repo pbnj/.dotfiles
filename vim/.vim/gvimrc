@@ -3,4 +3,3 @@ set guioptions-=L
 set guioptions-=r
 set guioptions-=R
 set guifont=Input\ Mono:h12
-colorscheme macvim
