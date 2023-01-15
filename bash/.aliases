@@ -54,12 +54,12 @@ fi
 # osx
 if [[ $(uname) == "Darwin" ]]; then
 	# enable remote login
-	alias remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on"
+	alias macos_remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on"
 	# desktop
-	alias desktop_hide="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
-	alias desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
+	alias macos_desktop_hide="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
+	alias macos_desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 	# .DS_Store
-	alias dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
+	alias macos_dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
 fi
 
 # brew
