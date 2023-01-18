@@ -1,3 +1,9 @@
+# https://developer.1password.com/docs/ssh/
+[user]
+	name = "Peter Benjamin"
+	email = "petermbenjamin@gmail.com"
+	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
+
 [alias]
 	alias = !git config -l | grep ^alias | cut -c 7- | sort
 
@@ -32,6 +38,13 @@
 [core]
 	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
 	trustctime = false
+
+[merge]
+	conflictStyle = diff3
+	defaultToUpstream = true
+
+[branch]
+	autoSetupMerge = always
 
 [color]
 	ui = auto
@@ -70,14 +83,9 @@
 [credential "https://gist.github.com"]
 	helper = !gh auth git-credential
 
-# https://developer.1password.com/docs/ssh/
-[user]
-	name = "Peter Benjamin"
-	email = "petermbenjamin@gmail.com"
-	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
-
 [gpg]
 	format = ssh
+
 [gpg "ssh"]
 	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 	allowedSignersFile = ~/.ssh/allowed_signers
