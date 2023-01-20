@@ -18,6 +18,8 @@ fi
 # FUNCTIONS
 [ -f "${HOME}/.functions" ] && source "${HOME}/.functions"
 
+[[ -f "${HOME}/.fzf.bash" ]] && source "${HOME}/.fzf.bash"
+
 # CARGO
 [[ -f "${HOME}/.cargo/env" ]] && source "$HOME/.cargo/env"
 
