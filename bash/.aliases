@@ -17,7 +17,8 @@ alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
 alias vi="vim --clean"
-alias nv=nvim
+alias vip="vim +Projects"
+alias viu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
 
 # For quick edits
 # shellcheck disable=SC2139

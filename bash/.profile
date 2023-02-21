@@ -1,7 +1,5 @@
 # shellcheck shell=bash
 
-# set -x
-
 # SHELL OPTIONS
 if [[ "${BASH_VERSINFO:-0}" -ge 4 ]]; then
 	shopt -s nocaseglob
@@ -17,8 +15,6 @@ fi
 
 # FUNCTIONS
 [ -f "${HOME}/.functions" ] && source "${HOME}/.functions"
-
-[[ -f "${HOME}/.fzf.bash" ]] && source "${HOME}/.fzf.bash"
 
 # CARGO
 [[ -f "${HOME}/.cargo/env" ]] && source "$HOME/.cargo/env"
