@@ -19,7 +19,7 @@
 	contributors = shortlog --summary --numbered
 	czc = cz commit
 	d = !git status --short | awk '{print $2}' | fzf --multi --preview 'git diff --color=always {}'
-	dd = !git status --short $GIT_PREFIX | awk '{print $2}' | fzf --multi --preview 'git diff --color=always {}'
+	dd = diff .
 	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
 	ignore = !echo "${1}" >>.gitignore
 	l = log --pretty=oneline --graph --abbrev-commit
@@ -76,11 +76,11 @@
 	hideIfPwdIgnored = false
 
 [log]
-	showSignature = true
+	showSignature = false
 
 [gpg]
 	format = ssh
 
 [gpg "ssh"]
 	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
-	allowedSignersFile = ~/.ssh/allowed_signers
+	allowedSignersFile = ~/.config/git/allowed_signers
