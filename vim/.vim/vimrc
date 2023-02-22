@@ -15,8 +15,8 @@ endif
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
-let g:netrw_keepdir    = 0
-let g:netrw_localrmdir = 'rm -r'
+" netrw change current working directory to match netrw directory
+let g:netrw_keepdir = 0
 
 " Custom, priavte work-related configs
 if filereadable(glob('~/.vim/work.vim'))
@@ -32,16 +32,16 @@ let g:signify_sign_change_delete     = g:signify_sign_change
 
 " ale
 let g:ale_completion_enabled = 1
-let g:ale_echo_cursor = 1
-let g:ale_fix_on_save = 1
-let g:ale_fixers = {'*': ['remove_trailing_lines', 'trim_whitespace']}
-let g:ale_floating_preview = 1
-let g:ale_hover_cursor = 0
-let g:ale_sign_error = '●'
-let g:ale_sign_info = '●'
-let g:ale_sign_style_error = '●'
-let g:ale_sign_style_warning = '●'
-let g:ale_sign_warning = '●'
+let g:ale_echo_cursor        = 1
+let g:ale_fix_on_save        = 1
+let g:ale_fixers             = {'*': ['remove_trailing_lines', 'trim_whitespace']}
+let g:ale_floating_preview   = 1
+let g:ale_hover_cursor       = 0
+let g:ale_sign_error         = 'E'
+let g:ale_sign_info          = 'I'
+let g:ale_sign_style_error   = 'E'
+let g:ale_sign_style_warning = 'W'
+let g:ale_sign_warning       = 'W'
 let g:ale_virtualtext_cursor = 0
 
 call plug#begin()
@@ -59,7 +59,7 @@ Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/pbnj/vim-britive'
 Plug 'https://github.com/pbnj/vim-ddgr'
 Plug 'https://github.com/sheerun/vim-polyglot'
-Plug 'https://github.com/thalesmello/webcomplete.vim'
+Plug 'https://github.com/wellle/tmux-complete.vim'
 Plug 'https://github.com/tpope/vim-abolish'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
@@ -84,10 +84,8 @@ set autoread
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completefunc=webcomplete#complete
-set completeopt-=preview
+set completeopt=menu
 set cursorline
-set dictionary+=/usr/share/dict/words
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
 set formatoptions=tcqjno
@@ -104,7 +102,7 @@ set linebreak
 set list
 set listchars=tab:>\ ,trail:·
 set modeline
-set mouse=
+set mouse=a
 set nobackup
 set nofoldenable
 set norelativenumber
@@ -127,7 +125,7 @@ set ttimeoutlen=50
 set ttyfast
 set undodir=~/.vim/undo/
 set undofile
-set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*
+set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*
 set wildignorecase
 set wildmenu
 
@@ -149,55 +147,30 @@ augroup END
 " Statusline
 "----------------------------------------
 
-set statusline=\ %f
+set statusline=[%3l:%3c\ %P]
+set statusline+=\ %f
 set statusline+=\ %y
 set statusline+=\ %#ErrorMsg#%m%*%r%h%w%q
 set statusline+=\ %{FugitiveStatusline()}
-set statusline+=\ %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?'⟳':''}%*
-set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'●'.ale#statusline#Count(bufnr()).error:''}%*
-set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'●'.ale#statusline#Count(bufnr()).warning:''}%*
-set statusline+=%=
-set statusline+=%3l:%3c\ (%P)
+set statusline+=\ %{ale#engine#IsCheckingBuffer(bufnr())?'⟳':''}%*
+set statusline+=\ %{(ale#statusline#Count(bufnr()).error)?'E:'.ale#statusline#Count(bufnr()).error:''}%*
+set statusline+=\ %{(ale#statusline#Count(bufnr()).warning)?'W:'.ale#statusline#Count(bufnr()).warning:''}%*
 
 "-------------------------------------------------------------------------------
 " Functions & Commands
 "-------------------------------------------------------------------------------
 
+"----------------------------------------
+" General
+"----------------------------------------
+" Completion function for `make`
 function! MakeCompletion(A,L,P) abort
     let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
     return filter(l:targets, 'v:val =~ "^' . a:A . '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
       \ terminal make -C %:p:h <args>
-nnoremap m<space> :Make<space><c-d>
-
-" GitBrowse takes a dictionary and opens files on remote git repo websites.
-function! GitBrowse(args) abort
-  if a:args.filename ==# ''
-    echoerr "Failed to `git browse`. Filename is missing or invalid."
-    return
-  endif
-  let l:remote = trim(system('git config branch.'.a:args.branch.'.remote || echo "origin" '))
-  if a:args.range == 0
-    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename
-  else
-    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename . ' ' . a:args.line1 . ' ' . a:args.line2
-  endif
-  execute 'silent ! ' . l:cmd | redraw!
-endfunction
-" View git repo, branch, & file in the browser
-command! -range GB
-      \ call GitBrowse({
-      \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
-      \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
-      \ 'range': <range>,
-      \ 'line1': <line1>,
-      \ 'line2': <line2>,
-      \ })
-command! GC Git commit
-command! GP Git! push
-command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
-command! GS Git! status %:h
+nnoremap <leader>mm :Make<space><c-d>
 
 function! StripTrailingSpaces() abort
   %s/\s\+$//e
@@ -241,10 +214,59 @@ endfunction
 command! -nargs=* Open
       \ call Open(<q-args>)
 
-command! Projects
-      \ call fzf#run(fzf#wrap({'source': 'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'}))
+" :Projects[!] is a custom Project Manager
+command! -bang Projects
+      \ call fzf#run(fzf#wrap({'source':'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'},<bang>0))
+      " \ call fzf#run(fzf#wrap({'source': uniq(map(glob(fnameescape('~/Projects/').'**',0,1),'fnamemodify(v:val, ":h")')) }))
+
+" function! PMC(A,L,P) abort
+"   return filter(finddir('.git/..', expand('~/Projects').'**',-1),'v:val =~ a:A')
+" endfunction
+
+" command! -nargs=1 -complete=customlist,PMC PM
+"       \ edit <args>
+
 command! URLs
       \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': 'Open', 'options': '--multi'}))
+nnoremap <leader>uu <cmd>URLs<cr>
+
+"---------------------------------------
+" Git
+"---------------------------------------
+" GitBrowse takes a dictionary and opens files on remote git repo websites.
+function! GitBrowse(args) abort
+  if a:args.filename ==# ''
+    echoerr "Failed to `git browse`. Filename is missing or invalid."
+    return
+  endif
+  let l:remote = trim(system('git config branch.'.a:args.branch.'.remote || echo "origin" '))
+  if a:args.range == 0
+    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename
+  else
+    echo a:args.range
+    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename . ' ' . a:args.line1 . ' ' . a:args.line2
+  endif
+  execute 'silent ! ' . l:cmd | redraw!
+endfunction
+" View git repo, branch, & file in the browser
+command! -range GB
+      \ call GitBrowse({
+      \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
+      \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
+      \ 'range': <range>,
+      \ 'line1': <line1>,
+      \ 'line2': <line2>,
+      \ })
+command! GC Git commit
+command! GP Git! push
+command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
+command! GS Git! status %:h
+
+function! GitRCCompletion(A,L,P) abort
+  return filter(systemlist('find ~/.dotfiles/templates -type f'),'v:val =~ a:A')
+endfunction
+command! -nargs=+ -complete=customlist,GitRCCompletion GRC
+      \ !cp <q-args> %:p:h
 
 "-------------------------------------------------------------------------------
 " Mappings
@@ -252,6 +274,10 @@ command! URLs
 
 cnoremap <c-n> <c-Down>
 cnoremap <c-p> <c-Up>
+inoremap <c-f> <c-x><c-f>
+inoremap <c-l> <c-x><c-l>
+inoremap <c-o> <c-x><c-o>
+inoremap <c-u> <c-x><c-u>
 nnoremap <expr> <leader>ss '/\<'.expand('<cword>').'\><cr>'
 nnoremap <leader>bb <cmd>b#<cr>
 nnoremap <leader>cc <cmd>cc<cr>
@@ -259,13 +285,22 @@ nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
+nnoremap <leader>fb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
+nnoremap <leader>gb <cmd>GB<cr>
+xnoremap <leader>gb <cmd>'<,'>GB<cr>
+nnoremap <leader>gc <cmd>G commit<cr>
+nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>G<cr>
+nnoremap <leader>gp <cmd>G push<cr>
+nnoremap <leader>gr <cmd>GR<cr>
+nnoremap <leader>gs <cmd>G<cr>
+nnoremap <leader>gw <cmd>Gwrite<cr>
 nnoremap <leader>ll <cmd>ll<cr>
 nnoremap <leader>tt <cmd>terminal<cr>
-nnoremap <leader>w <cmd>write<cr>
+nnoremap <leader>ww <cmd>write<cr>
 nnoremap <leader>xx <cmd>20Lexplore<cr>
 nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
