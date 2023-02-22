@@ -5,14 +5,13 @@
 set -eou pipefail
 
 OPEN_PROG="$(which xdg-open || which open)"
-FZF_TMUX="$(which fzf-tmux || ~/.vim/plugged/fzf/bin/fzf-tmux)"
 
 # How it works:
 # 	1. Dump content of tmux buffer to stdout.
 # 	2. Grep for URL patterns.
 # 	3. Search & select one or more URLs via `fzf` fuzzy finder.
 # 	4. Open selected URL(s).
-URLS="$(tmux capture-pane -J -p | grep -oE "https?://[^[:space:]'\")]+" | ${FZF_TMUX} --reverse --height=20 --multi || true)"
+URLS="$(tmux capture-pane -J -p | grep -oE "https?://[^[:space:]'\")]+" | fzf-tmux --reverse --height=20 --multi || true)"
 
 if test -n "${URLS}"; then
 	for u in ${URLS}; do
