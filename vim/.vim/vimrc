@@ -117,8 +117,6 @@ set showmode
 set signcolumn=yes
 set smartcase
 set smarttab
-set splitbelow
-set splitright
 set t_Co=16
 set ttimeout
 set ttimeoutlen=50
