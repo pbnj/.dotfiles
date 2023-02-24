@@ -16,16 +16,18 @@ alias cp='cp -i'
 alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
+# vim
 alias vi="vim --clean"
-alias vip="vim +Projects"
-alias viu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
+alias vp="vim +Projects"
+alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
+alias vf="vim +Files"
+alias vgf="vim +GF"
+alias vgs="vim +GF?"
+alias vrg="vim +Rg"
 
 # For quick edits
 # shellcheck disable=SC2139
 alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
-
-# vim
-vimgrep() { vim -c "grep $*"; }
 
 # git
 alias ga="git add"
