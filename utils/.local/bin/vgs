@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -eou pipefail
-
-vim "$(awk '{ print $2 }' <(git status --short) | fzf-tmux --preview 'cat {}')"

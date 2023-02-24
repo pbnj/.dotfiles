@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -eou pipefail
-
-vim "$(git ls-files | fzf-tmux)"

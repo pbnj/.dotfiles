@@ -1,8 +1,0 @@
-#!/bin/bash
-
-set -eou pipefail
-
-tfsec --format csv --force-all-dirs --exclude-downloaded-modules 2>/dev/null |
-	grep -v 'file,start_line,' |
-	awk -F',' '{print $1":"$2":["$5"] " $6}' |
-	sort
