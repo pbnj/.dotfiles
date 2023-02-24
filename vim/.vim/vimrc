@@ -46,6 +46,7 @@ let g:ale_virtualtext_cursor = 0
 
 call plug#begin()
 
+Plug 'https://github.com/airblade/vim-rooter'
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/ervandew/supertab'
@@ -59,7 +60,6 @@ Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/pbnj/vim-britive'
 Plug 'https://github.com/pbnj/vim-ddgr'
 Plug 'https://github.com/sheerun/vim-polyglot'
-Plug 'https://github.com/wellle/tmux-complete.vim'
 Plug 'https://github.com/tpope/vim-abolish'
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-eunuch'
@@ -68,6 +68,7 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
+Plug 'https://github.com/wellle/tmux-complete.vim'
 
 call plug#end()
 
@@ -100,7 +101,7 @@ set laststatus=2
 set lazyredraw
 set linebreak
 set list
-set listchars=tab:>\ ,trail:·
+set listchars=tab:\|\ ,trail:·
 set modeline
 set mouse=a
 set nobackup
@@ -278,6 +279,7 @@ inoremap <c-o> <c-x><c-o>
 inoremap <c-u> <c-x><c-u>
 nnoremap <expr> <leader>ss '/\<'.expand('<cword>').'\><cr>'
 nnoremap <leader>bb <cmd>b#<cr>
+nnoremap <leader>br <cmd>FZFBritiveConsole<cr>
 nnoremap <leader>cc <cmd>cc<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
@@ -287,8 +289,6 @@ nnoremap <leader>fb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
-nnoremap <leader>gb <cmd>GB<cr>
-xnoremap <leader>gb <cmd>'<,'>GB<cr>
 nnoremap <leader>gc <cmd>G commit<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>G<cr>

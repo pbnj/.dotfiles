@@ -1,6 +1,7 @@
 let b:ale_fixers  = [ 'terraform', 'remove_trailing_lines', 'trim_whitespace']
 let b:ale_linters = [ 'terraform', 'terraform_ls', 'tflint' ]
 
+setlocal keywordprg=:!ddgr\ terraform
 setlocal formatprg=terraform\ fmt\ -
 
 function! TerraformStateCompletion(A,L,P) abort
