@@ -96,7 +96,6 @@ set hlsearch
 set ignorecase
 set incsearch
 set infercase
-set keywordprg=:DDGR
 set laststatus=2
 set lazyredraw
 set linebreak
@@ -127,6 +126,7 @@ set undofile
 set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*
 set wildignorecase
 set wildmenu
+set wildmode=longest:full,full
 
 " Better grep
 if executable('rg')
@@ -162,12 +162,15 @@ set statusline+=\ %{(ale#statusline#Count(bufnr()).warning)?'W:'.ale#statusline#
 "----------------------------------------
 " General
 "----------------------------------------
+
 " Completion function for `make`
 function! MakeCompletion(A,L,P) abort
     let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
     return filter(l:targets, 'v:val =~ "^' . a:A . '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
+      \ !make -C %:p:h <args>
+command! -nargs=* -complete=customlist,MakeCompletion MakeTerm
       \ terminal make -C %:p:h <args>
 nnoremap <leader>mm :Make<space><c-d>
 
