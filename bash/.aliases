@@ -57,7 +57,7 @@ fi
 # osx
 if [[ $(uname) == "Darwin" ]]; then
 	# enable remote login
-	alias macos_remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on"
+	alias macos_remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on && sudo systemsetup -getremotelogin"
 	# desktop
 	alias macos_desktop_hide="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
 	alias macos_desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
