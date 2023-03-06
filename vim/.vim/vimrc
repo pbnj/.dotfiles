@@ -18,11 +18,6 @@ packadd cfilter
 " netrw change current working directory to match netrw directory
 let g:netrw_keepdir = 0
 
-" Custom, priavte work-related configs
-if filereadable(glob('~/.vim/work.vim'))
-  source ~/.vim/work.vim
-endif
-
 " vim-signify
 let g:signify_sign_add               = '+'
 let g:signify_sign_delete            = '-'
@@ -85,7 +80,7 @@ set autoread
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completeopt=menu,longest
+set completeopt=menuone,longest,noinsert
 set cursorline
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
@@ -168,8 +163,6 @@ function! MakeCompletion(A,L,P) abort
     return filter(l:targets, 'v:val =~ "^' . a:A . '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
-      \ !make -C %:p:h <args>
-command! -nargs=* -complete=customlist,MakeCompletion MakeTerm
       \ terminal make -C %:p:h <args>
 nnoremap <leader>mm :Make<space><c-d>
 
