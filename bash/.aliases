@@ -17,10 +17,14 @@ alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
 # vim
+if hash nvim 2>/dev/null; then
+	alias vim=nvim
+fi
 alias vi="vim --clean"
 alias vp="vim +Projects"
 alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
 alias vf="vim +Files"
+alias vg="vim +0G"
 alias vgf="vim +GF"
 alias vgs="vim +GF?"
 alias vrg="vim +Rg"

@@ -1,14 +1,6 @@
 # vim:ft=bash:
 # shellcheck shell=bash
 
-# Preview before deleting files
-rmp() {
-	local previewer="$(which bat || which cat)"
-	echo "Preview:"
-	$previewer $1
-	rm -i $1
-}
-
 ly() {
 	lynx -useragent='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' $*
 }
