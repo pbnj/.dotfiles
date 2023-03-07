@@ -63,7 +63,6 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
-Plug 'https://github.com/wellle/tmux-complete.vim'
 
 call plug#end()
 
@@ -143,8 +142,6 @@ augroup END
 
 set statusline=\ %f
 set statusline+=\ %#Error#%m%*%r%h%w%q
-set statusline+=\ %y
-set statusline+=\ %#Todo#%{FugitiveStatusline()}%*
 set statusline+=\ %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?'checking...':''}%*
 set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'x'.ale#statusline#Count(bufnr()).error:''}%*
 set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'w'.ale#statusline#Count(bufnr()).warning:''}%*
