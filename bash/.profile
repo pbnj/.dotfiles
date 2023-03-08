@@ -29,6 +29,9 @@ fi
 [[ -f "/usr/share/bash-completion/bash_completion" ]] && source "/usr/share/bash-completion/bash_completion"
 [[ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ]] && source "/opt/homebrew/etc/profile.d/bash_completion.sh"
 
+# FZF
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
+
 # PROMPT
 if hash __git_ps1 2>/dev/null; then
 	export GIT_PS1_SHOWDIRTYSTATE="true"
