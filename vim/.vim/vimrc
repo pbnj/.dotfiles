@@ -41,7 +41,6 @@ let g:ale_virtualtext_cursor = 0
 
 call plug#begin()
 
-Plug 'https://github.com/airblade/vim-rooter'
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/ervandew/supertab'
@@ -79,7 +78,7 @@ set autoread
 set backspace=indent,eol,start
 set breakindent
 set clipboard=unnamed,unnamedplus
-set completeopt=menuone,longest,noinsert
+set completeopt=menu
 set cursorline
 set encoding=utf-8
 set errorformat^=%f:%l:%m,%f:%l:%c:%m
@@ -90,7 +89,6 @@ set hlsearch
 set ignorecase
 set incsearch
 set infercase
-set laststatus=2
 set lazyredraw
 set linebreak
 set list
@@ -160,7 +158,7 @@ function! MakeCompletion(A,L,P) abort
     return filter(l:targets, 'v:val =~ "^' . a:A . '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
-      \ terminal make -C %:p:h <args>
+      \ !make -C %:p:h <args>
 nnoremap <leader>mm :Make<space><c-d>
 
 function! StripTrailingSpaces() abort
@@ -280,6 +278,7 @@ nnoremap <leader>ev :vs **/*
 nnoremap <leader>fb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
+nnoremap <leader>fG <cmd>GFiles?<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
 nnoremap <leader>gc <cmd>G commit<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
