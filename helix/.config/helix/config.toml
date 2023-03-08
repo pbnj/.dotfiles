@@ -1,0 +1,19 @@
+theme = "gruvbox"
+
+[editor.cursor-shape]
+insert = "bar"
+
+[editor.file-picker]
+hidden = true
+
+[editor.whitespace]
+render = "all"
+
+[editor.whitespace.characters]
+newline = "¬"
+
+[editor.indent-guides]
+render = true
+
+[keys.normal]
+esc = ["collapse_selection", "keep_primary_selection"]
