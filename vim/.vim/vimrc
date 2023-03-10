@@ -89,6 +89,7 @@ set hlsearch
 set ignorecase
 set incsearch
 set infercase
+set laststatus=2
 set lazyredraw
 set linebreak
 set list
