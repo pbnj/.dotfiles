@@ -4,6 +4,9 @@
 	email = "petermbenjamin@gmail.com"
 	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
 
+[includeIf "gitdir:~/Projects/bitbucket.org/"]
+	path = ~/Projects/bitbucket.org/.gitconfig
+
 [alias]
 	alias = !git config -l | grep ^alias | cut -c 7- | sort
 
