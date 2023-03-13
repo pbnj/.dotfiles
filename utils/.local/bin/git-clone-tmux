@@ -7,24 +7,28 @@ set -eou pipefail
 REPO_URL="${1:-""}"
 CLONE_PATH=""
 
-[[ -z "${REPO_URL}" ]] && read -re -p "Repo URL: " REPO_URL
+if [[ -z "${REPO_URL}" ]]; then
+	echo "ERROR: missing REPO_URL"
+	exit 1
+fi
 
-if [[ "${REPO_URL}" =~ ^https://(github|git.zias.io) ]]
-then
+if [[ "${REPO_URL}" =~ ^https://github ]]; then
 	GITHUB_ORG_REPO="$(echo "${REPO_URL%.git}" | cut -d '/' -f 3-5)"
 	CLONE_PATH="${HOME}/Projects/${GITHUB_ORG_REPO}"
 	mkdir -p "${CLONE_PATH}"
 	git clone "${REPO_URL}" "${CLONE_PATH}"
-elif [[ "${REPO_URL}" =~ ^https://gitlab ]]
-then
+elif [[ "${REPO_URL}" =~ ^https://gitlab ]]; then
 	GITLAB_GROUP_REPO="$(echo "${REPO_URL%.git}" | cut -d '/' -f 3-)"
 	CLONE_PATH="${HOME}/Projects/${GITLAB_GROUP_REPO}"
 	mkdir -p "${CLONE_PATH}"
 	git clone "${REPO_URL}" "${CLONE_PATH}"
-else
-	[[ -z "${CLONE_PATH}" ]] && read -re -p "Directory: " CLONE_PATH
+elif [[ "${REPO_URL}" =~ ^https://bitbucket ]]; then
+	BITBUCKET_WORKSPACE="$(echo "${REPO_URL%/src*}" | cut -d '/' -f 3-5)"
+	CLONE_PATH="${HOME}/Projects/${BITBUCKET_WORKSPACE}"
 	mkdir -p "${CLONE_PATH}"
 	git clone "${REPO_URL}" "${CLONE_PATH}"
+else
+	echo "ERROR: Unknown Git hosting platform."
 fi
 
 tmux new-window -c "${CLONE_PATH}" -n "$(basename "${CLONE_PATH}")"
