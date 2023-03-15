@@ -22,7 +22,7 @@ let g:netrw_keepdir = 0
 let g:signify_sign_add               = '+'
 let g:signify_sign_delete            = '-'
 let g:signify_sign_delete_first_line = '-'
-let g:signify_sign_change            = '.'
+let g:signify_sign_change            = '•'
 let g:signify_sign_change_delete     = g:signify_sign_change
 
 " ale
@@ -74,53 +74,57 @@ filetype plugin indent on
 
 if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
 
-set autoindent
-set autoread
-set backspace=indent,eol,start
-set breakindent
-set clipboard=unnamed,unnamedplus
-set completeopt=menu
-set cursorline
-set encoding=utf-8
-set errorformat^=%f:%l:%m,%f:%l:%c:%m
-set formatoptions=tcqjno
-set grepformat^=%f:%l:%c:%m
-set hidden
-set hlsearch
-set ignorecase
-set incsearch
-set infercase
-set laststatus=2
-set lazyredraw
-set linebreak
-set list
-set listchars=tab:\|\ ,trail:·
-set modeline
-set mouse=a
-set nobackup
-set nofoldenable
-set norelativenumber
-set noruler
-set noswapfile
-set nowrap
-set number
-set omnifunc=ale#completion#OmniFunc
-set secure
-set shortmess=filnxtToOc
-set showmode
-set signcolumn=yes
-set smartcase
-set smarttab
-set t_Co=16
-set ttimeout
-set ttimeoutlen=50
-set ttyfast
-set undodir=~/.vim/undo/
-set undofile
-set wildignore=*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*
-set wildignorecase
-set wildmenu
-set wildmode=longest:full,full
+let &autoindent=1
+let &autoread=1
+let &backspace='indent,eol,start'
+let &backup=0
+let &breakindent=1
+let &clipboard='unnamed,unnamedplus'
+let &completeopt='menu'
+let &cursorline=1
+let &encoding='utf-8'
+let &errorformat='%f:%l:%m,%f:%l:%c:%m'
+let &fillchars='vert:|,fold:-,eob: '
+let &foldenable=0
+let &grepformat='%f:%l:%c:%m'
+let &hidden=1
+let &hlsearch=1
+let &ignorecase=1
+let &incsearch=1
+let &infercase=1
+let &keywordprg=':!ddgr'
+let &laststatus=2
+let &lazyredraw=1
+let &linebreak=1
+let &list=1
+let &listchars='tab:| ,trail:·'
+let &modeline=1
+let &mouse='a'
+let &number=1
+let &omnifunc='ale#completion#OmniFunc'
+let &relativenumber=0
+let &ruler=0
+let &secure=1
+let &shortmess='filnxtToOc'
+let &showmode=1
+let &signcolumn='yes'
+let &smartcase=1
+let &smarttab=1
+let &swapfile=0
+let &t_Co=16
+let &ttimeout=1
+let &ttimeoutlen=50
+let &ttyfast=1
+let &undodir='~/.vim/undo/'
+let &undofile=1
+let &wildignorecase=1
+let &wildmenu=1
+let &wildmode='longest:full,full'
+let &wrap=0
+
+let &wildignore='*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,'
+let &wildignore..='*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,'
+let &wildignore..='*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*'
 
 " Better grep
 if executable('rg')
@@ -140,11 +144,11 @@ augroup END
 " Statusline
 "----------------------------------------
 
-set statusline=\ %f
-set statusline+=\ %#Error#%m%*%r%h%w%q
-set statusline+=\ %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?'checking...':''}%*
-set statusline+=\ %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?'x'.ale#statusline#Count(bufnr()).error:''}%*
-set statusline+=\ %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?'w'.ale#statusline#Count(bufnr()).warning:''}%*
+let statusline=' %f'
+let statusline..=' %#Error#%m%*%r%h%w%q'
+let statusline..=' %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?"checking...":""}%*'
+let statusline..=' %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?"x".ale#statusline#Count(bufnr()).error:""}%*'
+let statusline..=' %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?"w".ale#statusline#Count(bufnr()).warning:""}%*'
 
 "-------------------------------------------------------------------------------
 " Functions & Commands
@@ -226,16 +230,13 @@ nnoremap <leader>uu <cmd>URLs<cr>
 "---------------------------------------
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
-  if a:args.filename ==# ''
-    echoerr "Failed to `git browse`. Filename is missing or invalid."
-    return
-  endif
+  let l:cmd = 'git browse '
   let l:remote = trim(system('git config branch.'.a:args.branch.'.remote || echo "origin" '))
   if a:args.range == 0
-    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename
+    let l:cmd ..= l:remote . ' ' . a:args.filename
   else
     echo a:args.range
-    let l:cmd = 'git browse ' . l:remote . ' ' . a:args.filename . ' ' . a:args.line1 . ' ' . a:args.line2
+    let l:cmd ..= l:remote . ' ' . a:args.filename . ' ' . a:args.line1 . ' ' . a:args.line2
   endif
   execute 'silent ! ' . l:cmd | redraw!
 endfunction
@@ -285,7 +286,7 @@ nnoremap <leader>fs <cmd>Rg<cr>
 nnoremap <leader>gc <cmd>G commit<cr>
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>gg <cmd>G<cr>
-nnoremap <leader>gp <cmd>G push<cr>
+nnoremap <leader>gp <cmd>G! push<cr>
 nnoremap <leader>gr <cmd>GR<cr>
 nnoremap <leader>gs <cmd>G<cr>
 nnoremap <leader>gw <cmd>Gwrite<cr>
