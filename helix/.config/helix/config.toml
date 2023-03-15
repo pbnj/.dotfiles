@@ -1,16 +1,10 @@
-theme = "gruvbox"
+theme = "dark_plus"
 
 [editor.cursor-shape]
 insert = "bar"
 
 [editor.file-picker]
 hidden = true
-
-[editor.whitespace]
-render = "all"
-
-[editor.whitespace.characters]
-newline = "¬"
 
 [editor.indent-guides]
 render = true
