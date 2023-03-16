@@ -15,9 +15,6 @@ endif
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
-" netrw change current working directory to match netrw directory
-let g:netrw_keepdir = 0
-
 " vim-signify
 let g:signify_sign_add               = '+'
 let g:signify_sign_delete            = '-'

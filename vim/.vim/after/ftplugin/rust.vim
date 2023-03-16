@@ -1,6 +1,6 @@
 let b:ale_linters = ['analyzer', 'cargo']
 
-let &l:keywordprg=':!ddgr rust'
+let &l:keywordprg=':!ddgr rustlang'
 
 command! -bar WatchCargoCheck
                   \ <mods> call term_start('watchexec --clear cargo check')
