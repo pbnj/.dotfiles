@@ -45,6 +45,10 @@
 [merge]
 	conflictStyle = diff3
 	defaultToUpstream = true
+	tool = vimdiff
+
+[diff]
+	tool = vimdiff
 
 [branch]
 	autoSetupMerge = always
@@ -63,7 +67,7 @@
 
 [commit]
 	verbose = true
-	gpgsign = true
+	; gpgsign = true
 
 [grep]
 	lineNumber = true
@@ -81,9 +85,9 @@
 [log]
 	showSignature = false
 
-[gpg]
-	format = ssh
+; [gpg]
+; 	format = ssh
 
-[gpg "ssh"]
-	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
-	allowedSignersFile = ~/.config/git/allowed_signers
+; [gpg "ssh"]
+; 	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+; 	allowedSignersFile = ~/.config/git/allowed_signers
