@@ -3,6 +3,7 @@
 
 # General
 export PATH="${HOME}/.local/bin:${PATH}"
+export PATH="${HOME}/.local/share/nvim/mason/bin:${PATH}"
 
 # Go
 export GODEBUG=x509ignoreCN=0
