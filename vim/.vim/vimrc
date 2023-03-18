@@ -125,11 +125,11 @@ let &wildignore..='*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/
 
 " Better grep
 if executable('rg')
-  set grepprg=rg\ --vimgrep\ --line-number\ --column\ $*
+  let &grepprg='rg --vimgrep --line-number --column $*'
 elseif executable('git')
-  set grepprg=git\ grep\ --line-number\ --column\ $*
+  let &grepprg='git grep --line-number --column $*'
 else
-  set grepprg=grep\ -HIn\ --line-buffered\ $*
+  let &grepprg='grep -HIn --line-buffered $*'
 endif
 
 augroup quickfix
@@ -161,7 +161,7 @@ function! MakeCompletion(A,L,P) abort
     return filter(l:targets, 'v:val =~ "^' . a:A . '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
-      \ !make -C %:p:h <args>
+      \ term make -C %:p:h <args>
 nnoremap <leader>mm :Make<space><c-d>
 
 function! StripTrailingSpaces() abort
@@ -207,16 +207,13 @@ command! -nargs=* Open
       \ call Open(<q-args>)
 
 " :Projects[!] is a custom Project Manager
+if executable('fd')
+  let project_finder = 'fd . ~/Projects --type d'
+else
+  let project_finder = 'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'
+endif
 command! -bang Projects
-      \ call fzf#run(fzf#wrap({'source':'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'},<bang>0))
-      " \ call fzf#run(fzf#wrap({'source': uniq(map(glob(fnameescape('~/Projects/').'**',0,1),'fnamemodify(v:val, ":h")')) }))
-
-" function! PMC(A,L,P) abort
-"   return filter(finddir('.git/..', expand('~/Projects').'**',-1),'v:val =~ a:A')
-" endfunction
-
-" command! -nargs=1 -complete=customlist,PMC PM
-"       \ edit <args>
+      \ call fzf#run(fzf#wrap({'source': project_finder},<bang>0))
 
 command! URLs
       \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': 'Open', 'options': '--multi'}))
@@ -251,12 +248,6 @@ command! GP Git! push
 command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
 command! GS Git! status %:h
 
-function! GitRCCompletion(A,L,P) abort
-  return filter(systemlist('find ~/.dotfiles/templates -type f'),'v:val =~ a:A')
-endfunction
-command! -nargs=+ -complete=customlist,GitRCCompletion GRC
-      \ !cp <q-args> %:p:h
-
 "-------------------------------------------------------------------------------
 " Mappings
 "-------------------------------------------------------------------------------
@@ -277,6 +268,7 @@ nnoremap <leader>es :sp **/*
 nnoremap <leader>ev :vs **/*
 nnoremap <leader>fb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files<cr>
+nnoremap <leader>FF <cmd>Files %:p:h<cr>
 nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>fG <cmd>GFiles?<cr>
 nnoremap <leader>fs <cmd>Rg<cr>
