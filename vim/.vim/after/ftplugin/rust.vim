@@ -1,5 +1,3 @@
-let b:ale_linters = ['analyzer', 'cargo']
-
 let &l:keywordprg=':!ddgr rustlang'
 
 command! -bar WatchCargoCheck

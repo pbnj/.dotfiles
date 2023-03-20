@@ -26,7 +26,20 @@ let g:signify_sign_change_delete     = g:signify_sign_change
 let g:ale_completion_enabled = 1
 let g:ale_echo_cursor        = 1
 let g:ale_fix_on_save        = 1
-let g:ale_fixers             = {'*': ['remove_trailing_lines', 'trim_whitespace']}
+let g:ale_fixers             = {
+                  \ '*'         : [ 'remove_trailing_lines', 'trim_whitespace' ] ,
+                  \ 'go'        : [ 'goimports'                                ] ,
+                  \ 'json'      : [ 'prettier'                                 ] ,
+                  \ 'markdown'  : [ 'prettier'                                 ] ,
+                  \ 'rego'      : [ 'opa'                                      ] ,
+                  \ 'rust'      : [ 'analyzer', 'cargo'                        ] ,
+                  \ 'sh'        : [  'shfmt'                                   ] ,
+                  \ 'terraform' : [ 'terraform'                                ] ,
+                  \ 'yaml'      : [  'prettier'                                ] ,
+                  \ }
+let g:ale_linters = {
+                  \ 'terraform': [ 'terraform', 'terraform_ls', 'tflint' ],
+                  \ }
 let g:ale_floating_preview   = 1
 let g:ale_hover_cursor       = 0
 let g:ale_sign_error         = 'x'
@@ -39,13 +52,12 @@ let g:ale_virtualtext_cursor = 0
 call plug#begin()
 
 Plug 'https://github.com/dense-analysis/ale'
-Plug 'https://github.com/dhruvasagar/vim-markify'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/ervandew/supertab'
 Plug 'https://github.com/godlygeek/tabular'
 Plug 'https://github.com/junegunn/fzf', { 'dir': '~/.fzf', 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
-Plug 'https://github.com/machakann/vim-highlightedyank'
+Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
@@ -60,6 +72,7 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
+Plug 'https://github.com/wellle/tmux-complete.vim'
 
 call plug#end()
 
@@ -112,24 +125,24 @@ let &t_Co=16
 let &ttimeout=1
 let &ttimeoutlen=50
 let &ttyfast=1
-let &undodir='~/.vim/undo/'
+let &undodir='~/.vim/undo'
 let &undofile=1
 let &wildignorecase=1
 let &wildmenu=1
 let &wildmode='longest:full,full'
 let &wrap=0
 
-let &wildignore='*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,'
-let &wildignore..='*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,'
-let &wildignore..='*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*'
+let &wildignore   = '*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,'
+let &wildignore ..= '*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,'
+let &wildignore ..= '*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*'
 
 " Better grep
 if executable('rg')
-  let &grepprg='rg --vimgrep --line-number --column $*'
+  let &grepprg = 'rg --vimgrep --line-number --column $*'
 elseif executable('git')
-  let &grepprg='git grep --line-number --column $*'
+  let &grepprg = 'git grep --line-number --column $*'
 else
-  let &grepprg='grep -HIn --line-buffered $*'
+  let &grepprg = 'grep -HIn --line-buffered $*'
 endif
 
 augroup quickfix
@@ -141,11 +154,11 @@ augroup END
 " Statusline
 "----------------------------------------
 
-let statusline=' %f'
-let statusline..=' %#Error#%m%*%r%h%w%q'
-let statusline..=' %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?"checking...":""}%*'
-let statusline..=' %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?"x".ale#statusline#Count(bufnr()).error:""}%*'
-let statusline..=' %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?"w".ale#statusline#Count(bufnr()).warning:""}%*'
+let statusline   = ' %f'
+let statusline ..= ' %#Error#%m%*%r%h%w%q'
+let statusline ..= ' %#ALEInfoSign#%{ale#engine#IsCheckingBuffer(bufnr())?"checking...":""}%*'
+let statusline ..= ' %#ALEErrorSign#%{(ale#statusline#Count(bufnr()).error)?"x".ale#statusline#Count(bufnr()).error:""}%*'
+let statusline ..= ' %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?"w".ale#statusline#Count(bufnr()).warning:""}%*'
 
 "-------------------------------------------------------------------------------
 " Functions & Commands
@@ -158,7 +171,7 @@ let statusline..=' %#ALEWarningSign#%{(ale#statusline#Count(bufnr()).warning)?"w
 " Completion function for `make`
 function! MakeCompletion(A,L,P) abort
     let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
-    return filter(l:targets, 'v:val =~ "^' . a:A . '"')
+    return filter(l:targets, 'v:val =~ "^' .. a:A .. '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
       \ term make -C %:p:h <args>
@@ -186,11 +199,11 @@ augroup END
 
 function! Open(...) abort
   if executable('xdg-open')
-    silent call system('xdg-open ' . join(a:000, ' '))
+    silent call system('xdg-open ' .. join(a:000, ' '))
   elseif executable('open')
-    silent call system('open ' . join(a:000, ' '))
+    silent call system('open ' .. join(a:000, ' '))
   elseif executable('open-cli')
-    silent call system('open-cli ' . join(a:000, ' '))
+    silent call system('open-cli ' .. join(a:000, ' '))
   elseif executable('lynx')
     for url in a:000
       silent call term_start(['lynx', url])
@@ -225,27 +238,27 @@ nnoremap <leader>uu <cmd>URLs<cr>
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
   let l:cmd = 'git browse '
-  let l:remote = trim(system('git config branch.'.a:args.branch.'.remote || echo "origin" '))
+  let l:remote = trim(system('git config branch.'..a:args.branch..'.remote || echo "origin" '))
   if a:args.range == 0
-    let l:cmd ..= l:remote . ' ' . a:args.filename
+    let l:cmd ..= l:remote .. ' ' .. a:args.filename
   else
     echo a:args.range
-    let l:cmd ..= l:remote . ' ' . a:args.filename . ' ' . a:args.line1 . ' ' . a:args.line2
+    let l:cmd ..= l:remote .. ' ' .. a:args.filename .. ' ' .. a:args.line1 .. ' ' .. a:args.line2
   endif
-  execute 'silent ! ' . l:cmd | redraw!
+  execute 'silent ! ' .. l:cmd | redraw!
 endfunction
 " View git repo, branch, & file in the browser
 command! -range GB
       \ call GitBrowse({
       \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
-      \ 'filename': trim(system('git ls-files --full-name ' . expand('%'))),
+      \ 'filename': trim(system('git ls-files --full-name ' .. expand('%'))),
       \ 'range': <range>,
       \ 'line1': <line1>,
       \ 'line2': <line2>,
       \ })
 command! GC Git commit
 command! GP Git! push
-command! GR execute 'lcd ' . finddir('.git/..', expand('%:p:h').';')
+command! GR execute 'lcd ' .. finddir('.git/..', expand('%:p:h')..';')
 command! GS Git! status %:h
 
 "-------------------------------------------------------------------------------
