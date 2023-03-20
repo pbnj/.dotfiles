@@ -1,10 +1,12 @@
 # https://docs.ctags.io/en/latest/man/ctags.1.html#files
 --langdef=terraform
 --langmap=terraform:.tf.tfvars
---regex-terraform=/^[[:space:]]*resource[[:space:]]*"([^"]*)"[[:space:]]*"([^"]*)"/\1.\2/r,Resource/
---regex-terraform=/^[[:space:]]*data[[:space:]]*"([^"]*)"[[:space:]]*"([^"]*)"/\1.\2/d,Data/
---regex-terraform=/^[[:space:]]*variable[[:space:]]*"([^"]*)"/\1/v,Variable/
---regex-terraform=/^[[:space:]]*provider[[:space:]]*"([^"]*)"/\1/p,Provider/
+--regex-terraform=/^([a-z0-9_]+)[[:space:]]*=/\1/f,TFVar/
 --regex-terraform=/^[[:space:]]*module[[:space:]]*"([^"]*)"/\1/m,Module/
 --regex-terraform=/^[[:space:]]*output[[:space:]]*"([^"]*)"/\1/o,Output/
---regex-terraform=/^([a-z0-9_]+)[[:space:]]*=/\1/f,TFVar/
+--regex-terraform=/^[[:space:]]*provider[[:space:]]*"([^"]*)"/\1/p,Provider/
+--regex-terraform=/^[[:space:]]*variable[[:space:]]*"([^"]*)"/\1/v,Variable/
+--regex-terraform=/^[[:space:]]*data[[:space:]]*"([^"]*)"[[:space:]]*"([^"]*)"/\1.\2/d,Data/
+--regex-terraform=/^[[:space:]]*data[[:space:]]*"([^"]*)"[[:space:]]*"([^"]*)"/\2/d,Data/
+--regex-terraform=/^[[:space:]]*resource[[:space:]]*"([^"]*)"[[:space:]]*"([^"]*)"/\1.\2/r,Resource/
+--regex-terraform=/^[[:space:]]*resource[[:space:]]*"([^"]*)"[[:space:]]*"([^"]*)"/\2/r,Resource/
