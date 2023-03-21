@@ -1,6 +1,5 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
-# ARCH := $(shell dpkg --print-architecture)
 PROJECT := dotfiles
 PROJECT_DIR := $(HOME)/Projects
 SUDO := $(shell which sudo)

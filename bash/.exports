@@ -2,13 +2,12 @@
 # shellcheck shell=bash
 
 # General
-export PATH="${HOME}/.local/bin:${PATH}"
-export PATH="${HOME}/.local/share/nvim/mason/bin:${PATH}"
+PATH="${HOME}/.local/bin:${PATH}"
 
 # Go
 export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
-export PATH="${PATH}:${GOPATH}/bin"
+PATH="${PATH}:${GOPATH}/bin"
 
 # export BROWSER=w3m
 export EDITOR=$(which nvim || which vim)
@@ -37,3 +36,5 @@ fi
 
 # MISC
 export DOTFILES="${HOME}/.dotfiles"
+
+export PATH

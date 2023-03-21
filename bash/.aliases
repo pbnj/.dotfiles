@@ -4,9 +4,6 @@
 # Hint: `complete -p` shows all completions in the form of commands you can run
 # to replicate the completion behavior for aliases.
 
-alias ..="cd .."
-alias ...="cd ../.."
-
 alias ls="ls -F"
 hash exa 2>/dev/null && alias ls="exa -F"
 alias ll="ls -alFh"
@@ -17,9 +14,6 @@ alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
 # vim
-if hash nvim 2>/dev/null; then
-	alias vim=nvim
-fi
 alias vi="vim --clean"
 alias vp="vim +Projects"
 alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
