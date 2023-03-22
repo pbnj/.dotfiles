@@ -94,7 +94,7 @@ nnoremap <leader>uu <cmd>URLs<cr>
 Plug 'https://github.com/itchyny/lightline.vim'
 Plug 'https://github.com/maximbaz/lightline-ale'
 let g:lightline = {}
-let g:lightline.colorscheme = 'iceberg'
+let g:lightline.colorscheme = 'wombat'
 let g:lightline.component_expand = {
       \  'linter_checking': 'lightline#ale#checking',
       \  'linter_infos': 'lightline#ale#infos',
@@ -139,7 +139,6 @@ if executable('ctags') | Plug 'https://github.com/ludovicchabant/vim-gutentags' 
 
 " colorschemes {{{
 
-Plug 'https://github.com/cocopon/iceberg.vim'
 Plug 'https://github.com/pbnj/pbnj.vim'
 
 " }}}
@@ -178,6 +177,7 @@ let &list           = 1
 let &listchars      = 'tab:| ,trail:·'
 let &modeline       = 1
 let &mouse          = 'a'
+let &number         = 1
 let &secure         = 1
 let &shortmess      = 'filnxtToOc'
 let &showmode       = 0
@@ -185,7 +185,8 @@ let &signcolumn     = 'yes'
 let &smartcase      = 1
 let &smarttab       = 1
 let &swapfile       = 0
-let &termguicolors  = 1
+let &t_Co           = 16
+let &termguicolors  = 0
 let &ttimeout       = 1
 let &ttimeoutlen    = 50
 let &ttyfast        = 1
@@ -332,4 +333,4 @@ tnoremap <s-space> <space>
 
 " }}}
 
-colorscheme iceberg
+colorscheme pbnj
