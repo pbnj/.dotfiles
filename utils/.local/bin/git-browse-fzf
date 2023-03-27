@@ -1,11 +1,18 @@
 #!/bin/bash
 
+# Author: Peter Benjamin
+# Description: Open git file from local repo in the browser
+# Dependencies:
+# - git
+# - git-extras
+# - fzf
+# - bat
+# - awk
+
 set -eou pipefail
 
-git grep --line-number --no-column . |
-	fzf-tmux --reverse --multi |
-	awk -F: '{print $1":"$2}' |
-	awk '{printf (NR%2==0) ? $0 "\n" : $0 ":"}' |
+git grep --full-name --line-number --no-column . |
+	fzf-tmux --delimiter=':' --reverse --preview 'bat --color=always --highlight-line {2} {1}'|
 	awk -F: '{print $1" "$2" "$4}' |
 	xargs -t -L1 git browse "$(git config branch."$(git rev-parse --abbrev-ref HEAD 2>/dev/null)".remote || echo 'origin')" ||
 	true
