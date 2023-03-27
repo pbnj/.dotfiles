@@ -1,75 +1,14 @@
+# yamllint disable-file
 # https://github.com/alacritty/alacritty/blob/master/alacritty.yml
 ---
-colors:
-  bright:
-    black: "#585B70" # surface2
-    blue: "#89B4FA" # blue
-    cyan: "#94E2D5" # teal
-    green: "#A6E3A1" # green
-    magenta: "#F5C2E7" # pink
-    red: "#F38BA8" # red
-    white: "#A6ADC8" # subtext0
-    yellow: "#F9E2AF" # yellow
-  # Cursor colors
-  cursor:
-    cursor: "#F5E0DC" # rosewater
-    text: "#1E1E2E" # base
-  dim:
-    black: "#45475A" # surface1
-    blue: "#89B4FA" # blue
-    cyan: "#94E2D5" # teal
-    green: "#A6E3A1" # green
-    magenta: "#F5C2E7" # pink
-    red: "#F38BA8" # red
-    white: "#BAC2DE" # subtext1
-    yellow: "#F9E2AF" # yellow
-  # Search colors
-  hints:
-    end:
-      background: "#A6ADC8" # subtext0
-      foreground: "#1E1E2E" # base
-    start:
-      background: "#F9E2AF" # yellow
-      foreground: "#1E1E2E" # base
-  # Keyboard regex hints
-  indexed_colors:
-    - { color: "#FAB387" , index: 16}
-    - { color: "#F5E0DC" , index: 17}
-  # Selection colors
-  normal:
-    black: "#45475A" # surface1
-    blue: "#89B4FA" # blue
-    cyan: "#94E2D5" # teal
-    green: "#A6E3A1" # green
-    magenta: "#F5C2E7" # pink
-    red: "#F38BA8" # red
-    white: "#BAC2DE" # subtext1
-    yellow: "#F9E2AF" # yellow
-  # Normal colors
-  primary:
-    background: "#1E1E2E" # base
-    bright_foreground: "#CDD6F4" # text
-    dim_foreground: "#CDD6F4" # text
-    foreground: "#CDD6F4" # text
-  # Bright colors
-  search:
-    focused_match:
-      background: "#A6E3A1" # green
-      foreground: "#1E1E2E" # base
-    footer_bar:
-      background: "#A6ADC8" # subtext0
-      foreground: "#1E1E2E" # base
-    matches:
-      background: "#A6ADC8" # subtext0
-      foreground: "#1E1E2E" # base
-  # Dim colors
-  selection:
-    background: "#F5E0DC" # rosewater
-    text: "#1E1E2E" # base
-  vi_mode_cursor:
-    cursor: "#B4BEFE" # lavender
-    text: "#1E1E2E" # base
+live_config_reload: true
 
+selection:
+  save_to_clipboard: true
+
+window:
+  decorations: buttonless
+  opacity: 0.9
 env:
   TERM: xterm-256color
 
@@ -88,6 +27,7 @@ font:
     style: Light
   size: 13
 
+# https://github.com/alacritty/alacritty/issues/93#issuecomment-1364783147
 key_bindings:
   - { key: A, mods: Alt, chars: "\x1ba" }
   - { key: B, mods: Alt, chars: "\x1bb" }
@@ -165,12 +105,26 @@ key_bindings:
   - { key: Backslash, mods: Alt, chars: "\x1b\\" }
   - { key: Backslash, mods: Alt|Shift, chars: "\x1b|" }
 
-live_config_reload: true
-# https://github.com/alacritty/alacritty/issues/93#issuecomment-1364783147
-selection:
-  save_to_clipboard: true
-
-# https://github.com/catppuccin/alacritty/blob/main/catppuccin-mocha.yml
-window:
-  decorations: buttonless
-  # opacity: 0.9
+# https://github.com/rajasegar/alacritty-themes/blob/master/themes/Iceberg-Dark.yml
+colors:
+  primary:
+    background: "#161821"
+    foreground: "#d2d4de"
+  normal:
+    black: "#161821"
+    red: "#e27878"
+    green: "#b4be82"
+    yellow: "#e2a478"
+    blue: "#84a0c6"
+    magenta: "#a093c7"
+    cyan: "#89b8c2"
+    white: "#c6c8d1"
+  bright:
+    black: "#6b7089"
+    red: "#e98989"
+    green: "#c0ca8e"
+    yellow: "#e9b189"
+    blue: "#91acd1"
+    magenta: "#ada0d3"
+    cyan: "#95c4ce"
+    white: "#d2d4de"
