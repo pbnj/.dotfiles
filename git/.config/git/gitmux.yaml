@@ -1,14 +1,14 @@
 tmux:
   symbols:
-    branch: "⎇ "
+    branch: ""
     hashprefix: ":"
-    ahead: ↑·
-    behind: ↓·
-    staged: "●"
-    conflict: "✖"
-    modified: "✚"
-    untracked: "?"
-    stashed: "⚑"
+    ahead: >
+    behind: <
+    staged: "+"
+    conflict: "x"
+    modified: "*"
+    untracked: "%"
+    stashed: "$⚑"
     insertions: Σ
     deletions: Δ
     clean: ✔
