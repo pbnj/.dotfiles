@@ -33,7 +33,6 @@ nnoremap <leader>bb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>uu <cmd>URLs<cr>
 
-Plug 'https://github.com/dhruvasagar/vim-markify'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/ervandew/supertab'
 Plug 'https://github.com/godlygeek/tabular'
@@ -116,9 +115,15 @@ augroup quickfix
   autocmd QuickFixCmdPost    l* nested lwindow
 augroup END
 
-augroup cul_insertmode
+augroup cursorline_toggle
   autocmd!
   autocmd InsertEnter,InsertLeave * setlocal cursorline!
+augroup END
+
+augroup hlsearch_toggle
+  autocmd!
+  autocmd CmdlineEnter [/\?] :set hlsearch
+  autocmd CmdlineLeave [/\?] :set nohlsearch
 augroup END
 
 " Completion function for `make`
