@@ -1,76 +1,25 @@
-" vim:ts=2:sts=2:sw=2:et:foldmethod=marker:
+" vim:ts=2:sts=2:sw=2:et:
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
-" PLUGINS {{{
-
-" Plugin: plug {{{
-
 " https://github.com/junegunn/vim-plug/wiki/tips
-let data_dir = has('nvim') ? stdpath('data') .. '/site' : '~/.vim'
+let data_dir = '~/.vim'
 if empty(glob(data_dir .. '/autoload/plug.vim'))
   silent execute '!curl -fLo '..data_dir..'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
   autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
 endif
 
-" }}}
-
-" Plugin: misc {{{
-
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
-" See :h :Man
-runtime ftplugin/man.vim
-
-" change cwd to match netrw's
-let g:netrw_keepdir = 0
-
-" }}}
-
 call plug#begin()
-
-" Plugin: ale {{{
-
-Plug 'https://github.com/dense-analysis/ale'
-let &omnifunc                = 'ale#completion#OmniFunc'
-let g:ale_echo_cursor        = 1
-let g:ale_fix_on_save        = 1
-let g:ale_floating_preview   = 1
-let g:ale_hover_cursor       = 0
-let g:ale_sign_error         = 'x'
-let g:ale_sign_info          = 'i'
-let g:ale_sign_style_error   = 'x'
-let g:ale_sign_style_warning = 'w'
-let g:ale_sign_warning       = 'w'
-let g:ale_virtualtext_cursor = 0
-let g:ale_fixers             = {
-                  \ '*'         : [ 'remove_trailing_lines', 'trim_whitespace' ] ,
-                  \ 'go'        : [ 'goimports'                                ] ,
-                  \ 'json'      : [ 'prettier'                                 ] ,
-                  \ 'markdown'  : [ 'prettier'                                 ] ,
-                  \ 'rego'      : [ 'opa'                                      ] ,
-                  \ 'rust'      : [ 'analyzer', 'cargo'                        ] ,
-                  \ 'sh'        : [ 'shfmt'                                    ] ,
-                  \ 'terraform' : [ 'terraform'                                ] ,
-                  \ 'yaml'      : [ 'prettier'                                 ] ,
-                  \ }
-nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
-
-" }}}
-
-" Plugin: signify {{{
 
 Plug 'https://github.com/mhinz/vim-signify'
 let g:signify_sign_add               = '+'
 let g:signify_sign_delete            = '-'
 let g:signify_sign_delete_first_line = '-'
-let g:signify_sign_change            = '•'
+let g:signify_sign_change            = '~'
 let g:signify_sign_change_delete     = g:signify_sign_change
-
-" }}}
-
-" fuzzy finders {{{
 
 Plug 'https://github.com/junegunn/fzf', { 'dir': '~/.fzf', 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
@@ -78,48 +27,17 @@ let project_finder = executable('fd') ? 'fd . ~/Projects --type d' : 'find ~/Pro
 command! -bang Projects
       \ call fzf#run(fzf#wrap({'source': project_finder,'options': '--prompt=Projects\>\ '}))
 command! URLs
-      \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': 'Open', 'options': '--multi --prompt=URLs\>\ '}))
+      \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': executable('open') ? '!open' : '!xdg-open', 'options': '--multi --prompt=URLs\>\ '}))
 nnoremap <leader>FF <cmd>Files %:p:h<cr>
-nnoremap <leader>FG <cmd>GFiles?<cr>
 nnoremap <leader>bb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files<cr>
-nnoremap <leader>fg <cmd>GFiles<cr>
-nnoremap <leader>fs <cmd>Rg<cr>
 nnoremap <leader>uu <cmd>URLs<cr>
-
-" }}}
-
-" statusline {{{
-
-Plug 'https://github.com/itchyny/lightline.vim'
-Plug 'https://github.com/maximbaz/lightline-ale'
-let g:lightline = {}
-let g:lightline.colorscheme = 'wombat'
-let g:lightline.component_expand = {
-      \  'linter_checking': 'lightline#ale#checking',
-      \  'linter_infos': 'lightline#ale#infos',
-      \  'linter_warnings': 'lightline#ale#warnings',
-      \  'linter_errors': 'lightline#ale#errors',
-      \  'linter_ok': 'lightline#ale#ok',
-      \ }
-let g:lightline.component_type = {
-      \     'linter_warnings': 'warning',
-      \     'linter_errors': 'error',
-      \ }
-let g:lightline.active = { 'left' : [
-      \ ['mode'],
-      \ ['filename','readonly','modified'],
-      \ ['gitbranch','linter_checking','linter_ok','linter_errors','linter_warnings','linter_infos'],
-      \ ] }
-let g:lightline.component_function = {'gitbranch': 'FugitiveHead'}
-
-" }}}
-
-" Plugins: utilities{{{
 
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/ervandew/supertab'
 Plug 'https://github.com/godlygeek/tabular'
+Plug 'https://github.com/machakann/vim-highlightedyank'
+Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/pbnj/vim-britive'
 Plug 'https://github.com/sheerun/vim-polyglot'
@@ -135,23 +53,12 @@ Plug 'https://github.com/tpope/vim-vinegar'
 Plug 'https://github.com/wellle/tmux-complete.vim'
 if executable('ctags') | Plug 'https://github.com/ludovicchabant/vim-gutentags' | endif
 
-" }}}
-
-" colorschemes {{{
-
-Plug 'https://github.com/pbnj/pbnj.vim'
-
-" }}}
-
 call plug#end()
 
 filetype plugin indent on
 
-" }}}
-
-" OPTIONS {{{
-
-if !isdirectory(expand('~/.vim/undo/')) | call mkdir(expand('~/.vim/undo/')) | endif
+let vim_undodir = expand('~/.vim/undo/')
+if !isdirectory(vim_undodir) | call mkdir(vim_undodir) | endif
 
 let &autoindent     = 1
 let &autoread       = 1
@@ -160,11 +67,12 @@ let &backspace      = 'indent,eol,start'
 let &breakindent    = 1
 let &clipboard      = 'unnamed,unnamedplus'
 let &completeopt    = 'menu'
-let &cursorline     = 1
+let &cursorline     = 0
 let &encoding       = 'utf-8'
 let &errorformat    = '%f:%l:%m,%f:%l:%c:%m'
-let &fillchars      = 'vert:|,fold:-,eob: '
+let &fillchars      = 'vert:│,foldclose:⎯,fold:⎯,diff:⎯,eob: '
 let &grepformat     = '%f:%l:%c:%m'
+let &grepprg        = executable('rg') ? 'rg --vimgrep --line-number --column $*' : executable('git') ?  'git grep --line-number --column $*' :  'grep -HIn --line-buffered $*'
 let &hidden         = 1
 let &hlsearch       = 1
 let &ignorecase     = 1
@@ -180,17 +88,18 @@ let &mouse          = 'a'
 let &number         = 1
 let &secure         = 1
 let &shortmess      = 'filnxtToOc'
-let &showmode       = 0
+let &showmode       = 1
 let &signcolumn     = 'yes'
 let &smartcase      = 1
 let &smarttab       = 1
+let &statusline     = ' %f %#Error#%m%*%r%h%w%q'
 let &swapfile       = 0
 let &t_Co           = 16
 let &termguicolors  = 0
 let &ttimeout       = 1
 let &ttimeoutlen    = 50
 let &ttyfast        = 1
-let &undodir        = '~/.vim/undo'
+let &undodir        = vim_undodir
 let &undofile       = 1
 let &wildignorecase = 1
 let &wildmenu       = 1
@@ -201,25 +110,15 @@ let &wildignore   = '*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,'
 let &wildignore ..= '*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,'
 let &wildignore ..= '*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*'
 
-" Better grep
-if executable('rg')
-  let &grepprg = 'rg --vimgrep --line-number --column $*'
-elseif executable('git')
-  let &grepprg = 'git grep --line-number --column $*'
-else
-  let &grepprg = 'grep -HIn --line-buffered $*'
-endif
-
 augroup quickfix
   autocmd QuickFixCmdPost [^l]* nested cwindow
   autocmd QuickFixCmdPost    l* nested lwindow
 augroup END
 
-" }}}
-
-" COMMANDS {{{
-
-" Commands: General {{{
+augroup cul_insertmode
+  autocmd!
+  autocmd InsertEnter,InsertLeave * setlocal cursorline!
+augroup END
 
 " Completion function for `make`
 function! MakeCompletion(A,L,P) abort
@@ -227,14 +126,14 @@ function! MakeCompletion(A,L,P) abort
     return filter(l:targets, 'v:val =~ "^' .. a:A .. '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
-      \ term make -C %:p:h <args>
+      \ ! make -C %:p:h <args>
 nnoremap <leader>mm :Make<space><c-d>
 
 " Re-open nested vim-in-vim in outer vim
-command! Unwrap let g:file = expand('%') | bdelete | exec 'silent !echo -e "\033]51;[\"drop\", \"'..g:file.'\"]\007"' | q
+command! Unwrap let g:file = expand('%') | bdelete | exec 'silent !echo -e "\033]51;[\"drop\", \"'..g:file..'\"]\007"' | q
 
 " Open dotfiles in vim
-command! Dotfiles :edit ${HOME}/.dotfiles
+command! Dotfiles tabnew | Files $DOTFILES
 
 " Markdown Viewer
 command! -nargs=? -complete=file_in_path Glow execute 'silent ! glow --pager ' .. (len(<q-args>) ? string(<q-args>) : '%') | redraw!
@@ -242,84 +141,39 @@ command! -nargs=? -complete=file_in_path Glow execute 'silent ! glow --pager ' .
 " Terminal slide presentation
 command! -nargs=? -complete=file_in_path Slides execute 'silent ! slides ' .. (len(<q-args>) ? string(<q-args>) : '%') | redraw!
 
-function! StripTrailingSpaces() abort
-  %s/\s\+$//e
-endfunction
-command! StripTrailingSpaces call StripTrailingSpaces()
-
-function! StripTrailingNewLines() abort
-  %s/\($\n\s*\)\+\%$//e
-endfunction
-command! StripTrailingNewLines call StripTrailingNewLines()
-
-function! StripNewLines() abort
-  g/^$/d
-endfunction
-command! StripNewLines call StripNewLines()
-
-augroup fixer_general
-  autocmd!
-  autocmd BufWritePre,FileWritePre * call StripTrailingSpaces() | call StripTrailingNewLines()
-augroup END
-
-function! Open(...) abort
-  let l:opener = executable('xdg-open') ? 'xdg-open' :
-        \ executable('open') ? 'open' :
-        \ executable('open-cli') ? 'open-cli' :
-        \ executable('start') ? 'start' : 'echo'
-  execute 'silent ! '..l:opener..' '..join(a:000, ' ') | redraw!
-endfunction
-command! -nargs=* Open
-      \ call Open(<q-args>)
-
-" }}}
-
-" Commands: Git {{{
+" Command-line Git UI
+command! LazyGit execute 'silent ! lazygit' | redraw!
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
   let l:branch = len(a:args.branch) ? a:args.branch : 'origin'
   let l:remote = trim(system('git config branch.'..l:branch..'.remote'))
-  let l:cmd = 'git browse ' .. ((a:args.range == 0) ? l:remote .. ' ' .. a:args.filename : l:remote .. ' ' .. a:args.filename .. ' ' .. a:args.line1 .. ' ' .. a:args.line2)
+  let l:cmd = 'git browse ' .. ((a:args.range) ? printf("%s %s %s %s",l:remote, a:args.filename, a:args.line1, a:args.line2) : printf("%s %s", l:remote, a:args.filename))
+  echom l:cmd
   execute 'silent ! '..l:cmd | redraw!
 endfunction
 " View git repo, branch, & file in the browser
 command! -range GB
       \ call GitBrowse({
-      \ 'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
-      \ 'filename': trim(system('git ls-files --full-name ' .. expand('%'))),
-      \ 'range': <range>,
-      \ 'line1': <line1>,
-      \ 'line2': <line2>,
+      \   'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
+      \   'filename': trim(system('git ls-files --full-name ' .. expand('%'))),
+      \   'range': <range>,
+      \   'line1': <line1>,
+      \   'line2': <line2>,
       \ })
-command! GC Git commit
-command! GP Git! push
-command! GR execute 'lcd '..finddir('.git/..', expand('%:p:h')..';')
-command! GS Git! status %:h
 
-nnoremap <leader>gc <cmd>G commit<cr>
 nnoremap <leader>gg <cmd>G<cr>
-nnoremap <leader>gp <cmd>G! push<cr>
-nnoremap <leader>gr <cmd>GR<cr>
-nnoremap <leader>gs <cmd>G<cr>
+nnoremap <leader>gr <cmd>execute 'lcd '..finddir('.git/..', expand('%:p:h')..';')<cr>
 nnoremap <leader>gw <cmd>Gwrite<cr>
-
-" }}}
-
-" }}}
-
-" MAPPINGS {{{
 
 cnoremap <c-n> <c-Down>
 cnoremap <c-p> <c-Up>
-nnoremap <leader>br <cmd>FZFBritiveConsole<cr>
+nnoremap <leader>br <cmd>BritiveConsoleFZF<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
-nnoremap <leader>es :sp **/*
-nnoremap <leader>ev :vs **/*
-nnoremap <leader>ll <cmd>ll<cr>
+nnoremap <leader>sp :sp **/*
+nnoremap <leader>vs :vs **/*
 nnoremap <leader>tt <cmd>terminal<cr>
-nnoremap <leader>ya <cmd>%y+<cr>
 nnoremap C "_C
 nnoremap Y y$
 nnoremap c "_c
@@ -330,7 +184,5 @@ noremap <expr> N 'nN'[v:searchforward]
 noremap <expr> n 'Nn'[v:searchforward]
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
-
-" }}}
 
 colorscheme pbnj
