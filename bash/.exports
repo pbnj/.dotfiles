@@ -10,7 +10,7 @@ export GOPATH="${HOME}/go"
 PATH="${PATH}:${GOPATH}/bin"
 
 # export BROWSER=w3m
-export EDITOR=$(which nvim || which vim)
+export EDITOR=vim
 export DOTFILES="${HOME}/.dotfiles"
 # export FZF_DEFAULT_COMMAND='rg --files --no-ignore --hidden --follow --glob "!.git/*"'
 export FZF_DEFAULT_COMMAND='rg --files --hidden --follow'

@@ -32,18 +32,7 @@ fi
 # FZF
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
-# PROMPT
-if hash __git_ps1 2>/dev/null; then
-	export GIT_PS1_SHOWDIRTYSTATE="true"
-	export GIT_PS1_SHOWUNTRACKEDFILES="true"
-	export GIT_PS1_SHOWUPSTREAM="auto"
-	export GIT_PS1_SHOWSTASHSTATE="true"
-	export GIT_PS1_HIDE_IF_PWD_IGNORED="false"
-	export GIT_PS1_SHOWCOLORHINTS="true"
-	export PROMPT_COMMAND='__git_ps1 "\\n\W" "\\n\\\$ "'
-else
-	export PS1="\\n\W\\n\\$ "
-fi
+export PS1="\\n\W\\n\\$ "
 
 # DIRENV
 hash direnv 2>/dev/null && eval "$(direnv hook bash)"

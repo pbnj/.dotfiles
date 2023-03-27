@@ -14,6 +14,9 @@ alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
 # vim
+if hash nvim 2>/dev/null; then
+	alias nv="nvim --server ${NVIM} --remote"
+fi
 alias vi="vim --clean"
 alias vp="vim +Projects"
 alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
