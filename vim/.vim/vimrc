@@ -25,7 +25,7 @@ Plug 'https://github.com/junegunn/fzf', { 'dir': '~/.fzf', 'do': { -> fzf#instal
 Plug 'https://github.com/junegunn/fzf.vim'
 let project_finder = executable('fd') ? 'fd . ~/Projects --type d' : 'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'
 command! -bang Projects
-      \ call fzf#run(fzf#wrap({'source': project_finder,'options': '--prompt=Projects\>\ '}))
+      \ call fzf#run(fzf#wrap({'source': project_finder,'options': '--prompt=Projects\>\ '},<bang>0))
 command! URLs
       \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': executable('open') ? '!open' : '!xdg-open', 'options': '--multi --prompt=URLs\>\ '}))
 nnoremap <leader>FF <cmd>Files %:p:h<cr>
