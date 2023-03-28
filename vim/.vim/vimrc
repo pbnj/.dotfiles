@@ -33,6 +33,7 @@ nnoremap <leader>bb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files<cr>
 nnoremap <leader>uu <cmd>URLs<cr>
 
+Plug 'https://github.com/airblade/vim-rooter'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/ervandew/supertab'
 Plug 'https://github.com/godlygeek/tabular'
