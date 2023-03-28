@@ -1,18 +1,8 @@
-" vim:ts=1:sts=2:sw=2:et:
+" vim:ts=2:sts=2:sw=2:et:
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
 filetype plugin indent on
-
-" https://github.com/junegunn/vim-plug/wiki/tips
-let data_dir = '~/.vim'
-if empty(glob(data_dir .. '/autoload/plug.vim'))
-  silent execute '!curl -fLo '..data_dir..'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
-  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
-endif
-
-" Enable built-in plugin to filter quickfix list. See :h :Cfilter
-packadd cfilter
 
 " ale
 let &omnifunc                = 'ale#completion#OmniFunc'
@@ -20,32 +10,20 @@ let g:ale_echo_cursor        = 1
 let g:ale_fix_on_save        = 1
 let g:ale_floating_preview   = 1
 let g:ale_hover_cursor       = 0
-let g:ale_sign_error         = 'x'
-let g:ale_sign_info          = 'i'
-let g:ale_sign_style_error   = 'x'
-let g:ale_sign_style_warning = 'w'
-let g:ale_sign_warning       = 'w'
 let g:ale_virtualtext_cursor = 0
 let g:ale_fixers             = {
-                  \ '*'         : [ 'remove_trailing_lines', 'trim_whitespace' ] ,
-                  \ 'go'        : [ 'goimports'                                ] ,
-                  \ 'json'      : [ 'prettier'                                 ] ,
-                  \ 'markdown'  : [ 'prettier'                                 ] ,
-                  \ 'rego'      : [ 'opa'                                      ] ,
-                  \ 'rust'      : [ 'analyzer', 'cargo'                        ] ,
-                  \ 'sh'        : [ 'shfmt'                                    ] ,
-                  \ 'terraform' : [ 'terraform'                                ] ,
-                  \ 'yaml'      : [ 'prettier'                                 ] ,
-                  \ }
+      \ '*'         : [ 'remove_trailing_lines', 'trim_whitespace' ] ,
+      \ 'go'        : [ 'goimports'                                ] ,
+      \ 'json'      : [ 'prettier'                                 ] ,
+      \ 'markdown'  : [ 'prettier'                                 ] ,
+      \ 'rego'      : [ 'opa'                                      ] ,
+      \ 'rust'      : [ 'analyzer', 'cargo'                        ] ,
+      \ 'sh'        : [ 'shfmt'                                    ] ,
+      \ 'terraform' : [ 'terraform'                                ] ,
+      \ 'yaml'      : [ 'prettier'                                 ] ,
+      \ }
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>k <cmd>ALEHover<cr>
-
-" signify
-let g:signify_sign_add               = '+'
-let g:signify_sign_delete            = '-'
-let g:signify_sign_delete_first_line = '-'
-let g:signify_sign_change            = '~'
-let g:signify_sign_change_delete     = g:signify_sign_change
 
 " fzf
 let project_finder = executable('fd') ? 'fd . ~/Projects --type d' : 'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'
@@ -53,13 +31,15 @@ command! -bang Projects
       \ call fzf#run(fzf#wrap({'source': project_finder,'options': '--prompt=Projects\>\ '},<bang>0))
 command! URLs
       \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': executable('open') ? '!open' : '!xdg-open', 'options': '--multi --prompt=URLs\>\ '}))
-nnoremap <leader>FF <cmd>Files %:p:h<cr>
 nnoremap <leader>bb <cmd>Buffers<cr>
-nnoremap <leader>ff <cmd>Files<cr>
+nnoremap <leader>ff <cmd>Files %:p:h<cr>
 nnoremap <leader>uu <cmd>URLs<cr>
 
-" Load all ~/.vim/pack/*/start
-packloadall
+" Enable built-in plugin to filter quickfix list. See :h :Cfilter
+packadd cfilter
+
+" Load all ~/.vim/pack/*/start & generate all their help tags
+packloadall | helptags ALL
 
 " vim options
 let vim_undodir = expand('~/.vim/undo/')
@@ -132,8 +112,8 @@ augroup END
 
 " Completion function for `make`
 function! MakeCompletion(A,L,P) abort
-    let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
-    return filter(l:targets, 'v:val =~ "^' .. a:A .. '"')
+  let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
+  return filter(l:targets, 'v:val =~ "^' .. a:A .. '"')
 endfunction
 command! -nargs=* -complete=customlist,MakeCompletion Make
       \ ! make -C %:p:h <args>

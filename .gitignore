@@ -14,7 +14,7 @@ htop/
 jira-cli/
 neovim/.config/nvim/.netrwhist
 pulse/
-tags
+tags*
 tmp/
 vim/.vim/.netrwhist
 vim/.vim/dict.en.add

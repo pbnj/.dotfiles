@@ -1,5 +1,3 @@
-let &l:comments = '#'
-let &l:commentstring = '# %s'
 let &l:formatprg = 'prettier --stdin-filepath %:t'
 setlocal formatoptions-=t
 setlocal formatoptions+=croql
