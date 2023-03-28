@@ -20,11 +20,11 @@ fi
 alias vi="vim --clean"
 alias vp="vim +Projects"
 alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
-alias vf="vim +Files"
+alias vf="vim +Files!"
 alias vg="vim +0G"
-alias vgf="vim +GF"
-alias vgs="vim +GF?"
-alias vrg="vim +Rg"
+alias vgf="vim +GF!"
+alias vgs="vim +GF?!"
+alias vrg="vim +Rg!"
 
 # For quick edits
 # shellcheck disable=SC2139
