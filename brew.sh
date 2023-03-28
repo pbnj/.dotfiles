@@ -1,7 +1,7 @@
 # vim: set ft=bash
 # shellcheck shell=bash
 
-# utilities
+# Utilities
 brew install ankitpokhrel/jira-cli/jira-cli
 brew install awscli
 brew install bash
@@ -30,6 +30,7 @@ brew install kubernetes-cli
 brew install make
 brew install pre-commit # git hook manager
 brew install ripgrep    # better grep
+brew install slides     # terminal presentation tool
 brew install stow       # symlink farm manager
 brew install tmux
 brew install tmux-mem-cpu-load
@@ -38,12 +39,8 @@ brew install vault
 brew install watch
 brew install wget
 brew install xsv # csv cli
-# brew install glab
-# brew install go-md2man
-# brew install octant
-# brew install stern
 
-# languages
+# Languages
 ## shell
 brew install bash-language-server
 brew install shellcheck
@@ -71,7 +68,6 @@ npm install --global dockerfile-language-server-nodejs
 ## rust
 brew install rust-analyzer
 brew install rustfmt
-brew install taplo
 
 ## terraform
 brew install terraform
@@ -85,7 +81,10 @@ brew install yamllint
 brew install yq
 npm install --global vscode-json-languageservice
 
-# macOS casks
+## vim
+npm install --global vim-language-server
+
+# Casks
 if [[ "$(uname)" == "Darwin" ]]; then
 	# brew install --cask owasp-zap
 	# brew install --cask pgadmin4
