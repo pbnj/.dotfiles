@@ -1,4 +1,8 @@
-let &l:keywordprg=':!ddgr terraform'
+let &l:keywordprg = ':!ddgr terraform'
+let &l:formatprg = 'terraform fmt -'
+
+command! Format normal! mfgggqG`f
+nnoremap <leader>af <cmd>Format<cr>
 
 function! TerraformStateCompletion(A,L,P) abort
     return filter(systemlist('terraform state list'),'v:val =~ a:A')

@@ -1,1 +1,1 @@
-let &l:keywordprg=':!ddgr'
+let &l:keywordprg = ':!ddgr'

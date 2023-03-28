@@ -1,4 +1,8 @@
-let &l:keywordprg=':!ddgr rustlang'
+let &l:keywordprg = ':!ddgr rustlang'
+let &l:formatprg = 'cargo fmt'
+
+command! Format normal! mfgggqG`f
+nnoremap <leader>af <cmd>Format<cr>
 
 command! -bar WatchCargoCheck
                   \ <mods> call term_start('watchexec --clear cargo check')

@@ -1,4 +1,8 @@
-let &l:keywordprg=':!ddgr golang'
+let &l:keywordprg = ':!ddgr golang'
+let &l:formatprg = 'goimports'
+
+command! Format normal! mfgggqG`f
+nnoremap <leader>af <cmd>Format<cr>
 
 " Install additional Go tooling
 command! GoInstallTools
