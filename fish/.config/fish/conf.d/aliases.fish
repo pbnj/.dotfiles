@@ -12,24 +12,24 @@ abbr mv 'mv -i'
 abbr grep "grep --color=auto --line-buffered"
 
 # vim
-if hash nvim 2>/dev/null
-	abbr nv "nvim --server $NVIM --remote"
-end
 abbr vi "vim --clean"
-abbr vp "vim +Projects"
+abbr vp "vim +'Projects'"
 abbr vu "tmux capture-pane -Jp -S- -E- | vim +URLs -"
-abbr vf "vim +Files!"
+abbr vf "vim +'Files!'"
 abbr vg "vim +0G"
-abbr vgf "vim +GF!"
-abbr vgs "vim +GF?!"
-abbr vrg "vim +Rg!"
+abbr vgf "vim +'GF!'"
+abbr vd "vim +'GF!?'"
+abbr vrg "vim +'Rg!'"
 
 # For quick edits
 # shellcheck disable SC2139
 abbr dotfiles "$EDITOR $HOME/.dotfiles"
 
 # git
+abbr g git
 abbr ga "git add"
+abbr gb "git browse"
+abbr gbci "git browse-ci"
 abbr gc "git commit"
 abbr gd "git diff"
 abbr gco "git checkout"

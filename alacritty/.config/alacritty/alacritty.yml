@@ -8,7 +8,7 @@ selection:
 
 window:
   decorations: buttonless
-  opacity: 0.9
+  # opacity: 0.9
 env:
   TERM: xterm-256color
 

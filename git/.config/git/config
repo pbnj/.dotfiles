@@ -12,27 +12,13 @@
 
 [alias]
 	alias = !git config -l | grep ^alias | cut -c 7- | sort
-
-	a = add
-	aa = !git status --porcelain --short $GIT_PREFIX | awk '{print $2}' | fzf --reverse --multi --preview 'git diff --color=always {}' | xargs git add
-	b = !git ls --full | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
-	bb = !git ls --full $GIT_PREFIX | fzf --reverse --multi --height 20 | xargs -L1 git browse origin
-	bci = browse-ci # `browse-ci` available from `git-extras`
 	branches = branch -a --sort=-committerdate
-	c = commit
-	c-m = commit -m
-	co = checkout
 	contributors = shortlog --summary --numbered
 	czc = cz commit
-	d = !git status --short | awk '{print $2}' | fzf --multi --preview 'git diff --color=always {}'
-	dd = diff .
 	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
-	ignore = !echo "${1}" >>.gitignore
 	l = log --pretty=oneline --graph --abbrev-commit
 	ls = ls-files
-	p = push
 	remotes = remote -v
-	s = status --short .
 	tags = tag --list
 	top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
 	undo = !git reset HEAD~1 --mixed

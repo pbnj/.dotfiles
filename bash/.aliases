@@ -4,8 +4,8 @@
 # Hint: `complete -p` shows all completions in the form of commands you can run
 # to replicate the completion behavior for aliases.
 
+hash exa 2>/dev/null && alias ls="exa"
 alias ls="ls -F"
-hash exa 2>/dev/null && alias ls="exa -F"
 alias ll="ls -alFh"
 
 alias rm='rm -i'
@@ -14,16 +14,13 @@ alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
 # vim
-if hash nvim 2>/dev/null; then
-	alias nv="nvim --server ${NVIM} --remote"
-fi
 alias vi="vim --clean"
 alias vp="vim +Projects"
 alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
 alias vf="vim +Files!"
 alias vg="vim +0G"
 alias vgf="vim +GF!"
-alias vgs="vim +GF?!"
+alias vd="vim +GF!?"
 alias vrg="vim +Rg!"
 
 # For quick edits
@@ -32,28 +29,28 @@ alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
 
 # git
 alias ga="git add"
+alias gb="git browse"
 alias gc="git commit"
-alias gd="git diff"
+alias gcb="git checkout -b"
 alias gco="git checkout"
+alias gd="git diff"
 alias gp="git push"
 alias gpull="git pull"
 alias groot='cd $(git root)'
-alias gs='git status'
+alias gs='git status --short'
 
 # vault
 hash vault 2>/dev/null && complete -C "$(which vault)" vault
 
 # terraform
-if hash terraform 2>/dev/null; then
-	alias tf=terraform
-	alias tfv="terraform validate"
-	alias tff="terraform fmt"
-	alias tfp="terraform plan"
-	alias tfa="terraform apply"
-	alias tfss="terraform state show"
-	alias tfsl="terraform state list"
-	alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -I{} -L1 terraform state rm '{}'"
-fi
+alias tf=terraform
+alias tfa="terraform apply"
+alias tff="terraform fmt"
+alias tfp="terraform plan"
+alias tfsl="terraform state list"
+alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -I{} -L1 terraform state rm '{}'"
+alias tfss="terraform state show"
+alias tfv="terraform validate"
 
 # osx
 if [[ $(uname) == "Darwin" ]]; then
@@ -64,13 +61,12 @@ if [[ $(uname) == "Darwin" ]]; then
 	alias macos_desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 	# .DS_Store
 	alias macos_dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
-fi
-
-# brew
-if hash brew &>/dev/null; then
 	alias brew="arch -arm64 brew"
 	alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
-elif hash apt &>/dev/null; then
+fi
+
+# linux
+if hash apt &>/dev/null; then
 	SUDO=$(which sudo)
 	alias auau="${SUDO} apt update && ${SUDO} apt upgrade -y"
 fi
