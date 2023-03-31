@@ -2,6 +2,13 @@
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
+" netrw
+let g:netrw_fastbrowse = 0
+augroup netrw
+  autocmd!
+  autocmd FileType netrw setlocal bufhidden=wipe
+augroup end
+
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
@@ -17,11 +24,11 @@ call plug#begin()
 " ale
 Plug 'https://github.com/dense-analysis/ale'
 let &omnifunc                = 'ale#completion#OmniFunc'
-let g:ale_echo_cursor        = 1
+let g:ale_echo_cursor        = 0
 let g:ale_fix_on_save        = 1
 let g:ale_floating_preview   = 1
 let g:ale_hover_cursor       = 0
-let g:ale_virtualtext_cursor = 0
+let g:ale_virtualtext_cursor = 1
 let g:ale_fixers             = {
       \ '*'         : [ 'remove_trailing_lines', 'trim_whitespace', ] ,
       \ 'go'        : [ 'remove_trailing_lines', 'trim_whitespace', 'goimports' ] ,
@@ -35,6 +42,8 @@ let g:ale_fixers             = {
       \ }
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>k <cmd>ALEHover<cr>
+nnoremap ]d <cmd>ALENext<cr>
+nnoremap [d <cmd>ALEPrevious<cr>
 
 " fzf
 Plug 'https://github.com/junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
@@ -49,7 +58,7 @@ nnoremap <leader>ff <cmd>Files %:p:h<cr>
 nnoremap <leader>uu <cmd>URLs<cr>
 
 Plug 'https://github.com/airblade/vim-rooter'
-Plug 'https://github.com/cocopon/iceberg.vim'
+Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
@@ -76,50 +85,51 @@ filetype plugin indent on
 let vim_undodir = expand('~/.vim/undo/')
 if !isdirectory(vim_undodir) | call mkdir(vim_undodir) | endif
 
-let &autoindent     = 1
-let &autoread       = 1
-let &background     = system('defaults read -g AppleInterfaceStyle') =~ '^Dark' ?  'dark' : 'light'
-let &backspace      = 'indent,eol,start'
-let &breakindent    = 1
-let &clipboard      = 'unnamed,unnamedplus'
-let &completeopt    = 'menu'
-let &cursorline     = 0
-let &encoding       = 'utf-8'
-let &errorformat    = '%f:%l:%m,%f:%l:%c:%m'
-let &fillchars      = 'vert:│,foldclose:⎯,fold:⎯,diff:⎯,eob: '
-let &grepformat     = '%f:%l:%c:%m'
-let &grepprg        = executable('rg') ? 'rg --vimgrep --line-number --column $*' : executable('git') ?  'git grep --line-number --column $*' :  'grep -HIn --line-buffered $*'
-let &hidden         = 1
-let &hlsearch       = 1
-let &ignorecase     = 1
-let &incsearch      = 1
-let &infercase      = 1
-let &laststatus     = 2
-let &lazyredraw     = 1
-let &linebreak      = 1
-let &list           = 1
-let &listchars      = 'tab:| ,trail:·'
-let &modeline       = 1
-let &mouse          = 'a'
-let &number         = 1
-let &secure         = 1
-let &shortmess      = 'filnxtToOc'
-let &showmode       = 1
-let &signcolumn     = 'yes'
-let &smartcase      = 1
-let &smarttab       = 1
-let &statusline     = ' %f %#Error#%m%*%r%h%w%q'
-let &swapfile       = 0
-let &termguicolors  = 1
-let &ttimeout       = 1
-let &ttimeoutlen    = 50
-let &ttyfast        = 1
-let &undodir        = vim_undodir
-let &undofile       = 1
+let &autoindent = 1
+let &autoread = 1
+let &background = system('defaults read -g AppleInterfaceStyle') =~ '^Dark' ? 'dark' : 'light'
+let &backspace = 'indent,eol,start'
+let &breakindent = 1
+let &clipboard = 'unnamed,unnamedplus'
+let &completeopt = 'menu'
+let &cursorline = 0
+let &encoding = 'utf-8'
+let &errorformat = '%f:%l:%m,%f:%l:%c:%m'
+let &fillchars = 'vert:│,foldclose:⎯,fold:⎯,diff:⎯,eob: '
+let &grepformat = '%f:%l:%c:%m'
+let &grepprg = executable('rg') ? 'rg --vimgrep --line-number --column $*' : executable('git') ? 'git grep --line-number --column $*' : 'grep -HIn --line-buffered $*'
+let &hidden = 1
+let &hlsearch = 1
+let &ignorecase = 1
+let &incsearch = 1
+let &infercase = 1
+let &laststatus = 2
+let &lazyredraw = 1
+let &linebreak = 1
+let &list = 1
+let &listchars = 'tab:| ,trail:·'
+let &modeline = 1
+let &mouse = 'a'
+let &number = 1
+let &secure = 1
+let &shortmess = 'filnxtToOc'
+let &showmode = 1
+let &signcolumn = 'yes'
+let &smartcase = 1
+let &smarttab = 1
+let &statusline = ' %f %#Error#%m%*%r%h%w%q'
+let &swapfile = 0
+let &t_Co = 16
+let &termguicolors = 0
+let &ttimeout = 1
+let &ttimeoutlen = 50
+let &ttyfast = 1
+let &undodir = vim_undodir
+let &undofile = 1
 let &wildignorecase = 1
-let &wildmenu       = 1
-let &wildmode       = 'longest:full,full'
-let &wrap           = 0
+let &wildmenu = 1
+let &wildmode = 'longest:full,full'
+let &wrap = 0
 
 let &wildignore   = '*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,'
 let &wildignore ..= '*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,'
@@ -207,4 +217,4 @@ noremap <expr> n 'Nn'[v:searchforward]
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-colorscheme iceberg
+colorscheme pbnj
