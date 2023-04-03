@@ -12,7 +12,7 @@
 set -eou pipefail
 
 git grep --full-name --line-number --no-column . |
-	fzf-tmux --delimiter=':' --reverse --preview 'bat --color=always --highlight-line {2} {1}'|
+	fzf-tmux --reverse |
 	awk -F: '{print $1" "$2" "$4}' |
 	xargs -t -L1 git browse "$(git config branch."$(git rev-parse --abbrev-ref HEAD 2>/dev/null)".remote || echo 'origin')" ||
 	true
