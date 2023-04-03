@@ -1,0 +1,20 @@
+theme = "base16_transparent"
+
+[editor]
+auto-pairs = false
+
+[editor.cursor-shape]
+insert = "bar"
+
+[editor.file-picker]
+hidden = true
+
+[editor.indent-guides]
+render = true
+
+[editor.statusline]
+left = ["mode", "spinner", "file-name", "file-modification-indicator", "spacer", "version-control"]
+right = ["diagnostics", "selections", "position"]
+
+[keys.normal]
+esc = ["collapse_selection", "keep_primary_selection"]
