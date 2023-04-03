@@ -1,4 +1,4 @@
-theme = "base16_transparent"
+theme = "base16_default"
 
 [editor]
 auto-pairs = false
@@ -7,7 +7,7 @@ auto-pairs = false
 insert = "bar"
 
 [editor.file-picker]
-hidden = true
+hidden = false
 
 [editor.indent-guides]
 render = true
