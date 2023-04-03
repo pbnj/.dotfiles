@@ -22,6 +22,7 @@ brew install git
 brew install git-extras
 brew install gitleaks # secret detection
 brew install glow     # markdown viewer
+brew install helix
 brew install helm
 brew install instrumenta/instrumenta/conftest # unit tester for config files
 brew install jq

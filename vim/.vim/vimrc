@@ -4,10 +4,6 @@ let g:mapleader = ' '
 
 " netrw
 let g:netrw_fastbrowse = 0
-augroup netrw
-  autocmd!
-  autocmd FileType netrw setlocal bufhidden=wipe
-augroup end
 
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
@@ -55,13 +51,14 @@ command! URLs
       \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': executable('open') ? '!open' : '!xdg-open', 'options': '--multi --prompt=URLs\>\ '}))
 nnoremap <leader>bb <cmd>Buffers<cr>
 nnoremap <leader>ff <cmd>Files %:p:h<cr>
+nnoremap <leader>fg <cmd>GFiles<cr>
 nnoremap <leader>uu <cmd>URLs<cr>
 
 Plug 'https://github.com/airblade/vim-rooter'
-Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/machakann/vim-highlightedyank'
 Plug 'https://github.com/mhinz/vim-signify'
+Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/pbnj/vim-britive'
 Plug 'https://github.com/sheerun/vim-polyglot'
@@ -75,7 +72,6 @@ Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
 Plug 'https://github.com/wellle/tmux-complete.vim'
-if executable('ctags') | Plug 'https://github.com/ludovicchabant/vim-gutentags' | endif
 
 call plug#end()
 
@@ -138,18 +134,18 @@ let &wildignore ..= '*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/buil
 augroup quickfix
   autocmd QuickFixCmdPost [^l]* nested cwindow
   autocmd QuickFixCmdPost    l* nested lwindow
-augroup END
+augroup end
 
 augroup cursorline_toggle
   autocmd!
   autocmd InsertEnter,InsertLeave * setlocal cursorline!
-augroup END
+augroup end
 
 augroup hlsearch_toggle
   autocmd!
   autocmd CmdlineEnter [/\?] :set hlsearch
   autocmd CmdlineLeave [/\?] :set nohlsearch
-augroup END
+augroup end
 
 " Completion function for `make`
 function! MakeCompletion(A,L,P) abort
@@ -204,7 +200,6 @@ nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>sp :sp **/*
 nnoremap <leader>vs :vs **/*
-" nnoremap <leader>tt <cmd>terminal<cr>
 nnoremap <leader>tt <cmd>call term_start([&shell,'-l'],{'cwd':expand('%:p:h')})<cr>
 nnoremap C "_C
 nnoremap Y y$
