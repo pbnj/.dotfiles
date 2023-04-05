@@ -1,7 +1,13 @@
 let &l:keywordprg = ':!ddgr terraform'
 let &l:formatprg = 'terraform fmt -'
 
-command! Format normal! mfgggqG`f
+iabbrev  tfdaip   <c-o>:read ~/.vim/templates/terraform/aws/data-aws-iam-policy.tf<cr><esc>
+iabbrev  tfdaipd  <c-o>:read ~/.vim/templates/terraform/aws/data-aws-iam-policy-document.tf<cr><esc>
+iabbrev  tfraip   <c-o>:read ~/.vim/templates/terraform/aws/aws-iam-policy.tf<cr><esc>
+iabbrev  tfrair   <c-o>:read ~/.vim/templates/terraform/aws/aws-iam-role.tf<cr><esc>
+iabbrev  tfraiu   <c-o>:read ~/.vim/templates/terraform/aws/aws-iam-user.tf<cr><esc>
+
+command! Format !terraform fmt %
 nnoremap <leader>af <cmd>Format<cr>
 
 function! TerraformStateCompletion(A,L,P) abort
