@@ -1,7 +1,8 @@
-theme = "base16_default"
+theme = "dark_plus"
 
 [editor]
 auto-pairs = false
+cursorline = true
 
 [editor.cursor-shape]
 insert = "bar"
