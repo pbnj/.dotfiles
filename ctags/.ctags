@@ -1,7 +1,3 @@
-# vim:ft=conf:
-
-# ctags --recurse .
-
 # Basic options
 --recurse=yes
 --exclude=.git
