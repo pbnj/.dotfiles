@@ -47,22 +47,25 @@ if exists('g:loaded_minpac')
   call minpac#add('https://github.com/junegunn/vim-easy-align')
   call minpac#add('https://github.com/junegunn/fzf', { 'subdir': './plugin', 'do': { -> fzf#install() } })
   call minpac#add('https://github.com/junegunn/fzf.vim')
-  let project_finder = executable('fd') ? 'fd . ~/Projects --type d' : 'find ~/Projects -type d -not \( -path *.git* -prune \) -not \( -path *.terraform* -prune \)'
+  let project_finder = executable('fd') ? 'fd . ~/Projects --type d' : 'find ~/Projects -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \)'
   command! -bang Projects
         \ call fzf#run(fzf#wrap({'source': project_finder,'options': '--prompt=Projects\>\ '},<bang>0))
   command! URLs
         \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': executable('open') ? '!open' : '!xdg-open', 'options': '--multi --prompt=URLs\>\ '}))
+  command! F Files
+  command! FF Files %:p:h
   nnoremap <leader>bb <cmd>Buffers<cr>
-  nnoremap <leader>ff <cmd>Files %:p:h<cr>
   nnoremap <leader>fg <cmd>GFiles<cr>
   nnoremap <leader>uu <cmd>URLs<cr>
 
   call minpac#add('https://github.com/editorconfig/editorconfig-vim')
+  call minpac#add('https://github.com/ludovicchabant/vim-gutentags')
   call minpac#add('https://github.com/machakann/vim-highlightedyank')
   call minpac#add('https://github.com/mhinz/vim-signify')
   call minpac#add('https://github.com/pbnj/pbnj.vim')
   call minpac#add('https://github.com/pbnj/terradoc.vim')
   call minpac#add('https://github.com/pbnj/vim-britive')
+  call minpac#add('https://github.com/sheerun/vim-polyglot')
   call minpac#add('https://github.com/tpope/vim-abolish')
   call minpac#add('https://github.com/tpope/vim-commentary')
   call minpac#add('https://github.com/tpope/vim-endwise')
@@ -72,12 +75,14 @@ if exists('g:loaded_minpac')
   call minpac#add('https://github.com/tpope/vim-surround')
   call minpac#add('https://github.com/tpope/vim-unimpaired')
   call minpac#add('https://github.com/tpope/vim-vinegar')
+  call minpac#add('https://github.com/vim-scripts/vis')
   call minpac#add('https://github.com/wellle/tmux-complete.vim')
+
 endif
 
 filetype plugin indent on
 
-syntax off
+syntax on
 
 " vim options
 let vim_undodir = expand('~/.vim/undo/')
@@ -162,6 +167,14 @@ command! -nargs=? -complete=file_in_path Slides execute 'silent ! slides ' .. (l
 " Command-line Git UI
 command! LazyGit execute 'silent ! lazygit' | redraw!
 
+if !empty($TMUX)
+  command! Terminal silent
+        \ ! tmux split-window -c %:p:h | redraw!
+else
+  command! Terminal
+        \ call term_start([&shell,'-l'],{'cwd':expand('%:p:h')})
+endif
+
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
   let l:branch = len(a:args.branch) ? a:args.branch : 'origin'
@@ -179,7 +192,9 @@ command! -range GB
       \   'line1': <line1>,
       \   'line2': <line2>,
       \ })
-
+command! GW Gwrite
+command! GR execute 'lcd '..finddir('.git/..', expand('%:p:h')..';')
+command! GC Git commit
 nnoremap <leader>gg <cmd>G<cr>
 nnoremap <leader>gr <cmd>execute 'lcd '..finddir('.git/..', expand('%:p:h')..';')<cr>
 nnoremap <leader>gw <cmd>Gwrite<cr>
