@@ -1,4 +1,3 @@
-# https://developer.1password.com/docs/ssh/
 [user]
 	name = "Peter Benjamin"
 	email = "petermbenjamin@gmail.com"
@@ -13,15 +12,18 @@
 [alias]
 	alias = !git config -l | grep ^alias | cut -c 7- | sort
 	branches = branch -a --sort=-committerdate
+	c = commit
+	co = checkout
 	contributors = shortlog --summary --numbered
 	czc = cz commit
 	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
 	l = log --pretty=oneline --graph --abbrev-commit
 	ls = ls-files
+	p = push
 	remotes = remote -v
+	s = status --short .
 	tags = tag --list
 	top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
-	s = status --short .
 	undo = !git reset HEAD~1 --mixed
 	unstage = reset
 
@@ -64,14 +66,6 @@
 	column = true
 	fallbackToNoIndex = true
 
-# https://github.com/git/git/blob/master/contrib/completion/git-prompt.sh
-[bash]
-	showDirtyState = true
-	showStashState = true
-	showUntrackedFiles = true
-	showUpstream = auto
-	hideIfPwdIgnored = false
-
 [log]
 	showSignature = false
 
@@ -79,5 +73,6 @@
 ; 	format = ssh
 
 ; [gpg "ssh"]
+; 	# https://developer.1password.com/docs/ssh/
 ; 	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 ; 	allowedSignersFile = ~/.config/git/allowed_signers

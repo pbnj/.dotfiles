@@ -14,16 +14,16 @@ env:
 
 font:
   bold:
-    family: Input Mono
+    family: Iosevka Nerd Font
     style: Bold
   bold_italic:
-    family: Input Mono
+    family: Iosevka Nerd Font
     style: Bold Italic
   italic:
-    family: Input Mono
+    family: Iosevka Nerd Font
     style: Italic
   normal:
-    family: Input Mono
+    family: Iosevka Nerd Font
     style: Light
   size: 13
 
