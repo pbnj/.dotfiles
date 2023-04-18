@@ -32,7 +32,7 @@ fi
 # FZF
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
-export PS1="\\n\w\\n\\$ "
+export PS1="\\n\w \$(git branch --show-current 2>/dev/null | awk '{print \"[\"\$0\"]\"}')\\n\\$ "
 
 # DIRENV
 hash direnv 2>/dev/null && eval "$(direnv hook bash)"

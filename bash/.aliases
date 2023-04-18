@@ -4,24 +4,27 @@
 # Hint: `complete -p` shows all completions in the form of commands you can run
 # to replicate the completion behavior for aliases.
 
-hash exa 2>/dev/null && alias ls="exa"
 alias ls="ls -F"
-alias ll="ls -alFh"
+hash exa 2>/dev/null && alias ls="exa -F"
+alias ll="ls -alFh --group-directories-first"
 
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
 
-# vim
+# (neo)vim
+hash nvim &>/dev/null && alias vim="nvim"
 alias vi="vim --clean"
-alias vp="vim +Projects"
-alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
 alias vf="vim +Files!"
 alias vg="vim +0G"
 alias vgf="vim +GF!"
 alias vd="vim +GF!?"
 alias vrg="vim +Rg!"
+if [[ -n "${TMUX}" ]]; then
+	alias vt='tmux capture-pane -Jp -S- | vim -'
+	alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
+fi
 
 # For quick edits
 # shellcheck disable=SC2139

@@ -4,13 +4,17 @@
 # General
 PATH="${HOME}/.local/bin:${PATH}"
 
+# https://github.com/williamboman/mason.nvim
+if [[ -d "${HOME}/.local/share/nvim/mason/bin/" ]]; then
+  PATH="${HOME}/.local/share/nvim/mason/bin/:${PATH}"
+fi
+
 # Go
 export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
 PATH="${PATH}:${GOPATH}/bin"
 
-# export BROWSER=w3m
-export EDITOR=vim
+export EDITOR="$(which nvim || which vim)"
 export DOTFILES="${HOME}/.dotfiles"
 export FZF_DEFAULT_COMMAND="rg --files --hidden --follow"
 export FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
@@ -32,8 +36,5 @@ fi
 # docs: https://docs.docker.com/engine/security/rootless/
 #   $ dockerd-rootless-setuptool.sh install
 [[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
-
-# MISC
-export DOTFILES="${HOME}/.dotfiles"
 
 export PATH

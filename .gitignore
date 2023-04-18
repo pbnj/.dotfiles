@@ -15,6 +15,7 @@ glab-cli/
 helix/.config/helix/runtime/
 htop/
 jira-cli/
+lazy-lock.json
 neovim/.config/nvim/.netrwhist
 out.gif
 packer_compiled.lua
