@@ -6,8 +6,8 @@
 [includeIf "gitdir:~/Projects/bitbucket.org/"]
 	path = ~/Projects/bitbucket.org/.gitconfig
 
-[url "git@github.com:"]
-	insteadOf = "https://github.com/"
+; [url "git@github.com:"]
+; 	insteadOf = "https://github.com/"
 
 [alias]
 	alias = !git config -l | grep ^alias | cut -c 7- | sort

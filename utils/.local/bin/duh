@@ -1,5 +1,6 @@
 #!/bin/bash
 
-# Print size of a given directory or file, like du, but more human-friendly.
-
-du -sh "${1%\/}"/* | sort -hr
+# Print size of a given file or directory, like du, but sort in a
+# human-friendly from largest to smallest size.
+DIR="${1:-.}"
+du -sh "${DIR%\/}"/* | sort -hr
