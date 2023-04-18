@@ -1,10 +1,10 @@
-" vim:ts=2:sts=2:sw=2:et:
 nnoremap <silent><nowait><space> <nop>
 let g:mapleader = ' '
 
 " netrw
 let g:netrw_keepdir = 0
 let g:netrw_fastbrowse = 0
+let g:netrw_localrmdir = 'rm -rf'
 
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
@@ -22,40 +22,29 @@ if exists('g:loaded_minpac')
   call minpac#init()
 
   call minpac#add('https://github.com/dense-analysis/ale')
-  let &omnifunc                = 'ale#completion#OmniFunc'
-  let g:ale_echo_cursor        = 0
-  let g:ale_fix_on_save        = 1
-  let g:ale_floating_preview   = 1
-  let g:ale_hover_cursor       = 0
+  let &omnifunc = 'ale#completion#OmniFunc'
+  let g:ale_lint_on_text_changed = 1
+  let g:ale_echo_cursor = 0
+  let g:ale_fix_on_save = 1
+  let g:ale_floating_preview = 1
+  let g:ale_hover_cursor = 0
   let g:ale_virtualtext_cursor = 1
-  let g:ale_fixers             = {
-        \ '*'         : [ 'remove_trailing_lines', 'trim_whitespace', ] ,
-        \ 'go'        : [ 'remove_trailing_lines', 'trim_whitespace', 'goimports' ] ,
-        \ 'json'      : [ 'remove_trailing_lines', 'trim_whitespace', 'prettier' ] ,
-        \ 'markdown'  : [ 'remove_trailing_lines', 'trim_whitespace', 'prettier' ] ,
-        \ 'rego'      : [ 'remove_trailing_lines', 'trim_whitespace', 'opa' ] ,
-        \ 'rust'      : [ 'remove_trailing_lines', 'trim_whitespace', 'analyzer', 'cargo' ] ,
-        \ 'sh'        : [ 'remove_trailing_lines', 'trim_whitespace', 'shfmt' ] ,
-        \ 'terraform' : [ 'remove_trailing_lines', 'trim_whitespace', 'terraform' ] ,
-        \ 'yaml'      : [ 'remove_trailing_lines', 'trim_whitespace', 'prettier' ] ,
-        \ }
+  let g:ale_fixers = { '*' : [ 'remove_trailing_lines', 'trim_whitespace' ] }
   nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
   nnoremap <leader>k <cmd>ALEHover<cr>
   nnoremap ]d <cmd>ALENext<cr>
   nnoremap [d <cmd>ALEPrevious<cr>
 
-  call minpac#add('https://github.com/junegunn/vim-easy-align')
   call minpac#add('https://github.com/junegunn/fzf', { 'subdir': './plugin', 'do': { -> fzf#install() } })
   call minpac#add('https://github.com/junegunn/fzf.vim')
   let project_finder = executable('fd') ? 'fd . ~/Projects --type d' : 'find ~/Projects -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \)'
-  command! -bang Projects
-        \ call fzf#run(fzf#wrap({'source': project_finder,'options': '--prompt=Projects\>\ '},<bang>0))
-  command! URLs
-        \ call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': executable('open') ? '!open' : '!xdg-open', 'options': '--multi --prompt=URLs\>\ '}))
+  command! -bang Projects call fzf#run(fzf#wrap({'source': project_finder,'options': '--prompt=Projects\>\ '},<bang>0))
+  command! URLs call fzf#run(fzf#wrap({'source': map(filter(uniq(split(join(getline(1,'$'),' '),' ')), 'v:val =~ "http"'), {k,v->substitute(v,'\(''\|)\|"\|,\)','','g')}), 'sink': executable('open') ? '!open' : '!xdg-open', 'options': '--multi --prompt=URLs\>\ '}))
   command! F Files
   command! FF Files %:p:h
   nnoremap <leader>bb <cmd>Buffers<cr>
-  nnoremap <leader>fg <cmd>GFiles<cr>
+  nnoremap <leader>ff <cmd>GFiles<cr>
+  nnoremap <leader>FF <cmd>Files %:p:h<cr>
   nnoremap <leader>uu <cmd>URLs<cr>
 
   call minpac#add('https://github.com/editorconfig/editorconfig-vim')
@@ -66,17 +55,10 @@ if exists('g:loaded_minpac')
   call minpac#add('https://github.com/pbnj/terradoc.vim')
   call minpac#add('https://github.com/pbnj/vim-britive')
   call minpac#add('https://github.com/sheerun/vim-polyglot')
-  call minpac#add('https://github.com/tpope/vim-abolish')
   call minpac#add('https://github.com/tpope/vim-commentary')
-  call minpac#add('https://github.com/tpope/vim-endwise')
   call minpac#add('https://github.com/tpope/vim-eunuch')
   call minpac#add('https://github.com/tpope/vim-fugitive')
   call minpac#add('https://github.com/tpope/vim-rsi')
-  call minpac#add('https://github.com/tpope/vim-surround')
-  call minpac#add('https://github.com/tpope/vim-unimpaired')
-  call minpac#add('https://github.com/tpope/vim-vinegar')
-  call minpac#add('https://github.com/vim-scripts/vis')
-  call minpac#add('https://github.com/wellle/tmux-complete.vim')
 
 endif
 
@@ -110,7 +92,7 @@ let &laststatus = 2
 let &lazyredraw = 1
 let &linebreak = 1
 let &list = 1
-let &listchars = 'tab:│ ,trail:·'
+let &listchars = 'tab:┊ ,trail:·'
 let &modeline = 1
 let &mouse = 'a'
 let &number = 1
@@ -134,46 +116,13 @@ let &wildmenu = 1
 let &wildmode = 'longest:full,full'
 let &wrap = 0
 
-let &wildignore   = '*.o,*.obj,*.bin,*.dll,*.exe,*.DS_Store,'
-let &wildignore ..= '*.pdf,*/.ssh/*,*.pub,*.crt,*.key,*/cache/*,'
-let &wildignore ..= '*/dist/*,*/node_modules/*,*/vendor/*,*/__pycache__/*,*/build/*,*/.git/*,*/.terraform/*'
-
 augroup cursorline_toggle
   autocmd!
   autocmd InsertEnter,InsertLeave * setlocal cursorline!
 augroup end
 
-" Completion function for `make`
-function! MakeCompletion(A,L,P) abort
-  let l:targets = systemlist('make -qp | awk -F'':'' ''/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$)/ {split($1,A,/ /);for(i in A)print A[i]}'' | grep -v Makefile | sort -u')
-  return filter(l:targets, 'v:val =~ "^' .. a:A .. '"')
-endfunction
-command! -nargs=* -complete=customlist,MakeCompletion Make
-      \ ! make -C %:p:h <args>
-nnoremap <leader>mm :Make<space><c-d>
-
 " Re-open nested vim-in-vim in outer vim
 command! Unwrap let g:file = expand('%') | bdelete | exec 'silent !echo -e "\033]51;[\"drop\", \"'..g:file..'\"]\007"' | q
-
-" Open dotfiles in vim
-command! Dotfiles tabnew | Files $DOTFILES
-
-" Markdown Viewer
-command! -nargs=? -complete=file_in_path Glow execute 'silent ! glow --pager ' .. (len(<q-args>) ? string(<q-args>) : '%') | redraw!
-
-" Terminal slide presentation
-command! -nargs=? -complete=file_in_path Slides execute 'silent ! slides ' .. (len(<q-args>) ? string(<q-args>) : '%') | redraw!
-
-" Command-line Git UI
-command! LazyGit execute 'silent ! lazygit' | redraw!
-
-if !empty($TMUX)
-  command! Terminal silent
-        \ ! tmux split-window -c %:p:h | redraw!
-else
-  command! Terminal
-        \ call term_start([&shell,'-l'],{'cwd':expand('%:p:h')})
-endif
 
 " GitBrowse takes a dictionary and opens files on remote git repo websites.
 function! GitBrowse(args) abort
@@ -195,18 +144,20 @@ command! -range GB
 command! GW Gwrite
 command! GR execute 'lcd '..finddir('.git/..', expand('%:p:h')..';')
 command! GC Git commit
-nnoremap <leader>gg <cmd>G<cr>
-nnoremap <leader>gr <cmd>execute 'lcd '..finddir('.git/..', expand('%:p:h')..';')<cr>
-nnoremap <leader>gw <cmd>Gwrite<cr>
+
+" Quick tmux splits in cwd
+command! TmuxSplit silent ! tmux split-window -f -c %:p:h
+command! TmuxSplitH silent ! tmux split-window -fh -c %:p:h
+
+command! -nargs=* Terminal call term_start([&shell,'-l'],{'cwd':expand('%:p:h')})
 
 cnoremap <c-n> <c-Down>
 cnoremap <c-p> <c-Up>
-nnoremap <leader>br <cmd>BritiveConsoleFZF<cr>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>sp :sp **/*
 nnoremap <leader>vs :vs **/*
-nnoremap <leader>tt <cmd>call term_start([&shell,'-l'],{'cwd':expand('%:p:h')})<cr>
+nnoremap <leader>tt <cmd>Terminal<cr>
 nnoremap C "_C
 nnoremap Y y$
 nnoremap c "_c

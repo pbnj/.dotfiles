@@ -1,3 +1,12 @@
+let b:ale_fixers = [ 'remove_trailing_lines', 'trim_whitespace', 'prettier' ]
+let b:ale_yaml_ls_config = {
+                  \   'yaml': {
+                  \     'schemaStore': {
+                  \         'enable': v:true,
+                  \     },
+                  \   },
+                  \ }
+
 let &l:formatprg = 'prettier --stdin-filepath %:t'
 setlocal formatoptions-=t
 setlocal formatoptions+=croql

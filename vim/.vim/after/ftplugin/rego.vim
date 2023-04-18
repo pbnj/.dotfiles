@@ -1,3 +1,4 @@
+let b:ale_fixers = [ 'remove_trailing_lines', 'trim_whitespace', 'opa' ]
 let &l:keywordprg = ':!ddgr open policy agent'
 let &l:formatprg = 'opa fmt'
 

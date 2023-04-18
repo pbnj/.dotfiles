@@ -1,3 +1,4 @@
+let g:ale_fixers = [ 'remove_trailing_lines', 'trim_whitespace', 'terraform' ]
 let &l:keywordprg = ':!ddgr terraform'
 let &l:formatprg = 'terraform fmt -'
 
@@ -6,6 +7,7 @@ iabbrev  tfdaipd  <c-o>:read ~/.vim/templates/terraform/aws/data-aws-iam-policy-
 iabbrev  tfraip   <c-o>:read ~/.vim/templates/terraform/aws/aws-iam-policy.tf<cr><esc>
 iabbrev  tfrair   <c-o>:read ~/.vim/templates/terraform/aws/aws-iam-role.tf<cr><esc>
 iabbrev  tfraiu   <c-o>:read ~/.vim/templates/terraform/aws/aws-iam-user.tf<cr><esc>
+iabbrev  tfi      terraform import
 
 command! Format !terraform fmt %
 nnoremap <leader>af <cmd>Format<cr>
