@@ -68,7 +68,7 @@ let &mouse = 'a'
 let &number = 1
 let &pumheight = 50
 let &secure = 1
-let &shortmess = 'filnxtToOc'
+let &shortmess = 'filnxtToOcC'
 let &showmode = 1
 let &signcolumn = 'yes'
 let &smartcase = 1
@@ -168,6 +168,8 @@ tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
 if has('gui_running')
+  colorscheme lunaperche
+  " colorscheme quiet
 else
   colorscheme pbnj
 endif
