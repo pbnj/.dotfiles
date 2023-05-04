@@ -1,4 +1,4 @@
-let b:ale_fixers = [ 'remove_trailing_lines', 'trim_whitespace', 'goimports' ]
+let b:ale_fixers = ['goimports','gopls']
 let &l:keywordprg = ':!ddgr golang'
 let &l:formatprg = 'goimports'
 

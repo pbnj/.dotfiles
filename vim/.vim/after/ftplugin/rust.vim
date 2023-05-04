@@ -1,4 +1,5 @@
-let b:ale_fixers = [ 'remove_trailing_lines', 'trim_whitespace', 'analyzer', 'cargo' ]
+let b:ale_fixers = ['rustfmt']
+let b:ale_linters = ['cargo', 'analyzer']
 let &l:keywordprg = ':!ddgr rustlang'
 let &l:formatprg = 'cargo fmt'
 
