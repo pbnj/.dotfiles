@@ -8,22 +8,22 @@ selection:
 
 window:
   decorations: buttonless
-  # opacity: 0.9
+
 env:
   TERM: xterm-256color
 
 font:
   bold:
-    family: Iosevka Nerd Font
+    family: SF Mono
     style: Bold
   bold_italic:
-    family: Iosevka Nerd Font
+    family: SF Mono
     style: Bold Italic
   italic:
-    family: Iosevka Nerd Font
+    family: SF Mono
     style: Italic
   normal:
-    family: Iosevka Nerd Font
+    family: SF Mono
     style: Light
   size: 13
 
