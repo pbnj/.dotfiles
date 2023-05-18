@@ -14,19 +14,20 @@ iabbrev  tfraiu   <c-o>:read ~/.vim/templates/terraform/aws/aws-iam-user.tf<cr><
 function! TerraformStateCompletion(A,L,P) abort
     return filter(systemlist('terraform state list'),'v:val =~ a:A')
 endfunction
-command! -nargs=? -complete=customlist,TerraformStateCompletion TerraformStateShow terminal terraform state show <args>
+function! TerraformStateShow(args) abort
+    if empty(a:args)
+        execute 'terminal ++shell terraform state list | fzf --reverse --multi --prompt ''Terraform State Show> '' | xargs -L1 terraform state show -no-color'
+    else
+        execute 'terminal terraform state show ' .. a:args
+    endif
+endfunction
+command! -nargs=? -complete=customlist,TerraformStateCompletion TerraformStateShow call TerraformStateShow(<q-args>)
 
-command! -bar WatchAll
-            \ WatchTest | vert WatchLint | vert WatchSec
-
-command! -bar VWatchAll
-            \ vert WatchTest | WatchLint | WatchSec
-
-command! -bar WatchTest
-            \ <mods> terminal watchexec -c terraform validate
-
-command! -bar WatchLint
-            \ <mods> terminal watchexec -c tflint
-
-command! -bar WatchSec
-            \ <mods> terminal watchexec -c tfsec
+" call ale#linter#Define('terraform', {
+"       \ 'name': 'tfsec',
+"       \ 'executable': 'tfsec',
+"       \ 'command': '%e -f csv %s | awk -F, ''{print $1":"$2":"$5" "$6}''',
+"       \ 'language': 'terraform',
+"       \ 'project_root': { _ -> expand('%p:h') },
+"       \ 'callback': '',
+"       \ })

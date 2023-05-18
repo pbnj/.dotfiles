@@ -6,4 +6,4 @@
 
 set -eou pipefail
 
-terraform state list | fzf --reverse --multi --height 20 | xargs -L1 terraform state show -no-color
+terraform state list | fzf-tmux --reverse --multi -p '70%' | xargs -L1 terraform state show -no-color

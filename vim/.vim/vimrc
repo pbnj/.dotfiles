@@ -23,8 +23,9 @@ Plug 'https://github.com/thalesmello/webcomplete.vim' | let &completefunc = 'web
 Plug 'https://github.com/tpope/vim-commentary'
 Plug 'https://github.com/tpope/vim-dispatch'
 Plug 'https://github.com/tpope/vim-eunuch'
-Plug 'https://github.com/tpope/vim-fugitive' | command! GW Gwrite | command! GC Git commit
+Plug 'https://github.com/tpope/vim-fugitive'
 Plug 'https://github.com/tpope/vim-rsi'
+Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
 Plug 'https://github.com/wellle/tmux-complete.vim' | let g:tmuxcomplete#trigger = '' | let &thesaurusfunc = 'tmuxcomplete#complete'
@@ -48,7 +49,6 @@ let &cursorline = 0
 let &encoding = 'utf-8'
 let &errorformat = '%f:%l:%m,%f:%l:%c:%m'
 let &expandtab = 0
-let &fillchars = 'vert:│,foldclose:⎯,fold:⎯,diff:⎯,eob: '
 let &grepformat = '%f:%l:%m'
 let &grepprg = 'grep -HIn --line-buffered $*'
 let &guifont = 'SF Mono'
@@ -75,14 +75,13 @@ let &smartcase = 1
 let &smarttab = 1
 let &statusline = ' %f %#Error#%m%*%r%h%w%q' .. (exists('g:loaded_fugitive') ? ' %{FugitiveStatusline()}' : '')
 let &swapfile = 0
-" let &t_Co = 16
-" let &termguicolors = 0
 let &ttimeout = 1
 let &ttimeoutlen = 50
 let &ttyfast = 1
 let &wildignorecase = 1
 let &wildmenu = 1
 let &wildmode = 'longest:full,full'
+let &wildoptions = 'pum'
 let &wrap = 0
 
 augroup cursorline_toggle
@@ -91,19 +90,21 @@ augroup cursorline_toggle
 augroup end
 
 " netrw options
-" let g:netrw_keepdir = 0
 let g:netrw_fastbrowse = 0
 let g:netrw_localrmdir = 'rm -rf'
 
 " ale
+autocmd User asyncomplete_setup call asyncomplete#register_source(asyncomplete#sources#ale#get_source_options({}))
 let &omnifunc = 'ale#completion#OmniFunc'
 let g:ale_fix_on_save = 1
 let g:ale_fixers = { '*' : [ 'remove_trailing_lines', 'trim_whitespace' ] }
+let g:ale_hover_cursor = 0
+let g:ale_open_list = 1
+let g:ale_virtualtext_cursor = 0
 nnoremap <leader>gd <cmd>ALEGoToDefinition<cr>
 nnoremap <leader>k <cmd>ALEHover<cr>
-nnoremap ]d <cmd>ALENext<cr>
 nnoremap [d <cmd>ALEPrevious<cr>
-autocmd User asyncomplete_setup call asyncomplete#register_source(asyncomplete#sources#ale#get_source_options({}))
+nnoremap ]d <cmd>ALENext<cr>
 
 " fzf
 let project_finder = executable('fd') ? 'fd . ~/Projects --type d' : 'find ~/Projects -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \)'
@@ -117,7 +118,10 @@ nnoremap <leader>FF <cmd>Files %:p:h<cr>
 nnoremap <leader>uu <cmd>URLs<cr>
 
 " dispatch
-command! -nargs=* Terminal Start -wait=always -dir=%:p:h <args>
+command! -nargs=* -complete=shellcmd Terminal Start -wait=always -dir=%:p:h <args>
+
+" [B]uffer [D]elete all buffers. To re-open most recent buffer: `:e#`
+command! BD %bd
 
 " Re-open nested vim-in-vim in outer vim
 command! Unwrap let g:file = expand('%') | bdelete | exec 'silent !echo -e "\033]51;[\"drop\", \"'..g:file..'\"]\007"' | q
@@ -133,7 +137,7 @@ function! GitBrowse(args) abort
   echom l:cmd
   execute 'silent ! '..l:cmd | redraw!
 endfunction
-" View git repo, branch, & file in the browser
+" View [G]it repo, branch, & file in the [B]rowser
 command! -range GB
       \ call GitBrowse({
       \   'branch': trim(system('git rev-parse --abbrev-ref HEAD 2>/dev/null')),
@@ -148,14 +152,15 @@ command! GR execute 'lcd '..finddir('.git/..', expand('%:p:h')..';')
 function! AWSProfileCompletion(A,L,P) abort
   return filter(systemlist("awk -F '[][]' '{print $2}' ~/.aws/config | awk 'NF > 0 {print $2}'"),'v:val =~ a:A')
 endfunction
-command! -nargs=* -complete=customlist,AWSProfileCompletion AWS ! aws --profile <args>
+command! -nargs=* -complete=customlist,AWSProfileCompletion AWS Dispatch aws --output text --profile <args>
 
 cnoremap <c-n> <c-Down>
 cnoremap <c-p> <c-Up>
 nnoremap <leader>cd <cmd>lcd %:p:h<cr>
 nnoremap <leader>ee :ed **/*
 nnoremap <leader>sp :sp **/*
-nnoremap <leader>tt :topleft terminal <c-r><c-l>
+nnoremap <leader>tt <cmd>topleft terminal<cr>
+nnoremap <leader>TT :topleft terminal <c-r><c-l>
 nnoremap <leader>vs :vs **/*
 nnoremap C "_C
 nnoremap Y y$
@@ -167,9 +172,4 @@ noremap <expr> N (v:searchforward ? 'N' : 'n')
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-if has('gui_running')
-  colorscheme lunaperche
-  " colorscheme quiet
-else
-  colorscheme pbnj
-endif
+colorscheme quiet
