@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo '' | fzf --print-query --preview "cat ${1} | jq {q}"
