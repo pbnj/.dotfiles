@@ -10,7 +10,7 @@ Plug 'https://github.com/airblade/vim-rooter'
 Plug 'https://github.com/dense-analysis/ale'
 Plug 'https://github.com/editorconfig/editorconfig-vim'
 Plug 'https://github.com/junegunn/fzf', {'dir': '~/.fzf', 'do': { -> fzf#install() }}
-Plug 'https://github.com/junegunn/fzf.vim' | let g:fzf_layout = {'down': '40%'}
+Plug 'https://github.com/junegunn/fzf.vim' | let g:fzf_colors = {'border': ['fg','Ignore']}
 Plug 'https://github.com/lifepillar/vim-mucomplete' | let g:mucomplete#chains = {'default': ['path','omni','c-n','user','tags'],'vim': ['path','cmd','c-n','tags']}
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
