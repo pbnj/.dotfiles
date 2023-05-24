@@ -14,7 +14,6 @@ Plug 'https://github.com/junegunn/fzf.vim' | let g:fzf_layout = {'down': '40%'}
 Plug 'https://github.com/lifepillar/vim-mucomplete' | let g:mucomplete#chains = {'default': ['path','omni','c-n','user','tags'],'vim': ['path','cmd','c-n','tags']}
 Plug 'https://github.com/ludovicchabant/vim-gutentags'
 Plug 'https://github.com/machakann/vim-highlightedyank'
-Plug 'https://github.com/mhinz/vim-signify'
 Plug 'https://github.com/pbnj/pbnj.vim'
 Plug 'https://github.com/pbnj/terradoc.vim'
 Plug 'https://github.com/pbnj/vim-britive'
@@ -28,7 +27,6 @@ Plug 'https://github.com/tpope/vim-rsi'
 Plug 'https://github.com/tpope/vim-surround'
 Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/tpope/vim-vinegar'
-Plug 'https://github.com/wellle/tmux-complete.vim' | let g:tmuxcomplete#trigger = '' | let &thesaurusfunc = 'tmuxcomplete#complete'
 
 let g:polyglot_disabled = ['csv']
 Plug 'https://github.com/sheerun/vim-polyglot'
@@ -40,7 +38,7 @@ filetype plugin indent on
 " vim options
 let &autoindent = 1
 let &autoread = 1
-let &background =  system('defaults read -g AppleInterfaceStyle') =~ '^Dark' ? 'dark' : 'light'
+let &background = 'dark'
 let &backspace = 'indent,eol,start'
 let &breakindent = 1
 let &clipboard = 'unnamed,unnamedplus'
@@ -65,15 +63,12 @@ let &list = 1
 let &listchars = 'tab:┊ ,trail:·'
 let &modeline = 1
 let &mouse = 'a'
-let &number = 1
 let &pumheight = 50
 let &secure = 1
 let &shortmess = 'filnxtToOcC'
 let &showmode = 1
-let &signcolumn = 'yes'
 let &smartcase = 1
 let &smarttab = 1
-let &statusline = ' %f %#Error#%m%*%r%h%w%q' .. (exists('g:loaded_fugitive') ? ' %{FugitiveStatusline()}' : '')
 let &swapfile = 0
 let &ttimeout = 1
 let &ttimeoutlen = 50
@@ -162,14 +157,10 @@ nnoremap <leader>sp :sp **/*
 nnoremap <leader>tt <cmd>topleft terminal<cr>
 nnoremap <leader>TT :topleft terminal <c-r><c-l>
 nnoremap <leader>vs :vs **/*
-nnoremap C "_C
 nnoremap Y y$
-nnoremap c "_c
-nnoremap cc "_cc
-nnoremap x "_x
 noremap <expr> n (v:searchforward ? 'n' : 'N')
 noremap <expr> N (v:searchforward ? 'N' : 'n')
 tnoremap <esc> <c-\><c-n>
 tnoremap <s-space> <space>
 
-colorscheme quiet
+colorscheme pbnj
