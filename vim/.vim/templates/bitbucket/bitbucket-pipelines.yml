@@ -1,8 +1,0 @@
-pipelines:
-  default:
-    - step:
-        name: Build and test
-        runs-on:
-          - 'self.hosted'
-        script:
-          - echo 'hello world'

@@ -1,5 +1,0 @@
-# docs: https://github.com/typicode/husky/tree/master
----
-hooks:
-  pre-commit: "lint-staged"
-  commit-msg: "commitlint -E HUSKY_GIT_PARAMS"

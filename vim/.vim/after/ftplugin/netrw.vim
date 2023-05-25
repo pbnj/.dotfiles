@@ -1,1 +1,0 @@
-setlocal bufhidden=wipe

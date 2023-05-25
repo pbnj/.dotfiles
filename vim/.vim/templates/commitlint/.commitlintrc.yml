@@ -1,5 +1,0 @@
-# config: https://commitlint.js.org/#/reference-configuration
-# rules: https://commitlint.js.org/#/reference-rules
----
-extends:
-  - "@commitlint/config-conventional"
