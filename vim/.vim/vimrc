@@ -4,6 +4,9 @@ let g:mapleader = ' '
 " Enable built-in plugin to filter quickfix list. See :h :Cfilter
 packadd cfilter
 
+" Enable :Man built-in vim plugin
+runtime ftplugin/man.vim
+
 call plug#begin('~/.vim/plugged')
 
 Plug 'https://github.com/airblade/vim-rooter'
