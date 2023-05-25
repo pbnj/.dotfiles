@@ -9,6 +9,8 @@ if [[ -d "${HOME}/.local/share/nvim/mason/bin/" ]]; then
   PATH="${HOME}/.local/share/nvim/mason/bin/:${PATH}"
 fi
 
+export LANG="en_US.UTF-8"
+
 # Go
 export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
