@@ -17,18 +17,13 @@ export GOPATH="${HOME}/go"
 PATH="${PATH}:${GOPATH}/bin"
 
 export EDITOR="$(which nvim || which vim)"
-export DOTFILES="${HOME}/.dotfiles"
-export FZF_DEFAULT_COMMAND="rg --files --hidden --follow"
 export FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
-export LYNX_CFG="${HOME}/.config/lynx/lynx.cfg"
-export LYNX_LSS="${HOME}/.config/lynx/lynx.lss"
-export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
 
 # 1Password Agent
 if [[ "$(uname)" == "Darwin" ]]; then
-	export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
 fi
 
 # BREW
