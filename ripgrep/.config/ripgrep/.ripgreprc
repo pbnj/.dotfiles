@@ -1,5 +1,0 @@
---glob=!.git/*
---glob=!.terraform/*
---glob=!node_modules/*
---hidden
---smart-case
