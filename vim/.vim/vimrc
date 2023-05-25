@@ -76,6 +76,7 @@ let &showmode = 1
 let &smartcase = 1
 let &smarttab = 1
 let &swapfile = 0
+let &t_Co = 16
 let &ttimeout = 1
 let &ttimeoutlen = 50
 let &ttyfast = 1
