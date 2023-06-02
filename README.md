@@ -6,11 +6,10 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Overview](#overview)
-- [Dependencies & Utilities](#dependencies--utilities)
+- [Tools & Utilities](#tools--utilities)
   - [General Purpose](#general-purpose)
   - [Languages](#languages)
-  - [Formatters](#formatters)
-  - [Linters](#linters)
+  - [Linters and Formatters](#linters-and-formatters)
   - [Language Servers](#language-servers)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -23,20 +22,12 @@ configurations for various utilities and command-line interface (CLI)
 applications.
 
 Much of the guiding principles behind my development workflow revolves around
-the [Unix Philosophy](https://en.wikipedia.org/wiki/Unix_philosophy),
+the [Unix Philosophy](https://en.wikipedia.org/wiki/Unix_philosophy); that is
 minimalism, simplicity, and composability.
 
-The major underpinning themes are as follow:
+My vim configuration is in [pbnj/dotvim](https://github.com/pbnj/dotvim)
 
-- My editor is [`vim`](https://github.com/pbnj/dotfiles/blob/main/vim/.vimrc)
-- My IDE is the surrounding environment: the shell, the compilers/interpreters,
-  the various command-line applications and programs, the custom shell
-  scripts/functions/aliases, ...etc
-
-This allows me to compose various utilities into a workflow that is ergonomic
-and productive for me.
-
-## Dependencies & Utilities
+## Tools & Utilities
 
 ### General Purpose
 
@@ -50,46 +41,35 @@ and productive for me.
 - vim
 - fzf
 
-Optional:
-
-- ripgrep (better `grep`)
-- fd (better `find`)
-
 ### Languages
 
 - bash
 - go
-- node / typescript
 - rust
-- terraform / hcl
+- python
+- typescript
+- terraform
 
-### Formatters
-
-- editorconfig
-- goimports
-- gotests
-- prettier
-- rustfmt
-- shfmt
-
-### Linters
+### Linters and Formatters
 
 - commitlint
+- editorconfig
+- goimports
 - golangci-lint
+- gotests
 - hadolint
 - jsonlint
 - markdownlint
+- prettier
+- rustfmt
 - shellcheck
+- shfmt
 - tflint
-- tfsec
+- trivy
 - yamllint
 
 ### Language Servers
 
-- bash-language-server
-- dockerfile-language-server
 - gopls
 - rust-analyzer
 - terraform-ls
-- vscode-langservers-extracted (json, css, html)
-- yaml-language-server
