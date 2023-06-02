@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -eou pipefail
+
+QUERY="${1:-""}"
+
+op item list --format=json |
+	jq -rc 'del(.[]|select(.category == "DOCUMENT")) | .[]' |
+	fzf-tmux -p '80%' --query="${QUERY}" |
+	op item get - || true

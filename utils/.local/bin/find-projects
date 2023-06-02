@@ -4,4 +4,4 @@ set -eou pipefail
 
 find ~/Projects -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \) -not \( -path *node_modules -prune \) |
 	fzf-tmux -p '80%' --multi --reverse --prompt 'Projects> ' |
-	xargs -L1 -I{} tmux new-window -c {}
+	xargs -L1 -I{} tmux new-window -c {} || true
