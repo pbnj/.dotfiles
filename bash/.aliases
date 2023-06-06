@@ -8,9 +8,10 @@ alias ls="ls -F"
 hash exa 2>/dev/null && alias ls="exa -F"
 alias ll="ls -alFh --group-directories-first"
 
+hash gmake 2>/dev/null && alias make=gmake
+
 alias cp='cp -i'
 alias grep="grep --color=auto --line-buffered"
-alias make=gmake
 alias mv='mv -i'
 alias rm='rm -i'
 
