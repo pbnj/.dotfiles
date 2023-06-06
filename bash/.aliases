@@ -8,10 +8,11 @@ alias ls="ls -F"
 hash exa 2>/dev/null && alias ls="exa -F"
 alias ll="ls -alFh --group-directories-first"
 
-alias rm='rm -i'
 alias cp='cp -i'
-alias mv='mv -i'
 alias grep="grep --color=auto --line-buffered"
+alias make=gmake
+alias mv='mv -i'
+alias rm='rm -i'
 
 # (neo)vim
 hash nvim &>/dev/null && alias vim="nvim"
