@@ -29,3 +29,6 @@ vim/.vim/undo/
 vscode-sqltools/
 work.lua
 yarn/
+ssh/.ssh/*
+!ssh/.ssh/config
+!ssh/.ssh/allowed_signers
