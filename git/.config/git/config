@@ -1,74 +1,71 @@
 [user]
-	name = "Peter Benjamin"
-	email = "petermbenjamin@gmail.com"
-	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
+  name = "Peter Benjamin"
+  email = "petermbenjamin@gmail.com"
+  ; signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMmP68s7fCa5Zdy6dk/GleUjbILnG1HkEy00TffOttz6
 
-[includeIf "gitdir:~/Projects/bitbucket.org/"]
-	path = ~/Projects/bitbucket.org/.gitconfig
-
-; [url "git@github.com:"]
-; 	insteadOf = "https://github.com/"
+[url "git@github.com:"]
+  insteadOf = "https://github.com/"
 
 [alias]
-	alias = !git config -l | grep ^alias | cut -c 7- | sort
-	branches = branch -a --sort=-committerdate
-	c = commit
-	co = checkout
-	contributors = shortlog --summary --numbered
-	czc = cz commit
-	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
-	l = log --pretty=oneline --graph --abbrev-commit
-	ls = ls-files
-	p = push
-	remotes = remote -v
-	s = status --short .
-	tags = tag --list
-	top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
-	undo = !git reset HEAD~1 --mixed
-	unstage = reset
+  alias = !git config -l | grep ^alias | cut -c 7- | sort
+  branches = branch -a --sort=-committerdate
+  c = commit
+  co = checkout
+  contributors = shortlog --summary --numbered
+  czc = cz commit
+  graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
+  l = log --pretty=oneline --graph --abbrev-commit
+  ls = ls-files
+  p = push
+  remotes = remote -v
+  s = status --short .
+  tags = tag --list
+  top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
+  undo = !git reset HEAD~1 --mixed
+  unstage = reset
 
 [apply]
-	whitespace = fix
+  whitespace = fix
 
 [core]
-	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
-	trustctime = false
+  whitespace = space-before-tab,-indent-with-non-tab,trailing-space
+  trustctime = false
 
 [merge]
-	conflictStyle = diff3
-	defaultToUpstream = true
-	tool = vimdiff
+  conflictStyle = diff3
+  defaultToUpstream = true
+  tool = vimdiff
 
 [diff]
-	tool = vimdiff
+  tool = vimdiff
 
 [branch]
-	autoSetupMerge = always
+  autoSetupMerge = always
 
 [color]
-	ui = auto
+  ui = auto
 
 [push]
-	default = current
+  default = current
 
 [pull]
-	rebase = true
+  rebase = true
 
 [init]
-	defaultBranch = main
+  defaultBranch = main
 
 [commit]
-	verbose = true
-	; gpgsign = true
+  verbose = true
+  ; gpgsign = true
 
 [grep]
-	lineNumber = true
-	column = true
-	fallbackToNoIndex = true
+  lineNumber = true
+  column = true
+  fallbackToNoIndex = true
 
 [log]
-	showSignature = false
-	diffMerges = on
+  showSignature = false
+  diffMerges = on
 
 ; [gpg]
 ; 	format = ssh
