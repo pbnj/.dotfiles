@@ -28,21 +28,18 @@ stow-all: stow-vim stow-git stow-bash stow-tmux
 essential: ## install essential dependencies
 	$(SUDO) apt update
 	$(SUDO) apt install -y \
-		bash \
-		bash-completion \
 		build-essential \
 		curl \
+		ddgr \
 		git \
 		less \
 		make \
 		man \
-		tmux \
-		vim \
-		ddgr \
-		w3m \
-		lynx \
+		python3 \
 		stow \
-		unzip
+		tmux \
+		unzip \
+		vim
 
 .PHONY: op
 op: ## install 1password https://app-updates.agilebits.com/product_history/CLI
@@ -54,11 +51,6 @@ op: ## install 1password https://app-updates.agilebits.com/product_history/CLI
 .PHONY: git-extras
 git-extras: ## Install git extras
 	sh $(CURDIR)/scripts/git-extras.sh
-
-.PHONY: fzf
-fzf: ## install fzf
-	git clone https://github.com/junegunn/fzf ~/.fzf || git -C ~/.fzf pull
-	~/.fzf/install
 
 .PHONY: gh
 gh: ## install gh
