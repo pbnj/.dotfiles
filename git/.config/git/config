@@ -61,7 +61,13 @@
 [log]
   showSignature = false
   diffMerges = on
+
 [credential]
-	helper = store
-[credential "https://github.com"]
+  helper = store
   username = pbnj
+
+[includeIf "hasconfig:remote.*.url:https://github.com/komodohealth/**"]
+  path = ~/Projects/github.com/komodohealth/.gitconfig
+
+[includeIf "hasconfig:remote.*.url:https://github.com/pbnj-dragon/**"]
+  path = ~/Projects/github.com/komodohealth/.gitconfig
