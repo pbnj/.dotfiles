@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -eou pipefail
+
+URL="${1:-""}"
+
+if [[ -z "${URL}" ]]; then
+  URL="$(gum input --placeholder='URL' --width=80)"
+fi
+
+curl -s "${URL}" | pandoc -f html -t gfm | glow
