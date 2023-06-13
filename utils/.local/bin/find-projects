@@ -2,6 +2,13 @@
 
 set -eou pipefail
 
-find ~/Projects -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \) -not \( -path *node_modules -prune \) |
-	fzf-tmux -p '80%' --multi --reverse --prompt 'Projects> ' |
-	xargs -L1 -I{} tmux new-window -c {} || true
+FIND_PATH="${HOME}/Projects"
+FIND_PROG="find ${FIND_PATH} -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \) -not \( -path *node_modules -prune \) -not \( -path *target -prune \)"
+
+if hash fd &>/dev/null; then
+  FIND_PROG="fd . ${FIND_PATH} --type d"
+fi
+
+${FIND_PROG} |
+  fzf-tmux -p '80%' --multi --reverse --prompt 'Projects> ' |
+  xargs -L1 -I{} tmux new-window -c {} || true
