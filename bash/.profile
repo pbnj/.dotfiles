@@ -17,7 +17,7 @@ fi
 [ -f "${HOME}/.functions" ] && source "${HOME}/.functions"
 
 # CARGO
-[[ -f "${HOME}/.cargo/env" ]] && source "$HOME/.cargo/env"
+[[ -f "${HOME}/.cargo/env" ]] && . "${HOME}/.cargo/env"
 
 # PROFILES & ALIASES
 [[ -f "${HOME}/.aliases" ]] && source "${HOME}/.aliases"
