@@ -4,4 +4,4 @@ set -eou pipefail
 
 URL="${1:-$(gum input --placeholder='URL' --width=80)}"
 
-curl -s "${URL}" | pandoc -f html -t gfm | glow
+curl -sLk "${URL}" | pandoc -f html -t gfm | glow
