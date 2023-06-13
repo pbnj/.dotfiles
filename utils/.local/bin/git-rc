@@ -2,13 +2,17 @@
 
 rctemplate="${1}"
 
+git_root="$(git rev-parse --show-toplevel)"
+
 # scaffold rc files from templates
 if [[ -n "${rctemplate}" ]]; then
-	cp -R ~/.dotfiles/templates/"${rctemplate}"/ "$(git rev-parse --show-toplevel)"/
-	echo "SUCCESS: Created ${rctemplate}"
+  echo cp -R "${HOME}/.vim/templates/${rctemplate}/" "${git_root}/"
+  cp -R "${HOME}/.vim/templates/${rctemplate}/" "${git_root}/"
+  echo "SUCCESS: Created ${rctemplate}"
 else
-	 for conf in $(find ~/.dotfiles/templates/* -type d | fzf --multi --height=20); do
-		 cp -R "${conf}"/ "$(git rev-parse --show-toplevel)"/
-		echo "SUCCESS: Created ${conf}"
-	 done
+  for conf in $(find ${HOME}/.vim/templates/* -type d | fzf-tmux -p --multi --height=20); do
+    echo cp -R "${conf}/" "${git_root}/"
+    cp -R "${conf}/" "${git_root}/"
+    echo "SUCCESS: Created ${conf}"
+  done
 fi
