@@ -36,16 +36,12 @@ kns() {
 
 # gw <tab>
 _fzf_complete_gw() {
-	_fzf_complete --reverse --prompt="gw> " -- "$@" < <(
-		yq '. | keys' ~/.config/gw/config.yaml | grep -v '#' | tr -d '[- ]'
-	)
+	_fzf_complete --reverse --prompt="gw> " -- "$@" < <(yq '. | keys' ~/.config/gw/config.yaml | grep -v '#' | tr -d '[- ]')
 }
 complete -o default -o bashdefault -F _fzf_complete_gw gw
 
-# bconsole **<tab>
-_fzf_complete_bconsole() {
-	_fzf_complete --reverse --prompt="britive console> " -- "$@" < <(
-		npx britive-cli listprofiles 2>/dev/null | jq -rc .[].environmentName | awk -F'[()]' '{print $1"\n"$2}'
-	)
+# aws-console **<tab>
+_fzf_complete_awsconsole() {
+	_fzf_complete --reverse --prompt="aws console> " -- "$@" < <(awk -F '[][]' '$2 ~ "profile" {print $2}' ~/.aws/config | awk '{print $2}')
 }
-complete -o default -o bashdefault -F _fzf_complete_bconsole bconsole
+complete -o default -o bashdefault -F _fzf_complete_awsconsole aws-console
