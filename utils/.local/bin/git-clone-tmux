@@ -4,7 +4,7 @@ set -eou pipefail
 
 # Clone a git repo and open it in a new tmux window
 # Requires: gh, glab, git
-REPO_URL="${1:-""}"
+REPO_URL="${1:-$(gum input --placeholder="GitHub Repo URL" --width=80)}"
 CLONE_PATH=""
 
 if [[ -z "${REPO_URL}" ]]; then
