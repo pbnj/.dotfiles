@@ -14,16 +14,16 @@ env:
 
 font:
   bold:
-    family: FiraCode Nerd Font
+    family: JetBrainsMono Nerd Font
     style: Bold
   bold_italic:
-    family: FiraCode Nerd Font
+    family: JetBrainsMono Nerd Font
     style: Bold Italic
   italic:
-    family: FiraCode Nerd Font
+    family: JetBrainsMono Nerd Font
     style: Italic
   normal:
-    family: FiraCode Nerd Font
+    family: JetBrainsMono Nerd Font
     style: Light
   size: 13
 
