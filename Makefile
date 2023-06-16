@@ -69,6 +69,8 @@ docker: ## install docker
 	-$(SUDO) apt install -y uidmap
 	curl -fsSL https://get.docker.com | sh
 
+# STOW
+
 .PHONY: stow-vim
 stow-vim: ## stow vim
 	stow vim -t $(HOME)
@@ -84,3 +86,13 @@ stow-bash: ## stow bash
 .PHONY: stow-tmux
 stow-tmux: ## stow tmux
 	stow tmux -t $(HOME)
+
+# MACOS
+
+.PHONY: macos-change-screenshot-location
+macos-change-screenshot-location: ## Change default screenshot location to /tmp
+	defaults write com.apple.screencapture location /tmp
+
+.PHONY: macos-disable-keypresshold
+macos-disable-keypresshold: ## Disable key press and hold feature
+	defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
