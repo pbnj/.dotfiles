@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -eou pipefail
+
+STREAMER() {
+  awk -F'[()]' '/https.*youtube\.com|https.*twitch\.tv/ {print $2}' <(curl -L https://raw.githubusercontent.com/bnb/awesome-developer-streams/master/README.md) | sort -ui
+}
+
+STREAMER |
+  fzf-tmux -p '80%' --reverse |
+  xargs -L1 -I{} mpv {} &
