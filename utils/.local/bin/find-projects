@@ -10,5 +10,9 @@ if hash fd &>/dev/null; then
 fi
 
 ${FIND_PROG} |
-  fzf-tmux -p '80%' --multi --reverse --prompt 'Projects> ' |
-  xargs -L1 -I{} tmux new-window -c {} || true
+  fzf-tmux \
+    -p '80%' \
+    --multi \
+    --reverse \
+    --prompt 'Projects> ' \
+    --bind "ctrl-r:reload(${FIND_PROG}),enter:become(tmux new-window -c {})"

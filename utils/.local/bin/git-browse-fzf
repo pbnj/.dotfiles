@@ -11,7 +11,11 @@
 
 set -eou pipefail
 
-git ls-files |
-	fzf-tmux --reverse -p '90%' --preview 'cat {}' |
-	xargs -t -L1 git browse "$(git config branch."$(git rev-parse --abbrev-ref HEAD 2>/dev/null)".remote || echo 'origin')" ||
-	true
+CMD="git ls-files"
+
+${CMD} |
+  fzf-tmux \
+    -p '90%' \
+    --reverse \
+    --preview 'cat {}' \
+    --bind "ctrl-r:reload(${CMD}),enter:become(git browse \"$(git config branch."$(git rev-parse --abbrev-ref HEAD 2>/dev/null)".remote || echo origin)\")"

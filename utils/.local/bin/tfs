@@ -6,4 +6,11 @@
 
 set -eou pipefail
 
-terraform state list | fzf-tmux --reverse --multi -p '70%' | xargs -L1 terraform state show -no-color
+COMMAND="terraform state list"
+
+${COMMAND} |
+  fzf-tmux \
+    -p '70%' \
+    --reverse \
+    --multi \
+    --bind "ctrl-r:reload(${COMMAND}),enter:become(terraform state show -no-color {})"
