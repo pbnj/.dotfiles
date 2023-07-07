@@ -32,6 +32,7 @@ fi
 # FZF
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
+# PROMPT
 export PS1="\\n\w \$(git branch --show-current 2>/dev/null | awk '{print \"[\"\$0\"]\"}')\\n\\$ "
 
 # DIRENV

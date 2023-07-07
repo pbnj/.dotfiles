@@ -4,13 +4,6 @@
 # General
 PATH="${HOME}/.local/bin:${PATH}"
 
-# https://github.com/williamboman/mason.nvim
-if [[ -d "${HOME}/.local/share/nvim/mason/bin/" ]]; then
-  PATH="${HOME}/.local/share/nvim/mason/bin/:${PATH}"
-fi
-
-export LANG="en_US.UTF-8"
-
 # Go
 export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
@@ -23,7 +16,7 @@ export HISTCONTROL=ignoreboth
 
 # 1Password Agent
 if [[ "$(uname)" == "Darwin" ]]; then
-  export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+	export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
 fi
 
 # BREW

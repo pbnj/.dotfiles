@@ -24,8 +24,8 @@ alias vgf="vim +GF!"
 alias vd="vim +GF!?"
 alias vrg="vim +Rg!"
 if [[ -n "${TMUX}" ]]; then
-	alias vt='tmux capture-pane -Jp -S- | vim -'
-	alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
+  alias vt='tmux capture-pane -Jp -S- | vim -'
+  alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
 fi
 
 # For quick edits
@@ -59,19 +59,19 @@ alias tfv="terraform validate"
 
 # osx
 if [[ $(uname) == "Darwin" ]]; then
-	# enable remote login
-	alias macos_remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on && sudo systemsetup -getremotelogin"
-	# desktop
-	alias macos_desktop_hide="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
-	alias macos_desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
-	# .DS_Store
-	alias macos_dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
-	alias brew="arch -arm64 brew"
-	alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
+  # enable remote login
+  alias macos_remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on && sudo systemsetup -getremotelogin"
+  # desktop
+  alias macos_desktop_hide="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
+  alias macos_desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
+  # .DS_Store
+  alias macos_dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
+  alias brew="arch -arm64 brew"
+  alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
 fi
 
 # linux
 if hash apt &>/dev/null; then
-	SUDO=$(which sudo)
-	alias auau="${SUDO} apt update && ${SUDO} apt upgrade -y"
+  SUDO=$(which sudo)
+  alias auau="${SUDO} apt update && ${SUDO} apt upgrade -y"
 fi
