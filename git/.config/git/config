@@ -71,3 +71,8 @@
 
 [includeIf "hasconfig:remote.*.url:https://github.com/pbnj-dragon/**"]
   path = ~/Projects/github.com/komodohealth/.gitconfig
+
+[credential "https://github.com"]
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = !/opt/homebrew/bin/gh auth git-credential
