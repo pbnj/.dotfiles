@@ -4,18 +4,15 @@
 
 set -eou pipefail
 
-OPEN_PROG="$(which xdg-open || which open)"
-
 # How it works:
 # 	1. Dump content of tmux buffer to stdout.
 # 	2. Grep for URL patterns.
 # 	3. Search & select one or more URLs via `fzf` fuzzy finder.
 # 	4. Open selected URL(s).
-URL_FINDER() { tmux capture-pane -J -p -S- | grep -oE "https?://[^[:space:]'\")]+"; }
+URL_PATTERN="https?://[^[:space:]'\")]+"
 
-URL_FINDER |
-  fzf-tmux \
-    -p '80%' \
-    --reverse \
-    --multi \
-    --bind "enter:become(${OPEN_PROG} {})"
+tmux capture-pane -J -p -S- |
+  grep -oE "${URL_PATTERN}" |
+  sort -ui |
+  fzf-tmux -p '80%' --reverse --multi --prompt "URL> " |
+  xargs -L1 open || true

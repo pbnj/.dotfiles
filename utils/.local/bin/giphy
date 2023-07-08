@@ -2,11 +2,13 @@
 
 set -eou pipefail
 
-GIPHY_QUERY="${1:-/dev/stdin}"
-GIPHY_RANDOM_NUMBER_BETWEEN_1_AND_25="$((RANDOM % 25))"
+GIPHY_QUERY="${1:-"funny"}"
 
-if [[ -n "${GIPHY_QUERY}" ]]; then
-	curl -fsSL "https://giphy.com/search/${GIPHY_QUERY}" |
-		rg -oP "(?<=gifs: ).*?(?=,$)" |
-		jq -r ".[${GIPHY_RANDOM_NUMBER_BETWEEN_1_AND_25}] | .images.original.url"
-fi
+curl -fsSL "https://giphy.com/search/${GIPHY_QUERY}" |
+  rg -oP "(?<=gifs: ).*?(?=,$)" |
+  jq -rc ".[] | .images.original.url" |
+  fzf-tmux \
+    --reverse \
+    --multi \
+    --prompt "gif(s)> " |
+  xargs -t -L1 -I{} imgcat --url {}

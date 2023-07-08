@@ -2,6 +2,6 @@
 
 set -eou pipefail
 
-URL="${1:-$(gum input --placeholder='URL' --width=80)}"
+URL="${1:-}"
 
-curl -sLk "${URL}" | pandoc -f html -t gfm | glow
+curl -fsSLk "${URL}" | pandoc -f html -t gfm | glow

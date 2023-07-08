@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -eou pipefail
+
+LOFI_STREAMS=(
+  "synthwave https://www.youtube.com/watch?v=4xDzrJKXOOY"
+  "sleep https://www.youtube.com/watch?v=rUxyKA_-grg"
+  "relax https://www.youtube.com/watch?v=jfKfPfyJRdk"
+)
+
+printf "%s\n" "${LOFI_STREAMS[@]}" |
+  fzf-tmux -p --reverse --delimiter=' ' --with-nth=1 |
+  awk '{print $2}' |
+  xargs -t -I{} mpv {} &

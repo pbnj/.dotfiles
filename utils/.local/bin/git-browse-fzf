@@ -11,11 +11,13 @@
 
 set -eou pipefail
 
-CMD="git ls-files"
+GIT_LS_FILES="git ls-files"
 
-${CMD} |
+: |
   fzf-tmux \
     -p '90%' \
     --reverse \
     --preview 'cat {}' \
-    --bind "ctrl-r:reload(${CMD}),enter:become(git browse \"$(git config branch."$(git rev-parse --abbrev-ref HEAD 2>/dev/null)".remote || echo origin)\")"
+    --bind "start:reload(${GIT_LS_FILES})" \
+    --bind "ctrl-r:reload(${GIT_LS_FILES})" \
+    --bind "enter:become(git browse \"$(git config branch."$(git rev-parse --abbrev-ref HEAD 2>/dev/null)".remote || echo origin)\" {})"

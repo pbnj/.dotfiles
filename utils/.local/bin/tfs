@@ -8,9 +8,9 @@ set -eou pipefail
 
 COMMAND="terraform state list"
 
-${COMMAND} |
-  fzf-tmux \
-    -p '70%' \
-    --reverse \
-    --multi \
-    --bind "ctrl-r:reload(${COMMAND}),enter:become(terraform state show -no-color {})"
+fzf-tmux \
+  -p '80%' \
+  --reverse \
+  --bind "start:reload:${COMMAND}" \
+  --bind "ctrl-r:reload(${COMMAND})" \
+  --bind "enter:become(terraform state show -no-color {})"
