@@ -32,3 +32,4 @@ yarn/
 ssh/.ssh/*
 !ssh/.ssh/config
 !ssh/.ssh/allowed_signers
+utils/.local/bin/devpod
