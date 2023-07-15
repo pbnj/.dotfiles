@@ -3,6 +3,7 @@
 
 # General
 PATH="${HOME}/.local/bin:${PATH}"
+PATH="${HOME}/.aws:${PATH}"
 
 # Go
 export GODEBUG=x509ignoreCN=0

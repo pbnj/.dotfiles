@@ -1,7 +1,3 @@
-[user]
-  name = "Peter Benjamin"
-  email = "petermbenjamin@gmail.com"
-
 [alias]
   alias = !git config -l | grep ^alias | cut -c 7- | sort
   branches = branch -a --sort=-committerdate
@@ -62,17 +58,8 @@
   showSignature = false
   diffMerges = on
 
-[credential]
-  helper = store
-  username = pbnj
-
-[includeIf "hasconfig:remote.*.url:https://github.com/komodohealth/**"]
-  path = ~/Projects/github.com/komodohealth/.gitconfig
-
-[includeIf "hasconfig:remote.*.url:https://github.com/pbnj-dragon/**"]
-  path = ~/Projects/github.com/komodohealth/.gitconfig
-
 [credential "https://github.com"]
 	helper = !/opt/homebrew/bin/gh auth git-credential
+
 [credential "https://gist.github.com"]
 	helper = !/opt/homebrew/bin/gh auth git-credential

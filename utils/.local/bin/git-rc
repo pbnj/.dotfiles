@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 
-rctemplate="${1}"
+set -eou pipefail
 
-git_root="$(git rev-parse --show-toplevel)"
+RCTEMPLATE="${1:-}"
 
-# scaffold rc files from templates
-if [[ -n "${rctemplate}" ]]; then
-  echo cp -R "${HOME}/.vim/templates/${rctemplate}/" "${git_root}/"
-  cp -R "${HOME}/.vim/templates/${rctemplate}/" "${git_root}/"
-  echo "SUCCESS: Created ${rctemplate}"
-else
-  for conf in $(find ${HOME}/.vim/templates/* -type d | fzf-tmux -p --multi --height=20); do
-    echo cp -R "${conf}/" "${git_root}/"
-    cp -R "${conf}/" "${git_root}/"
-    echo "SUCCESS: Created ${conf}"
-  done
-fi
+GIT_ROOT="$(git rev-parse --show-toplevel)"
+
+fzf-tmux \
+  -p '80%' \
+  --reverse \
+  --multi \
+  --bind "start:reload:find ${HOME}/.vim/templates/* -type d" \
+  --bind "enter:execute:cp -R {}/ ${GIT_ROOT}/" \
+  --query "${RCTEMPLATE}"

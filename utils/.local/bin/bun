@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -eou pipefail
+
+INPUT="${1:-}"
+
+fzf \
+  --height 40 \
+  --reverse \
+  --multi \
+  --query "${INPUT}" \
+  --bind 'start:reload:brew list' \
+  --bind 'enter:execute:brew uninstall {+} && brew autoremove'

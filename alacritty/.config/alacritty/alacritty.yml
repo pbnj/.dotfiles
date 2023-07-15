@@ -15,10 +15,10 @@ env:
 
 font:
   bold:
-    family: FiraCode Nerd Font
+    family: SF Mono
     style: Medium
   normal:
-    family: FiraCode Nerd Font
+    family: SF Mono
     style: Light
   size: 13
 
