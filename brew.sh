@@ -11,44 +11,44 @@ brew install --cask minecraft
 brew install --cask rectangle
 brew install --cask slack
 brew install --cask spotify
-brew install awscli
-brew install azure-cli
-brew install bash
-brew install bash-completion
-brew install coreutils
-brew install curl
-brew install ddgr
-brew install direnv
-brew install docker
-brew install exa
-brew install fzf
-brew install gh
-brew install git
-brew install git-extras
-brew install glow
-brew install grep
-brew install hadolint
-brew install helm
-brew install homebrew/cask-fonts/font-fira-code-nerd-font
-brew install htop
-brew install instrumenta/instrumenta/conftest
-brew install jq
-brew install kubernetes-cli
-brew install nmap
-brew install pandoc
-brew install rust-analyzer
-brew install rustfmt
-brew install shellcheck
-brew install shfmt
-brew install slides
-brew install stow
-brew install terraform
-brew install tflint
-brew install tmux
-brew install tmux-mem-cpu-load
-brew install universal-ctags
-brew install vhs
-brew install wget
+brew install awscli                           # aws cli
+brew install azure-cli                        # azure cli
+brew install bash                             # newer version of bash
+brew install bash-completion                  # completion for common tools & utilities
+brew install coreutils                        # core utilities
+brew install curl                             # curl
+brew install ddgr                             # duckduckgo cli
+brew install direnv                           # auto source .env files
+brew install docker                           # docker cli
+brew install exa                              # ls alternative written in rust
+brew install fzf                              # fuzzy finder
+brew install gh                               # github cli
+brew install git                              # git cli
+brew install git-extras                       # extra git utils
+brew install glow                             # terminal markdown renderer
+brew install grep                             # newer version of grep
+brew install grex                             # regex generator
+brew install hadolint                         # docker linter
+brew install helm                             # cli for helm
+brew install instrumenta/instrumenta/conftest # configuration file tester using opa
+brew install jq                               # terminal json processor
+brew install kubernetes-cli                   # cli for k8s
+brew install melody                           # regex generator
+brew install nmap                             # network mapper
+brew install pandoc                           # universal document processor
+brew install rust-analyzer                    # lsp for rust
+brew install rustfmt                          # formatter for rust
+brew install shellcheck                       # linter for shell scripts
+brew install shfmt                            # formatter for shell scripts
+brew install slides                           # terminal presentation tool
+brew install stow                             # symlink farm manager
+brew install terraform                        # infra-as-code cli
+brew install tflint                           # linter for terraform
+brew install tmux                             # terminal multiplexer
+brew install tmux-mem-cpu-load                # utility for showing mem & cpu load
+brew install universal-ctags                  # universal tag generator
+brew install vhs                              # terminal gif generator
+brew install wget                             # wget
 
 brew install go &&
   go install golang.org/x/tools/...@latest &&
