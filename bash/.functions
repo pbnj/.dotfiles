@@ -1,8 +1,16 @@
 # vim:ft=bash:
 # shellcheck shell=bash
 
-ly() {
-	lynx -useragent='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' $*
+########################################
+# Docker
+########################################
+
+dirm() {
+	docker image ls | fzf-tmux -p '80%' --reverse --multi | awk '{print $3}' | xargs docker image rm
+}
+
+dcrm() {
+	docker container ls | fzf-tmux -p '80%' --reverse --multi | awk '{print $1}' | xargs docker container rm
 }
 
 ########################################

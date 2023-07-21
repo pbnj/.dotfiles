@@ -15,8 +15,7 @@ alias grep="grep --color=auto --line-buffered"
 alias mv='mv -i'
 alias rm='rm -i'
 
-# (neo)vim
-hash nvim &>/dev/null && alias vim="nvim"
+# vim
 alias vi="vim --clean"
 alias vf="vim +Files!"
 alias vg="vim +0G"
@@ -27,6 +26,9 @@ if [[ -n "${TMUX}" ]]; then
 	alias vt='tmux capture-pane -Jp -S- | vim -'
 	alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
 fi
+
+# tmux
+alias tm="tmux a || tmux"
 
 # For quick edits
 # shellcheck disable=SC2139
