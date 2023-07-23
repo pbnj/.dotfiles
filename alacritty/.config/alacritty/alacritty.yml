@@ -7,19 +7,19 @@ selection:
 
 window:
   decorations: buttonless
-  # opacity: 0.9
+  opacity: 0.9
 
 env:
   TERM: xterm-256color
   LANG: en_US.UTF-8
 
 font:
-  bold:
-    family: SF Mono
-    style: Medium
   normal:
     family: SF Mono
     style: Light
+  bold:
+    family: SF Mono
+    style: SemiBold
   size: 13
 
 # https://github.com/alacritty/alacritty/issues/93#issuecomment-1364783147

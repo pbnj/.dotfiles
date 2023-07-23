@@ -48,7 +48,7 @@ _fzf_complete_gw() {
 }
 complete -o default -o bashdefault -F _fzf_complete_gw gw
 
-# aws-console **<tab>
+# aws-console -p **<tab>
 _fzf_complete_awsconsole() {
 	_fzf_complete --reverse --prompt="aws console> " -- "$@" < <(awk -F '[][]' '$2 ~ "profile" {print $2}' ~/.aws/config | awk '{print $2}')
 }
