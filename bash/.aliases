@@ -16,6 +16,7 @@ alias mv='mv -i'
 alias rm='rm -i'
 
 # vim
+alias nv=nvim
 alias vi="vim --clean"
 alias vf="vim +Files!"
 alias vg="vim +0G"
