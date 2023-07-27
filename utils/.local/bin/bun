@@ -10,4 +10,5 @@ fzf \
   --multi \
   --query "${INPUT}" \
   --bind 'start:reload:brew list' \
+  --bind 'ctrl-r:reload:brew list' \
   --bind 'enter:execute:brew uninstall {+} && brew autoremove'

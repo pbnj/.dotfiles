@@ -16,17 +16,13 @@ alias mv='mv -i'
 alias rm='rm -i'
 
 # vim
-alias nv=nvim
+alias vim="$(which nvim || which vim)"
 alias vi="vim --clean"
 alias vf="vim +Files!"
 alias vg="vim +0G"
 alias vgf="vim +GF!"
 alias vd="vim +GF!?"
 alias vrg="vim +Rg!"
-if [[ -n "${TMUX}" ]]; then
-	alias vt='tmux capture-pane -Jp -S- | vim -'
-	alias vu="tmux capture-pane -Jp -S- -E- | vim +URLs -"
-fi
 
 # tmux
 alias tm="tmux a || tmux"

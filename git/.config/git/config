@@ -1,10 +1,4 @@
-[user]
-	name = Peter Benjamin
-	email = petermbenjamin@gmail.com
-
-[url "personal:pbnj/"]
-  insteadOf = "https://github.com/pbnj/"
-
+; global config
 [alias]
   alias = !git config -l | grep ^alias | cut -c 7- | sort
   branches = branch -a --sort=-committerdate
@@ -65,23 +59,12 @@
   showSignature = false
   diffMerges = on
 
-[includeIf "hasconfig:remote.*.url:work:komodohealth/**"]
+; personal config
+[includeIf "gitdir:~/Projects/github.com/pbnj/"]
+  path = ~/.config/git/personal.config
+
+; work config
+[includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
   path = ~/.config/git/work.config
-
-[url "work:komodohealth/"]
-  insteadOf = "https://github.com/komodohealth/"
-
-; git commit signing
-; https://developer.1password.com/docs/ssh/git-commit-signing
-[user]
-  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
-
-[gpg]
-  format = ssh
-
-[gpg "ssh"]
-  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-	allowedSignersFile = ~/.ssh/allowed_signers
-
-[commit]
-  gpgsign = true
+[includeIf "gitdir:~/Projects/github.com/komodohealth/"]
+  path = ~/.config/git/work.config
