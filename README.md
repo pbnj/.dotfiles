@@ -1,4 +1,4 @@
-# Dotfiles
+# dotfiles
 
 ## Table of Contents
 
@@ -21,11 +21,10 @@ This repo contains my
 configurations for various utilities and command-line interface (CLI)
 applications.
 
-Much of the guiding principles behind my development workflow revolves around
-the [Unix Philosophy](https://en.wikipedia.org/wiki/Unix_philosophy); that is
-minimalism, simplicity, and composability.
+Much of my development workflow strives to be minimal, simple, and compose-able,
+to enable productivity without the cost of complexity or distractions.
 
-My vim configuration is in [pbnj/dotvim](https://github.com/pbnj/dotvim)
+My vim configuration is in [pbnj/.vim](https://github.com/pbnj/.vim)
 
 ## Tools & Utilities
 

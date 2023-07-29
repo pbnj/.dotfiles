@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+remote=${1:-""}
+branch=""
+filename=${2:-""}
+line1=${3:-""}
+line2=${4:-""}
+
+# get remote name
+if [[ $remote == "" ]]; then
+    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    remote=$(git config branch."${branch}".remote || echo "origin")
+fi
+
+if [[ $remote == "" ]]; then
+    echo "Remote not found"
+    exit 1
+fi
+
+remote_url=$(git remote get-url "$remote") || exit $?
+
+if [[ $remote_url = git@* ]]; then
+    url=$(echo "$remote_url" | sed -E -e 's/:/\//' -e 's/\.git$//' -e 's/.*@(.*)/http:\/\/\1/')
+elif [[ $remote_url = http* ]]; then
+    url=${remote_url%.git}
+fi
+
+# construct urls
+commit_hash=$(git rev-parse HEAD 2>/dev/null)
+commit_or_branch=${commit_hash:-${branch}}
+
+if [[ $remote_url =~ github ]]; then
+    # construct github urls
+    # https://github.com/<user_or_org>/<repo>/blob/<commit_or_branch>/<filename>#L<line1>-L<line2>
+    if [[ -n "${filename}" ]]; then
+        url="${url}/blob/${commit_or_branch}/${filename}"
+        if [[ -n "${line1}" ]]; then
+            url="${url}#L${line1}"
+            if [[ -n "${line2}" ]]; then
+                url="${url}-L${line2}"
+            fi
+        fi
+    fi
+fi
+
+github_dev_url="${url/.com/.dev}"
+
+# open url
+case "$OSTYPE" in
+darwin*)
+    # MacOS
+    open "${github_dev_url}"
+    ;;
+msys)
+    # Git-Bash on Windows
+    start "${github_dev_url}"
+    ;;
+linux*)
+    # Handle WSL on Windows
+    if uname -a | grep -i -q Microsoft && command -v powershell.exe; then
+        powershell.exe -NoProfile start "${github_dev_url}"
+    else
+        xdg-open "${github_dev_url}"
+    fi
+    ;;
+*)
+    # fall back to xdg-open for BSDs, etc.
+    xdg-open "${github_dev_url}"
+    ;;
+esac
