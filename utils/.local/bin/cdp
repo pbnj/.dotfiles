@@ -1,6 +1,8 @@
 #!/bin/bash
 
-set -eou pipefail
+# fuzzy `cd` into project directories
+
+set -euo pipefail
 
 FIND_PATH="${HOME}/Projects"
 FIND_PROG="find ${FIND_PATH} -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \) -not \( -path *node_modules -prune \) -not \( -path *target -prune \)"

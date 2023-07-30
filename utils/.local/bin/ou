@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Open any URL in the tmux buffer without using the mouse to select text, copy, paste.
+# fuzzy open URLs
 
-set -eou pipefail
+set -euo pipefail
 
 # How it works:
 # 	1. Dump content of tmux buffer to stdout.
