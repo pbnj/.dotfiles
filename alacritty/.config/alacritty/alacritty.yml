@@ -1,8 +1,5 @@
 # yamllint disable-file
 ---
-import:
-  - ~/.config/alacritty/schemes.yaml
-
 live_config_reload: true
 
 selection:
@@ -11,26 +8,11 @@ selection:
 window:
   decorations: buttonless
 
-shell:
-  program: /opt/homebrew/bin/bash
-  args:
-    - -l
-    - -c
-    - tmux
-    - new-session
-    - -A
-
 env:
   TERM: xterm-256color
   LANG: en_US.UTF-8
 
 font:
-  normal:
-    family: SF Mono
-    style: Light
-  bold:
-    family: SF Mono
-    style: SemiBold
   size: 13
 
 # https://github.com/alacritty/alacritty/issues/93#issuecomment-1364783147

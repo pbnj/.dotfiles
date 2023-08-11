@@ -16,7 +16,6 @@ alias mv='mv -i'
 alias rm='rm -i'
 
 # vim
-alias vim="$(which nvim || which vim)"
 alias vi="vim --clean"
 alias vf="vim +Files!"
 alias vg="vim +0G"

@@ -11,5 +11,5 @@ fzf-tmux \
   --reverse \
   --multi \
   --bind "start:reload:find ${HOME}/.vim/templates/* -type d" \
-  --bind "enter:execute:cp -R {}/ ${GIT_ROOT}/" \
-  --query "${RCTEMPLATE}"
+  --query "${RCTEMPLATE}" |
+  xargs -t -I{} cp -R {}/ ${GIT_ROOT}/
