@@ -62,6 +62,10 @@
 ; personal config
 [includeIf "gitdir:~/Projects/github.com/pbnj/"]
   path = ~/.config/git/personal.config
+[includeIf "gitdir:~/.vim/"]
+  path = ~/.config/git/personal.config
+[includeIf "gitdir:~/.dotfiles/"]
+  path = ~/.config/git/personal.config
 
 ; work config
 [includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
