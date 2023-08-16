@@ -1,5 +1,8 @@
 # yamllint disable-file
 ---
+import:
+  - ~/.config/alacritty/schemes.yaml
+
 live_config_reload: true
 
 selection:
