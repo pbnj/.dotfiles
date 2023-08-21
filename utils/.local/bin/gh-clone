@@ -2,18 +2,13 @@
 
 set -euo pipefail
 
-GH_ORG="${1:-$(gh org list | awk '{print $1}')}"
-CACHE_FILE="/tmp/gh_repo_list_${GH_ORG}"
-INITIAL_QUERY="${1:-}"
-
-CACHE_REPOS="gh repo list --no-archived --limit 1000 --json nameWithOwner --jq .[].nameWithOwner \"${GH_ORG}\" >\"${CACHE_FILE}\""
-LOAD_REPOS="cat ${CACHE_FILE}"
+GH_ACCT="${1:-}"
 
 fzf-tmux \
   -p '80%' \
   --reverse \
-  --bind "start:reload:${LOAD_REPOS}" \
-  --bind "ctrl-r:reload(${CACHE_REPOS}; ${LOAD_REPOS})" \
-  --query "${INITIAL_QUERY}" \
-  --prompt "gh repo clone ${GH_ORG}> " |
+  --bind "start:reload:cat /tmp/gh_repo_list_{q}" \
+  --bind "ctrl-r:reload(gh repo list --no-archived --limit 1000 --json nameWithOwner --jq .[].nameWithOwner {q} >/tmp/gh_repo_list_{q}; cat /tmp/gh_repo_list_{q})" \
+  --query "${GH_ACCT}" \
+  --prompt "gh repo clone ${GH_ACCT}> " |
   xargs -t -I{} gh repo clone {} "${HOME}/Projects/github.com/{}" || true
