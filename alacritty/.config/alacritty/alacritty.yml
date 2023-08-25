@@ -1,7 +1,7 @@
 # yamllint disable-file
 ---
 import:
-  - ~/.config/alacritty/schemes.yaml
+  - ~/.local/share/nvim/plugged/tokyonight.nvim/extras/alacritty/tokyonight_moon.yml
 
 live_config_reload: true
 
