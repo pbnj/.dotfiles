@@ -1,7 +1,7 @@
 # yamllint disable-file
 ---
 import:
-  - ~/.local/share/nvim/plugged/tokyonight.nvim/extras/alacritty/tokyonight_moon.yml
+  - "~/.local/share/nvim/plugged/tokyonight.nvim/extras/alacritty/tokyonight_storm.yml"
 
 live_config_reload: true
 
@@ -14,9 +14,6 @@ window:
 env:
   TERM: xterm-256color
   LANG: en_US.UTF-8
-
-font:
-  size: 13
 
 # https://github.com/alacritty/alacritty/issues/93#issuecomment-1364783147
 key_bindings:
