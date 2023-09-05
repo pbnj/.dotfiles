@@ -1,7 +1,7 @@
 # yamllint disable-file
 ---
-import:
-  - "~/.local/share/nvim/plugged/tokyonight.nvim/extras/alacritty/tokyonight_storm.yml"
+# import:
+#   - "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_storm.yml"
 
 live_config_reload: true
 
@@ -10,6 +10,7 @@ selection:
 
 window:
   decorations: buttonless
+  opacity: 0.9
 
 env:
   TERM: xterm-256color
