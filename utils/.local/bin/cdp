@@ -1,19 +1,18 @@
 #!/bin/bash
 
-# fuzzy `cd` into project directories
+# fuzzy project finder
 
 set -euo pipefail
 
-FIND_PATH="${HOME}/Projects"
-FIND_PROG="find ${FIND_PATH} -type d -not \( -path *.git -prune \) -not \( -path *.terraform -prune \) -not \( -path *node_modules -prune \) -not \( -path *target -prune \)"
+INITIAL_QUERY="${1:-}"
 
-if hash fd &>/dev/null; then
-  FIND_PROG="fd . ${FIND_PATH} --type d"
-fi
-
-fzf-tmux \
-  -p '80%' \
-  --reverse \
-  --bind "start:reload:${FIND_PROG}" \
-  --bind 'enter:become(tmux new-window -c {})' \
-  --prompt "Projects> " || true
+(
+  gfind "${HOME}" -type d -name .git -execdir test -d '.git' \; -print -prune ||
+    find "${HOME}" -type d -name .git -execdir test -d '.git' \; -print -prune
+) | xargs -I{} dirname {} |
+  fzf-tmux \
+    -p '80%' \
+    --reverse \
+    --bind 'enter:become(tmux new-window -c {})' \
+    --prompt "Projects > " \
+    --query "${INITIAL_QUERY}" || true
