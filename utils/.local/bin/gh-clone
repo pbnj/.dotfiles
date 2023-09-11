@@ -2,13 +2,14 @@
 
 set -euo pipefail
 
-GH_ACCT="${1:-}"
+GH_ACCT="${1:-$(gh org list | awk '{ print $1 }')}"
 
 fzf-tmux \
   -p '80%' \
   --reverse \
   --bind "start:reload:cat /tmp/gh_repo_list_{q}" \
+  --header '<CTRL-R>: refresh cache' \
   --bind "ctrl-r:reload(gh repo list --no-archived --limit 1000 --json nameWithOwner --jq .[].nameWithOwner {q} >/tmp/gh_repo_list_{q}; cat /tmp/gh_repo_list_{q})" \
   --query "${GH_ACCT}" \
-  --prompt "gh repo clone ${GH_ACCT}> " |
+  --prompt "gh repo clone > " |
   xargs -t -I{} gh repo clone {} "${HOME}/Projects/github.com/{}" || true
