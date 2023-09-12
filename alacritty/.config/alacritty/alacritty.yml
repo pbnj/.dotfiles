@@ -91,3 +91,4 @@ key_bindings:
   - { key: Key6, mods: Alt|Shift, chars: "\e^" }
   - { key: Backslash, mods: Alt, chars: "\e\\" }
   - { key: Backslash, mods: Alt|Shift, chars: "\e|" }
+  - { key: Tab, mods: Control, chars: "\x1b[27;5;9~" }

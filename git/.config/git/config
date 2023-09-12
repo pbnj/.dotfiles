@@ -24,7 +24,6 @@
 [core]
   whitespace = space-before-tab,-indent-with-non-tab,trailing-space
   trustctime = false
-  editor = vim
 
 [merge]
   conflictStyle = diff3
