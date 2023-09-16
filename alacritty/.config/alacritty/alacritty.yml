@@ -14,6 +14,18 @@ env:
   TERM: xterm-256color
   LANG: en_US.UTF-8
 
+font:
+  normal:
+    family: Iosevka
+    style: Light
+  bold:
+    family: Iosevka
+    style: Medium
+  italic:
+    family: Iosevka
+    style: "Light Italic"
+  size: 14.0
+
 # https://github.com/alacritty/alacritty/issues/93#issuecomment-1364783147
 key_bindings:
   - { key: A, mods: Alt, chars: "\ea" }
