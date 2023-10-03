@@ -1,6 +1,7 @@
 # yamllint disable-file
 ---
 import:
+  - ~/.config/alacritty/catppuccin
   - ~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_storm.yml
 
 live_config_reload: true
