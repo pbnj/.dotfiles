@@ -32,6 +32,9 @@ fi
 # FZF
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
+# OP
+[[ -f "${HOME}/.config/op/plugins.sh" ]] && source "${HOME}/.config/op/plugins.sh"
+
 # PROMPT
 export PS1="\\n\w \$(git branch --show-current 2>/dev/null | awk '{print \"[\"\$0\"]\"}')\\n\\$ "
 
