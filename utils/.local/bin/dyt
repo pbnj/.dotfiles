@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if ! hash ddgr >/dev/null 2>&1 ; then
+  echo "ERROR: ddgr not be found."
+  exit 1
+fi
+if ! hash mpv >/dev/null 2>&1 ; then
+  echo "ERROR: mpv not be found."
+  exit 1
+fi
+
+ddgr --site youtube.com --url-handler mpv $@
