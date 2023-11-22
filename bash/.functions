@@ -42,14 +42,8 @@ kns() {
 # Custom FZF Completions
 ########################################
 
-# gw <tab>
-_fzf_complete_gw() {
-	_fzf_complete --reverse --prompt="gw> " -- "$@" < <(yq '. | keys' ~/.config/gw/config.yaml | grep -v '#' | tr -d '[- ]')
-}
-complete -o default -o bashdefault -F _fzf_complete_gw gw
-
-# awsc **<tab>
-_fzf_complete_awsc() {
-	_fzf_complete --reverse --prompt="aws console> " -- "$@" < <(awk -F '[][]' '$2 ~ "profile" {print $2}' ~/.aws/config | awk '{print $2}')
-}
-complete -o default -o bashdefault -F _fzf_complete_awsc awsc
+# # awsc **<tab>
+# _fzf_complete_awsc() {
+# 	_fzf_complete --reverse --prompt="aws console> " -- "$@" < <(awk -F '[][]' '$2 ~ "profile" {print $2}' ~/.aws/config | awk '{print $2}')
+# }
+# complete -o default -o bashdefault -F _fzf_complete_awsc awsc
