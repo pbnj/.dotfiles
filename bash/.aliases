@@ -5,7 +5,7 @@
 # to replicate the completion behavior for aliases.
 
 alias ls="ls -F"
-hash exa 2>/dev/null && alias ls="exa -F"
+hash gls 2>/dev/null && alias ls=gls
 alias ll="ls -alFh --group-directories-first"
 
 hash gmake 2>/dev/null && alias make=gmake
