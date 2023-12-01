@@ -7,18 +7,18 @@ set -euo pipefail
 INITIAL_QUERY="${1:-}"
 
 if hash fd >/dev/null 2>&1; then
-	PROJECTS="fd --unrestricted '^\.git$' \"${HOME}\" --type d --prune --exec printf '%s\n' '{//}'"
+	PROJECTS="fd --unrestricted '^\.git$' \"${HOME}/Projects\" --type d --prune --exec printf '%s\n' '{//}'"
 elif hash gfind >/dev/null 2>&1; then
-	PROJECTS="gfind \"${HOME}\" -name .git -type d -prune -printf '%h\n'"
+	PROJECTS="gfind \"${HOME}/Projects\" -name .git -type d -prune -printf '%h\n'"
 else
-	PROJECTS="find \"${HOME}\" -type d -name .git -execdir test -d '.git' \; -print -prune | xargs -I{} dirname {}"
+	PROJECTS="find \"${HOME}/Projects\" -type d -name .git -execdir test -d '.git' \; -print -prune | xargs -I{} dirname {}"
 fi
 
 fzf-tmux \
 	-p '80%' \
 	--reverse \
-  --header "${PROJECTS}" \
-  --header-first \
+	--header "${PROJECTS}" \
+	--header-first \
 	--bind "start:reload:${PROJECTS}" \
 	--bind "ctrl-r:reload:${PROJECTS}" \
 	--bind 'enter:become(tmux new-window -c {})' \
