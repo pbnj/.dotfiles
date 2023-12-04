@@ -2,13 +2,18 @@
 # shellcheck shell=bash
 
 # General
-PATH="${HOME}/.local/bin:${PATH}"
-PATH="${HOME}/.aws:${PATH}"
+[ "${PATH#*:${HOME}/.local/bin}" == "${PATH}" ] && PATH="${PATH}:${HOME}/.local/bin"
+[ "${PATH#*:${HOME}/.aws}" == "${PATH}" ] && PATH="${PATH}:${HOME}/.aws"
 
 # Go
 export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
-PATH="${PATH}:${GOPATH}/bin"
+[ "${PATH#*:${GOPATH}/bin}" == "${PATH}" ] && PATH="${PATH}:${GOPATH}/bin"
+
+# Neovim
+if [ -d "${HOME}/.local/share/nvim/mason/bin" ]; then
+	[ "${PATH#*:${HOME}/.local/share/nvim/mason/bin}" == "${PATH}" ] && PATH="${PATH}:${HOME}/.local/share/nvim/mason/bin"
+fi
 
 export EDITOR="$(which nvim || which vim)"
 export FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
