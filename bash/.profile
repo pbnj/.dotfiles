@@ -32,5 +32,8 @@ fi
 # PROMPT
 export PS1="\\n\w \$(git branch --show-current 2>/dev/null | awk '{print \"[\"\$0\"]\"}')\\n\\$ "
 
+# STARSHIP
+hash starship 2>/dev/null && eval "$(starship init bash)"
+
 # DIRENV
 hash direnv 2>/dev/null && eval "$(direnv hook bash)"
