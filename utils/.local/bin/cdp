@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -euo pipefail
+
+pushd "${HOME}"/Projects >/dev/null 2>&1
+
+FINDER="find * -type d"
+if hash gfind >/dev/null 2>&1; then
+  FINDER="gfind * -type d"
+fi
+if hash fd >/dev/null 2>&1; then
+  FINDER="fd --type d"
+fi
+
+${FINDER} | fzf-tmux -p '80%' --bind 'enter:become(tmux new-window -c {})'
