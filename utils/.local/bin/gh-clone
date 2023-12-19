@@ -2,14 +2,15 @@
 
 set -euo pipefail
 
-GH_ACCT="${1:-$(gh org list | awk '{ print $1 }')}"
+GH_ORG="${1:-$(gh org list | fzf-tmux -p '80%' --prompt 'GitHub Organizations')}"
+GH_SEARCH_PREFIX="gh search repos --json url --jq .[].url --owner=${GH_ORG}"
 
 fzf-tmux \
   -p '80%' \
   --reverse \
-  --bind "start:reload:cat /tmp/gh_repo_list_{q}" \
-  --header '<CTRL-R>: refresh cache' \
-  --bind "ctrl-r:reload(gh repo list --no-archived --limit 1000 --json nameWithOwner --jq .[].nameWithOwner {q} >/tmp/gh_repo_list_{q}; cat /tmp/gh_repo_list_{q})" \
-  --query "${GH_ACCT}" \
+  --header '<CTRL-R>: refresh search' \
+  --bind "start:reload:${GH_SEARCH_PREFIX} {q}" \
+  --bind "ctrl-r:reload:${GH_SEARCH_PREFIX} {q}" \
+  --bind "change:reload:sleep 0.1; ${GH_SEARCH_PREFIX} {q} || true" \
   --prompt "gh repo clone > " |
-  xargs -t -I{} gh repo clone {} "${HOME}/Projects/github.com/{}" || true
+  xargs -t -I{} git clone-tmux {} || true
