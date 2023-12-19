@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-GH_ORG="${1:-$(gh org list | fzf-tmux -p '80%' --prompt 'GitHub Organizations')}"
+GH_ORG="${1:-$(gh org list | fzf-tmux -p '80%' --prompt 'GitHub Organizations > ')}"
 GH_SEARCH_PREFIX="gh search repos --json url --jq .[].url --owner=${GH_ORG}"
 
 fzf-tmux \
@@ -12,5 +12,5 @@ fzf-tmux \
   --bind "start:reload:${GH_SEARCH_PREFIX} {q}" \
   --bind "ctrl-r:reload:${GH_SEARCH_PREFIX} {q}" \
   --bind "change:reload:sleep 0.1; ${GH_SEARCH_PREFIX} {q} || true" \
-  --prompt "gh repo clone > " |
+  --prompt "GitHub Repo Search > " |
   xargs -t -I{} git clone-tmux {} || true
