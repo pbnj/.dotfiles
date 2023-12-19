@@ -2,15 +2,16 @@
 
 set -euo pipefail
 
-GH_ORG="${1:-$(gh org list | fzf-tmux -p '80%' --prompt 'GitHub Organizations > ')}"
+GH_ORG="${1:-$(gh org list | fzf-tmux -p '80%' --reverse --prompt 'GitHub Organizations > ')}"
 GH_SEARCH_PREFIX="gh search repos --json url --jq .[].url --owner=${GH_ORG}"
 
 fzf-tmux \
   -p '80%' \
   --reverse \
-  --header '<CTRL-R>: refresh search' \
+  --header '/ CTRL-R (repo search) / CTRL-T (topic search) /' \
   --bind "start:reload:${GH_SEARCH_PREFIX} {q}" \
-  --bind "ctrl-r:reload:${GH_SEARCH_PREFIX} {q}" \
   --bind "change:reload:sleep 0.1; ${GH_SEARCH_PREFIX} {q} || true" \
+  --bind "ctrl-t:unbind(ctrl-t)+change-prompt(GitHub Topic Search > )+rebind(ctrl-r)+disable-search+reload(${GH_SEARCH_PREFIX} --topic={q})" \
+  --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitHub Repo Search > )+rebind(ctrl-t)+enable-search+reload(${GH_SEARCH_PREFIX} {q})" \
   --prompt "GitHub Repo Search > " |
   xargs -t -I{} git clone-tmux {} || true
