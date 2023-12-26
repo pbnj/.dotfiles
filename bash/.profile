@@ -2,12 +2,12 @@
 
 # SHELL OPTIONS
 if [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
-	shopt -s nocaseglob
-	shopt -s histappend
-	shopt -s dirspell
-	shopt -s cdspell
-	shopt -s autocd
-	shopt -s globstar
+  shopt -s nocaseglob
+  shopt -s histappend
+  shopt -s dirspell
+  shopt -s cdspell
+  shopt -s autocd
+  shopt -s globstar
 fi
 
 # EXPORTS
