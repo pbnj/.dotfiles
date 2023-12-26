@@ -7,5 +7,5 @@ STREAMER() {
 }
 
 STREAMER |
-  fzf-tmux -p '80%' --reverse |
+  fzf-tmux -p '80%' --reverse --print-query |
   xargs -L1 -I{} mpv {} &
