@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+GITHUB_TOKEN=$(gh auth token) npx \
+  --package @semantic-release/changelog \
+  --package @semantic-release/commit-analyzer \
+  --package conventional-changelog-conventionalcommits \
+  --package @semantic-release/git \
+  --package @semantic-release/github \
+  --package @semantic-release/release-notes-generator \
+  --package semantic-release-major-tag \
+  semantic-release $@
