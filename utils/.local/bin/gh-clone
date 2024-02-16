@@ -2,20 +2,16 @@
 
 set -euo pipefail
 
-GH_ORG="${1:-$(gh org list | fzf-tmux -p '80%' --reverse --prompt 'GitHub Organizations > ' || true)}"
-GH_SEARCH_PREFIX="gh search repos --json url --jq .[].url"
-if [ -n "${GH_ORG}" ]; then
-  GH_SEARCH_PREFIX="${GH_SEARCH_PREFIX} --owner=${GH_ORG}"
+INPUT="${1:-$(gh-search)}"
+if [ -z "${INPUT}" ]; then
+  echo "ERROR: missing argument"
+  echo "  Expected: 'https://example.com/foo/bar.git'"
+  echo "  Received: (empty)"
+  exit 1
 fi
 
-fzf-tmux \
-  -p '80%' \
-  --reverse \
-  --header '/ CTRL-R (Repo search) / CTRL-T (Topic search) / CTRL-O (Open in browser) /' \
-  --bind "start:reload:${GH_SEARCH_PREFIX} {q}" \
-  --bind "change:reload:sleep 0.1; ${GH_SEARCH_PREFIX} {q} || true" \
-  --bind "ctrl-t:unbind(ctrl-t)+change-prompt(GitHub Topic Search > )+rebind(ctrl-r)+disable-search+reload(${GH_SEARCH_PREFIX} --topic={q})" \
-  --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitHub Repo Search > )+rebind(ctrl-t)+enable-search+reload(${GH_SEARCH_PREFIX} {q})" \
-  --bind "ctrl-o:execute(gh repo view --web {})" \
-  --prompt "GitHub Repo Search > " |
-  xargs -t -I{} git clone-tmux {} || true
+INPUT_NO_HTTPS="${INPUT/https:\/\//}"
+INPUT_NO_HTTPS_NO_GIT="${INPUT_NO_HTTPS%.git}"
+GIT_PATH="${HOME}/Projects/${INPUT_NO_HTTPS_NO_GIT}"
+
+git clone "${INPUT}" "${GIT_PATH}"
