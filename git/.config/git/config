@@ -63,8 +63,8 @@
   showSignature = false
   diffMerges = on
 
-[url "git@github.com:"]
-  insteadOf = https://github.com/
+;[url "git@github.com:"]
+;  insteadOf = https://github.com/
 
 ; personal config
 [includeIf "gitdir:~/Projects/github.com/pbnj/"]
