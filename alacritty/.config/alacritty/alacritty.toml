@@ -1,5 +1,5 @@
 import = [
-  # "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_storm.yml",
+  "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml",
 ]
 live_config_reload = true
 
@@ -8,7 +8,7 @@ save_to_clipboard = true
 
 [window]
 decorations = "buttonless"
-opacity = 1
+padding = { x = 5, y = 5 }
 
 [env]
 TERM = "xterm-256color"
