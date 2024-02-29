@@ -408,3 +408,13 @@ chars = "\u001b|"
 key = "Tab"
 mods = "Control"
 chars = "\u001b[27;5;9~"
+
+[[keyboard.bindings]]
+key = "W"
+mods = "Command"
+action = "None"
+
+[[keyboard.bindings]]
+key = "Q"
+mods = "Command"
+action = "None"
