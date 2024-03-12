@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Author: Peter Benjamin
+# Description: Launch Okta applications from the terminal
+# Dependencies: brew install fzf jq
+# Notes:
+#   - Linux users: replace `open` with `xdg-open`
+#   - Windows users: replace `open` with `start`
+
+set -euo pipefail
+
+fzf-tmux \
+  -p \
+  --multi \
+  --reverse \
+  --delimiter='\t' \
+  --with-nth=1 \
+  --prompt "Okta Application: " \
+  --bind "start:reload:jq -rc '.[]._embedded.items[]._embedded.resource | [.label, .linkUrl] | @tsv' < ~/.okta/apps.json | sort -u" |
+  awk '{print $NF}' |
+  xargs -L1 open || true
