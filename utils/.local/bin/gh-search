@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Author: Peter Benjamin
+# Description: Interactive, fuzzy searching for GitHub Organization repositories by name or by topic
+# Dependencies: brew install gh fzf jq
+# Usage: gh-search [<GH_ORG>]
+
 set -euo pipefail
 
 GH_ORG="${1:-$(gh org list | fzf-tmux -p '80%' --reverse --prompt 'GitHub Organizations > ' || true)}"
