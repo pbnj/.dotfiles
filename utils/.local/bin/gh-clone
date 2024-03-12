@@ -1,12 +1,22 @@
 #!/bin/bash
 
+# Author: Peter Benjamin
+# Description: Fuzzy search and clone GitHub repositories
+# Dependencies: brew install gh
+# Usage: gh-clone [<REPO_URL>]
+
 set -euo pipefail
 
 INPUT="${1:-$(gh-search)}"
 
+GIT_CLONE_PATH_PREFIX="${HOME}/Projects"
+
 if [ -n "${INPUT}" ]; then
-  INPUT_NO_HTTPS="${INPUT/https:\/\//}"
-  INPUT_NO_HTTPS_NO_GIT="${INPUT_NO_HTTPS%.git}"
-  GIT_PATH="${HOME}/Projects/${INPUT_NO_HTTPS_NO_GIT}"
-  git clone "${INPUT}" "${GIT_PATH}"
+  # strip leading https://github.com
+  REPO="${INPUT/https:\/\/github.com\//}"
+  # strip trailing .git
+  REPO="${REPO%.git}"
+  # Set the clone path
+  GIT_CLONE_PATH="${GIT_CLONE_PATH_PREFIX}/${REPO}"
+  gh repo clone "${REPO}" "${GIT_CLONE_PATH}"
 fi
