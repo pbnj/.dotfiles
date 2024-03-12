@@ -3,15 +3,10 @@
 set -euo pipefail
 
 INPUT="${1:-$(gh-search)}"
-if [ -z "${INPUT}" ]; then
-  echo "ERROR: missing argument"
-  echo "  Expected: 'https://example.com/foo/bar.git'"
-  echo "  Received: (empty)"
-  exit 1
+
+if [ -n "${INPUT}" ]; then
+  INPUT_NO_HTTPS="${INPUT/https:\/\//}"
+  INPUT_NO_HTTPS_NO_GIT="${INPUT_NO_HTTPS%.git}"
+  GIT_PATH="${HOME}/Projects/${INPUT_NO_HTTPS_NO_GIT}"
+  git clone "${INPUT}" "${GIT_PATH}"
 fi
-
-INPUT_NO_HTTPS="${INPUT/https:\/\//}"
-INPUT_NO_HTTPS_NO_GIT="${INPUT_NO_HTTPS%.git}"
-GIT_PATH="${HOME}/Projects/${INPUT_NO_HTTPS_NO_GIT}"
-
-git clone "${INPUT}" "${GIT_PATH}"
