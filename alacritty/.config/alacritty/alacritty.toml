@@ -1,6 +1,7 @@
 import = [
   "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml",
 ]
+
 live_config_reload = true
 
 [selection]
@@ -18,15 +19,15 @@ LANG = "en_US.UTF-8"
 size = 15
 
 [font.normal]
-family = "Iosevka Nerd Font"
+family = "FiraCode Nerd Font"
 style = "Light"
 
 [font.bold]
-family = "Iosevka Nerd Font"
+family = "FiraCode Nerd Font"
 style = "Medium"
 
 [font.italic]
-family = "Iosevka Nerd Font"
+family = "FiraCode Nerd Font"
 style = "Light Italic"
 
 [[keyboard.bindings]]
@@ -418,3 +419,7 @@ action = "None"
 key = "Q"
 mods = "Command"
 action = "None"
+
+[[keyboard.bindings]]
+key = "NumpadEnter"
+chars = "\r"
