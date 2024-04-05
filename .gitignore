@@ -24,3 +24,4 @@ tags*
 tmp/
 utils/.local/bin/devpod
 utils/.local/share/
+utils/.local/bin/custodian
