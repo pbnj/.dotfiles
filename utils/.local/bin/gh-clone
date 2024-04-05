@@ -9,7 +9,7 @@ set -euo pipefail
 
 INPUT="${1:-$(gh-search)}"
 
-GIT_CLONE_PATH_PREFIX="${HOME}/Projects"
+GIT_CLONE_PATH_PREFIX="${HOME}/Projects/github.com"
 
 if [ -n "${INPUT}" ]; then
   # strip leading https://github.com
