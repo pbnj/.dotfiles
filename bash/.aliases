@@ -16,14 +16,8 @@ alias mv='mv -i'
 alias rm='rm -i'
 
 # vim
-if hash nvim >/dev/null 2>&1; then alias vim=nvim ; fi
 alias vi="vim --clean"
-alias vf="vim +'Telescope find_files'"
 alias vg="vim +0G"
-alias vgf="vim +'Telescope git_files'"
-alias vd="vim +'Telescope git_status'"
-alias vrg="vim +'Telescope live_grep'"
-alias vp="vim +'Telescope projects'"
 
 # tmux
 alias tm="tmux a || tmux"

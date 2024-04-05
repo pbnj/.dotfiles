@@ -1,17 +1,19 @@
 # shellcheck shell=bash
 
-# SHELL OPTIONS
-if [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
-  shopt -s nocaseglob
-  shopt -s histappend
-  shopt -s dirspell
-  shopt -s cdspell
-  shopt -s autocd
-  shopt -s globstar
-fi
-
 # EXPORTS
 [ -f "${HOME}/.exports" ] && . "${HOME}/.exports"
+
+# SHELL OPTIONS
+if [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
+	shopt -s nocaseglob
+	shopt -s histappend
+	shopt -s dirspell
+	shopt -s cdspell
+	shopt -s autocd
+	shopt -s globstar
+	# BASH COMPLETION
+	[ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
+fi
 
 # FUNCTIONS
 [ -f "${HOME}/.functions" ] && . "${HOME}/.functions"
@@ -22,9 +24,6 @@ fi
 # PROFILES & ALIASES
 [ -f "${HOME}/.aliases" ] && . "${HOME}/.aliases"
 [ -f "${HOME}/.profile.work" ] && . "${HOME}/.profile.work"
-
-# BASH COMPLETION
-[ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
 
 # FZF
 [ -f ~/.fzf.bash ] && . ~/.fzf.bash
