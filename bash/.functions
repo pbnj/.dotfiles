@@ -1,4 +1,4 @@
-# vim:ft=bash:
+# vim:filetype=bash:sts=2:ts=2:sw=2:et:
 # shellcheck shell=bash
 
 ########################################
@@ -6,11 +6,11 @@
 ########################################
 
 dirm() {
-	docker image ls | fzf-tmux -p '80%' --reverse --multi | awk '{print $3}' | xargs docker image rm
+  docker image ls | fzf-tmux -p '80%' --reverse --multi | awk '{print $3}' | xargs docker image rm
 }
 
 dcrm() {
-	docker container ls | fzf-tmux -p '80%' --reverse --multi | awk '{print $1}' | xargs docker container rm
+  docker container ls | fzf-tmux -p '80%' --reverse --multi | awk '{print $1}' | xargs docker container rm
 }
 
 ########################################
@@ -18,32 +18,28 @@ dcrm() {
 ########################################
 
 kash() {
-	docker run --rm -it --volume="${HOME}/.kube/configs:/.kube/configs" --workdir=/.kube/configs --entrypoint=/bin/bash bitnami/kubectl:latest
+  docker run --rm -it --volume="${HOME}/.kube/configs:/.kube/configs" --workdir=/.kube/configs --entrypoint=/bin/bash bitnami/kubectl:latest
 }
 
 # prompt for kubeconfig + namespace
 kcfg() {
-	local kubeconfig
-	kubeconfig="$(find "${HOME}/.kube/configs" -type f | fzf --height=20)"
-
-	if [[ -n "${kubeconfig}" ]]; then
-		export KUBECONFIG="${kubeconfig}"
-	fi
+  local kubeconfig
+  kubeconfig="$(find "${HOME}/.kube/configs" -type f | fzf --height=20)"
+  if [[ -n "${kubeconfig}" ]]; then
+    export KUBECONFIG="${kubeconfig}"
+  fi
 }
+
 kns() {
-	local kubenamespace
-	kubenamespace="$(kubectl get ns -o name | cut -d '/' -f 2 | fzf --height=20)"
-	if [[ -n "${kubenamespace}" ]]; then
-		export KUBENS="${kubenamespace}"
-	fi
+  local kubenamespace
+  kubenamespace="$(kubectl get ns -o name | cut -d '/' -f 2 | fzf --height=20)"
+  if [[ -n "${kubenamespace}" ]]; then
+    export KUBENS="${kubenamespace}"
+  fi
 }
 
 ########################################
-# Custom FZF Completions
+# FZF
 ########################################
 
-# # awsc **<tab>
-# _fzf_complete_awsc() {
-# 	_fzf_complete --reverse --prompt="aws console> " -- "$@" < <(awk -F '[][]' '$2 ~ "profile" {print $2}' ~/.aws/config | awk '{print $2}')
-# }
-# complete -o default -o bashdefault -F _fzf_complete_awsc awsc
+_fzf_setup_completion path ftail
