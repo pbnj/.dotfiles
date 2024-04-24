@@ -16,19 +16,11 @@ TERM = "xterm-256color"
 LANG = "en_US.UTF-8"
 
 [font]
-size = 15
-
-[font.normal]
-family = "FiraCode Nerd Font"
-style = "Light"
-
-[font.bold]
-family = "FiraCode Nerd Font"
-style = "Medium"
-
-[font.italic]
-family = "FiraCode Nerd Font"
-style = "Light Italic"
+size = 13
+normal = { family = "SF Mono", style = "Light" }
+italic = { family = "SF Mono", style = "Light Italic" }
+bold = { family = "SF Mono", style = "Semibold" }
+bold_italic = { family = "SF Mono", style = "Semibold Italic" }
 
 [[keyboard.bindings]]
 key = "A"
