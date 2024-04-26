@@ -1,5 +1,6 @@
 import = [
   "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml",
+  "~/.config/alacritty/dracula.toml",
 ]
 
 live_config_reload = true
