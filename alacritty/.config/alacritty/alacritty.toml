@@ -18,10 +18,10 @@ LANG = "en_US.UTF-8"
 
 [font]
 size = 13
-normal = { family = "SF Mono", style = "Light" }
-italic = { family = "SF Mono", style = "Light Italic" }
-bold = { family = "SF Mono", style = "Semibold" }
-bold_italic = { family = "SF Mono", style = "Semibold Italic" }
+normal = { family = "Input Mono", style = "Light" }
+italic = { family = "Input Mono", style = "Light Italic" }
+bold = { family = "Input Mono", style = "Medium" }
+bold_italic = { family = "Input Mono", style = "Medium Italic" }
 
 [[keyboard.bindings]]
 key = "A"
