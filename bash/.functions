@@ -37,9 +37,3 @@ kns() {
     export KUBENS="${kubenamespace}"
   fi
 }
-
-########################################
-# FZF
-########################################
-
-_fzf_setup_completion path ftail

@@ -16,7 +16,7 @@ alias mv='mv -i'
 alias rm='rm -i'
 
 # vim
-# hash nvim 2>/dev/null && alias vim=nvim
+hash nvim 2>/dev/null && alias vim=nvim
 alias vi="vim --clean"
 alias vg="vim +0G"
 
