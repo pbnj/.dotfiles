@@ -61,8 +61,6 @@ if [[ $(uname) == "Darwin" ]]; then
 	alias macos_desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 	# .DS_Store
 	alias macos_dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
-	alias brew="arch -arm64 brew"
-	alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
 fi
 
 # linux
