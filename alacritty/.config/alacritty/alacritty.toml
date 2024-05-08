@@ -1,8 +1,4 @@
-import = [
-  "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml",
-  "~/.config/alacritty/dracula.toml",
-]
-
+import = [ "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml" ]
 live_config_reload = true
 
 [selection]
@@ -10,7 +6,10 @@ save_to_clipboard = true
 
 [window]
 decorations = "buttonless"
-padding = { x = 5, y = 5 }
+
+  [window.padding]
+  x = 5
+  y = 5
 
 [env]
 TERM = "xterm-256color"
@@ -18,10 +17,22 @@ LANG = "en_US.UTF-8"
 
 [font]
 size = 13
-normal = { family = "Input Mono", style = "Light" }
-italic = { family = "Input Mono", style = "Light Italic" }
-bold = { family = "Input Mono", style = "Medium" }
-bold_italic = { family = "Input Mono", style = "Medium Italic" }
+
+  [font.normal]
+  family = "Input Mono Narrow"
+  style = "Light"
+
+  [font.bold]
+  family = "Input Mono Narrow"
+  style = "Medium"
+
+  [font.italic]
+  family = "Input Mono Narrow"
+  style = "Light Italic"
+
+  [font.bold_italic]
+  family = "Input Mono Narrow"
+  style = "Medium Italic"
 
 [[keyboard.bindings]]
 key = "A"
