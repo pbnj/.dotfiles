@@ -9,6 +9,7 @@ set -euo pipefail
 # 	2. Grep for URL patterns.
 # 	3. Search & select one or more URLs via `fzf` fuzzy finder.
 # 	4. Open selected URL(s).
+
 URL_PATTERN="https?://[^[:space:]'\")]+"
 
 tmux capture-pane -J -p |
@@ -16,3 +17,5 @@ tmux capture-pane -J -p |
   sort -ui |
   fzf-tmux -p '80%' --reverse --multi --prompt "URL> " |
   xargs -L1 open || true
+
+# vim:sts=2:ts=2:sw=2:noet
