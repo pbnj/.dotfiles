@@ -10,9 +10,13 @@ end_of_line = lf
 indent_size = 2
 indent_style = space
 insert_final_newline = true
-max_line_length = 80
+max_line_length = off
 trim_trailing_whitespace = true
 
-[{Makefile,makefile}]
-indent_style = tab
+[git/.config/git/config]
 indent_size = 4
+indent_style = tab
+
+[{Makefile,makefile}]
+indent_size = 4
+indent_style = tab

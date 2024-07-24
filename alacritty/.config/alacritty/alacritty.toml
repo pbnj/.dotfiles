@@ -1,4 +1,13 @@
-import = [ "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml" ]
+################################################################################
+# General Settings
+################################################################################
+
+# # color
+# import = [
+#   "~/.config/alacritty/colors-pastel.toml",
+#   "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml",
+# ]
+
 live_config_reload = true
 
 [selection]
@@ -13,27 +22,29 @@ decorations = "buttonless"
 
 [env]
 TERM = "xterm-256color"
-LANG = "en_US.UTF-8"
 
 [font]
 size = 13
 
   [font.normal]
-  family = "Input Mono Narrow"
+  family = "JetBrainsMono Nerd Font"
   style = "Light"
 
   [font.bold]
-  family = "Input Mono Narrow"
+  family = "JetBrainsMono Nerd Font"
   style = "Medium"
 
   [font.italic]
-  family = "Input Mono Narrow"
+  family = "JetBrainsMono Nerd Font"
   style = "Light Italic"
 
   [font.bold_italic]
-  family = "Input Mono Narrow"
+  family = "JetBrainsMono Nerd Font"
   style = "Medium Italic"
 
+################################################################################
+# Keyboard Bindings
+################################################################################
 [[keyboard.bindings]]
 key = "A"
 mods = "Alt"
