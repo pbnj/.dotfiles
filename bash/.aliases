@@ -8,8 +8,6 @@ alias ls="ls -F"
 hash gls 2>/dev/null && alias ls="gls --color=always"
 alias ll="ls -alFh --group-directories-first"
 
-hash gmake 2>/dev/null && alias make=gmake
-
 alias cp='cp -i'
 alias grep="grep --color=auto --line-buffered"
 alias mv='mv -i'

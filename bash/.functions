@@ -36,10 +36,8 @@ kash() {
 # prompt for kubeconfig + namespace
 kcfg() {
   local kubeconfig
-  kubeconfig="$(find "${HOME}/.kube/configs" -type f | fzf --height=20)"
-  if [[ -n "${kubeconfig}" ]]; then
-    export KUBECONFIG="${kubeconfig}"
-  fi
+  kubeconfig="$(find "${HOME}/.kube/configs" -type f | fzf-tmux -p --reverse --prompt 'kubeconfig> ')"
+  [[ -n "${kubeconfig}" ]] && echo export KUBECONFIG="${kubeconfig}"
 }
 
 kns() {
