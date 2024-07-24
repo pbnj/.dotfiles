@@ -1,82 +1,85 @@
 [alias]
-  alias = !git config -l | grep ^alias | cut -c 7- | sort
-  b = browse
-  branches = branch -a --sort=-committerdate
-  c = commit
-  co = checkout
-  cob = checkout -b
-  cof = !git branch | fzf-tmux -p '50%' --reverse --prompt 'Branches> ' | xargs -t -L1 -I{} git checkout {}
-  contributors = shortlog --summary --numbered
-  czc = cz commit
-  graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
-  l = log --pretty=oneline --graph --abbrev-commit
-  ls = ls-files
-  p = push
-  remotes = remote -v
-  s = status --short .
-  tags = tag --list
-  top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
-  undo = !git reset HEAD~1 --mixed
-  unstage = reset
+	alias = !git config -l | grep ^alias | cut -c 7- | sort
+	b = browse
+	branches = branch -a --sort=-committerdate
+	c = commit
+	co = checkout
+	cob = checkout -b
+	cof = !git branch | fzf-tmux -p '50%' --reverse --prompt 'Branches> ' | xargs -t -L1 -I{} git checkout {}
+	contributors = shortlog --summary --numbered
+	czc = cz commit
+	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
+	l = log --pretty=oneline --graph --abbrev-commit
+	ls = ls-files
+	p = push
+	remotes = remote -v
+	s = status --short .
+	tags = tag --list
+	top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
+	undo = !git reset HEAD~1 --mixed
+	unstage = reset
+
+[credential]
+	helper = store
 
 [apply]
-  whitespace = fix
+	whitespace = fix
 
 [core]
-  excludesFile = ~/.config/git/ignore
-  whitespace = space-before-tab,-indent-with-non-tab,trailing-space
-  trustctime = false
+	excludesFile = ~/.config/git/ignore
+	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
+	trustctime = false
 
 [merge]
-  conflictStyle = diff3
-  defaultToUpstream = true
-  tool = vimdiff
+	conflictStyle = diff3
+	defaultToUpstream = true
+	tool = vimdiff
 
 [diff]
-  tool = vimdiff
+	tool = vimdiff
 
 [branch]
-  autoSetupMerge = always
+	autoSetupMerge = always
 
 [color]
-  ui = auto
+	ui = auto
 
 [push]
-  default = current
-  autoSetupRemote = true
+	default = current
+	autoSetupRemote = true
 
 [pull]
-  rebase = true
+	rebase = true
 
 [init]
-  defaultBranch = main
+	defaultBranch = main
 
 [commit]
-  verbose = true
+	verbose = true
 
 [grep]
-  lineNumber = true
-  column = true
-  fallbackToNoIndex = true
+	lineNumber = true
+	column = true
+	fallbackToNoIndex = true
 
 [log]
-  showSignature = false
-  diffMerges = on
+	showSignature = false
+	diffMerges = on
 
 ; personal config
 [includeIf "gitdir:~/Projects/github.com/pbnj/"]
-  path = ~/.config/git/personal.config
+	path = ~/.config/git/personal.config
 [includeIf "gitdir:~/.local/share/nvim/"]
-  path = ~/.config/git/personal.config
+	path = ~/.config/git/personal.config
 [includeIf "gitdir:~/.config/nvim/"]
-  path = ~/.config/git/personal.config
+	path = ~/.config/git/personal.config
 [includeIf "gitdir:~/.vim/"]
-  path = ~/.config/git/personal.config
+	path = ~/.config/git/personal.config
 [includeIf "gitdir:~/.dotfiles/"]
-  path = ~/.config/git/personal.config
+	path = ~/.config/git/personal.config
 
 ; work config
 [includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
-  path = ~/.config/git/work.config
+	path = ~/.config/git/work.config
 [includeIf "gitdir:~/Projects/github.com/komodohealth/"]
-  path = ~/.config/git/work.config
+	path = ~/.config/git/work.config
