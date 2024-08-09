@@ -2,12 +2,6 @@
 # General Settings
 ################################################################################
 
-# # color
-# import = [
-#   "~/.config/alacritty/colors-pastel.toml",
-#   "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml",
-# ]
-
 live_config_reload = true
 
 [selection]
@@ -27,19 +21,19 @@ TERM = "xterm-256color"
 size = 13
 
   [font.normal]
-  family = "JetBrainsMono Nerd Font"
+  family = "FiraCode Nerd Font"
   style = "Light"
 
   [font.bold]
-  family = "JetBrainsMono Nerd Font"
+  family = "FiraCode Nerd Font"
   style = "Medium"
 
   [font.italic]
-  family = "JetBrainsMono Nerd Font"
+  family = "FiraCode Nerd Font"
   style = "Light Italic"
 
   [font.bold_italic]
-  family = "JetBrainsMono Nerd Font"
+  family = "FiraCode Nerd Font"
   style = "Medium Italic"
 
 ################################################################################
