@@ -22,4 +22,5 @@ fzf-tmux \
   --bind "ctrl-t:unbind(ctrl-t)+change-prompt(GitHub Topic Search > )+rebind(ctrl-r)+disable-search+reload(${GH_SEARCH_PREFIX} --topic={q})" \
   --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitHub Repo Search > )+rebind(ctrl-t)+enable-search+reload(${GH_SEARCH_PREFIX} {q})" \
   --bind "ctrl-o:execute(gh repo view --web {})" \
-  --prompt "GitHub Repo Search > " || true
+  --prompt "GitHub Repo Search: " \
+  --preview "gh repo view {}" || true
