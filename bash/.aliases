@@ -37,6 +37,10 @@ alias gpull="git pull"
 alias groot='cd $(git root)'
 alias gs='git status --short'
 
+# kubectl
+# https://github.com/ahmetb/kubectl-aliases
+[ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
+
 # vault
 hash vault 2>/dev/null && complete -C "$(which vault)" vault
 
@@ -54,9 +58,6 @@ alias tfv="terraform validate"
 if [[ $(uname) == "Darwin" ]]; then
 	# enable remote login
 	alias macos_remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on && sudo systemsetup -getremotelogin"
-	# desktop
-	alias macos_desktop_hide="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
-	alias macos_desktop_show="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 	# .DS_Store
 	alias macos_dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
 fi
