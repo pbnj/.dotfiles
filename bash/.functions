@@ -36,7 +36,7 @@ kash() {
 # prompt for kubeconfig + namespace
 kcfg() {
   local kubeconfig
-  kubeconfig="$(find "${HOME}/.kube/configs" -type f | fzf-tmux -p --reverse --prompt 'kubeconfig> ')"
+  kubeconfig="$(find "${HOME}/.kube/configs" -type f | fzf --tmux --reverse --prompt 'kubeconfig: ')"
   [[ -n "${kubeconfig}" ]] && echo export KUBECONFIG="${kubeconfig}"
 }
 
