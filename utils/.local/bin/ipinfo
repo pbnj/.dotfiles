@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -euo pipefail
+
+IPADDR="${1:-""}"
+curl ipinfo.io/${IPADDR}
