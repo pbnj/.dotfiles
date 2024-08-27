@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+mas outdated
+mas upgrade
+
+brew update
+brew upgrade
+brew cleanup --prune 0
+brew autoremove
+
+vim +PlugUpgrade +PlugUpdate +qa
