@@ -7,7 +7,7 @@ gh pr list |
   --reverse \
   --header "ENTER: checkout pr & view files in vim | CTRL-A: approve | CTRL-R: request changes | CTRL-O: open in web" \
   --prompt 'GitHub Pull Request: ' \
-  --preview "gh pr view {1}; gh pr diff {1}" \
+  --preview "gh pr view {1}; gh pr diff --color=always {1}" \
   --bind 'enter:execute:gh pr checkout {1} && vim $(gh pr diff --name-only {1})' \
   --bind 'ctrl-a:become(gh pr review --approve {1})' \
   --bind 'ctrl-o:become(gh pr view --web {1})'

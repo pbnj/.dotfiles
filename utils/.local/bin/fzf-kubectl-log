@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -euo pipefail
+
+KUBECONFIG="${KUBECONFIG:-"$(find "${HOME}/.kube/configs" -type f | fzf --reverse --prompt 'KUBECONFIG: ')"}"
+command="kubectl --kubeconfig=${KUBECONFIG} get pods --all-namespaces"
+
+fzf \
+  --info=inline \
+  --layout=reverse \
+  --header-lines=1 \
+  --prompt "${KUBECONFIG}: " \
+  --header $'╱ Enter (kubectl exec) ╱ CTRL-O (open log in editor) ╱ CTRL-R (reload) ╱\n\n' \
+  --bind "start:reload:${command}" \
+  --bind "ctrl-r:reload:${command}" \
+  --bind 'ctrl-/:change-preview-window(80%,border-bottom|hidden|)' \
+  --bind "enter:execute:kubectl --kubeconfig ${KUBECONFIG} exec -it --namespace {1} {2} -- bash" \
+  --bind "ctrl-o:execute:kubectl --kubeconfig ${KUBECONFIG} logs --all-containers --namespace {1} {2} | vim -" \
+  --bind "ctrl-j:preview-down" \
+  --bind "ctrl-k:preview-up" \
+  --preview-window "up:follow" \
+  --preview "kubectl --kubeconfig ${KUBECONFIG} logs --follow --all-containers --tail=10000 --namespace {1} {2}" "$@"

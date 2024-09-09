@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Author:       Peter Benjamin <peter.benjamin@komodohealth.com>
+# Description:  Check GitHub Workflows for Vulnerable GitHub Actions
+# Date:         2024-09-06
+# Dependencies: rg, gh
+# Usage:        gh-security
+
+set -euo pipefail
+# set -x
+
+GH_ACTIONS="$(rg 'uses: (.*)' -or \$1 .github/)"
+
+for GH_ACTION in ${GH_ACTIONS}; do
+
+  GH_WORKFLOW_FILE="$(cut -d: -f1 <<<"${GH_ACTION}")"
+  GH_REPO_WITH_VERSION="$(cut -d: -f2 <<<"${GH_ACTION}")"
+  GH_REPO_NAME="$(cut -d@ -f1 <<<"${GH_REPO_WITH_VERSION}")"
+  GH_REPO_VERSION="$(cut -d@ -f2 <<<"${GH_REPO_WITH_VERSION}" | tr -d 'v')"
+
+  # https://docs.github.com/en/rest/security-advisories/repository-advisories?apiVersion=2022-11-28
+  gh api \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    "/repos/${GH_REPO_NAME}/security-advisories" \
+    --jq ".[] | select( (.vulnerabilities[].package.name == \"${GH_REPO_NAME}\") and (.vulnerabilities[].patched_versions | split(\".\") | .[0] | tonumber > ${GH_REPO_VERSION}) ) | {workflow_file: \"${GH_WORKFLOW_FILE}\",workflow_action: \"${GH_REPO_WITH_VERSION}\",cve_id,severity,html_url,summary}" |
+    sort -u |
+    jq
+
+done
