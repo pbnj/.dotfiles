@@ -24,7 +24,7 @@ fi
 [ -f "${HOME}/.profile.work" ] && . "${HOME}/.profile.work"
 
 # FZF
-[ -f ~/.fzf.bash ] && . ~/.fzf.bash
+[ -f ~/.fzf.bash ] && eval "$(fzf --bash)"
 
 # FUNCTIONS
 [ -f "${HOME}/.functions" ] && . "${HOME}/.functions"
