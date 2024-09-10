@@ -17,6 +17,11 @@ opacity = 1.0
 
 [env]
 TERM = "xterm-256color"
+SHELL = "/opt/homebrew/bin/bash"
+
+[shell]
+program = "/opt/homebrew/bin/tmux"
+args = [ "new-session", "-A", "-D" ]
 
 [font]
 size = 13
