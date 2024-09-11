@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Author:       Peter Benjamin
+# Description:  Fuzzy Find Scalr Run Logs (Applies & Plans) & Browser Launcher
+# Dependencies: scalr, jq, fzf
+# Usage:        fzf-scalr-logs
+
+set -euo pipefail
+
+# Convenient FZF bindings
+FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
+
+# Get scalr hostname from config file.
+# If doesn't exist, fail/exit early
+SCALR_HOSTNAME="$(jq -rc .hostname "${HOME}/.scalr/scalr.conf")"
+
+if [[ -z "${SCALR_HOSTNAME}" ]]; then
+  echo "ERROR: scalr hostname not found. Run 'scalr -configure' and try again."
+  exit 1
+fi
+
+SCALR_GET_WORKSPACES="scalr get-workspaces | jq -rc '.[] | {name,id,environment}'"
+
+# Fuzzy find workspaces. On 1st run, get workspaces and cache them in /tmp/scalr-workspaces.json. On subsequent runs, load from cache.
+SCALR_WORKSPACE_JSON="$(fzf \
+  --reverse \
+  --prompt '$ scalr get-workspaces: ' \
+  --header '/ CTRL-R (reload) /' \
+  --bind "start:reload:[[ -f /tmp/scalr-workspaces.json ]] && cat /tmp/scalr-workspaces.json || ${SCALR_GET_WORKSPACES} | tee /tmp/scalr-workspaces.json" \
+  --bind "ctrl-r:reload:${SCALR_GET_WORKSPACES} |tee /tmp/scalr-workspaces.json")"
+
+SCALR_WORKSPACE_NAME="$(jq -rc .name <<<"${SCALR_WORKSPACE_JSON}")"
+SCALR_WORKSPACE_ID="$(jq -rc .id <<<"${SCALR_WORKSPACE_JSON}")"
+SCALR_ENVIRONMENT_ID="$(jq -rc .environment.id <<<"${SCALR_WORKSPACE_JSON}")"
+
+scalr_log_previewer() {
+  SCALR_RUN_JSON="${1}"
+  SCALR_APPLY_JSON="$(jq -rc 'select(.apply != null)' <<<"${SCALR_RUN_JSON}")"
+  SCALR_PLAN_JSON="$(jq -rc 'select(.plan != null)' <<<"${SCALR_RUN_JSON}")"
+  if [[ -n "${SCALR_APPLY_JSON}" ]]; then
+    scalr get-apply-log -apply="$(jq -rc .apply.id <<<"${SCALR_APPLY_JSON}")"
+  fi
+  if [[ -n "${SCALR_PLAN_JSON}" ]]; then
+    scalr get-plan-log -plan="$(jq -rc .plan.id <<<"${SCALR_PLAN_JSON}")"
+  fi
+}
+
+# export bash functions to child processes
+# https://github.com/junegunn/fzf/issues/1337
+export -f scalr_log_previewer
+
+fzf \
+  --reverse \
+  --prompt "$ scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} (${SCALR_WORKSPACE_NAME}): " \
+  --bind "start:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc '.[]'" \
+  --bind "ctrl-r:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc '.[]'" \
+  --preview-window "follow" \
+  --preview 'scalr_log_previewer {}' |
+  jq -rc .id |
+  xargs -t -I{} open https://${SCALR_HOSTNAME}/v2/e/${SCALR_ENVIRONMENT_ID}/workspaces/${SCALR_WORKSPACE_ID}/runs/{}
