@@ -1,7 +1,3 @@
-################################################################################
-# General Settings
-################################################################################
-
 live_config_reload = true
 
 [selection]
@@ -9,7 +5,7 @@ save_to_clipboard = true
 
 [window]
 decorations = "buttonless"
-opacity = 1.0
+opacity = 1
 
   [window.padding]
   x = 5
@@ -18,10 +14,6 @@ opacity = 1.0
 [env]
 TERM = "xterm-256color"
 SHELL = "/opt/homebrew/bin/bash"
-
-[shell]
-program = "/opt/homebrew/bin/tmux"
-args = [ "new-session", "-A", "-D" ]
 
 [font]
 size = 13
@@ -42,9 +34,39 @@ size = 13
   family = "FiraCode Nerd Font"
   style = "Medium Italic"
 
-################################################################################
-# Keyboard Bindings
-################################################################################
+########################################
+# COLORS
+# https://github.com/alacritty/alacritty-theme/blob/master/themes/tomorrow_night_bright.toml
+########################################
+
+[colors.primary]
+background = '#000000'
+foreground = '#eaeaea'
+
+[colors.normal]
+black   = '#000000'
+red     = '#d54e53'
+green   = '#b9ca4a'
+yellow  = '#e6c547'
+blue    = '#7aa6da'
+magenta = '#c397d8'
+cyan    = '#70c0ba'
+white   = '#424242'
+
+[colors.bright]
+black   = '#666666'
+red     = '#ff3334'
+green   = '#9ec400'
+yellow  = '#e7c547'
+blue    = '#7aa6da'
+magenta = '#b77ee0'
+cyan    = '#54ced6'
+white   = '#2a2a2a'
+
+########################################
+# KEYBOARD BINDINGS
+########################################
+
 [[keyboard.bindings]]
 key = "A"
 mods = "Alt"
