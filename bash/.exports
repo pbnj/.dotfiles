@@ -1,36 +1,50 @@
 # vim:ft=bash:ts=2:sw=2:sts=2:et:
 # shellcheck shell=bash
 
+# BREW
+[[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+
 # General
-[ "${PATH#*:${HOME}/.local/bin}" == "${PATH}" ] && PATH="${PATH}:${HOME}/.local/bin"
-[ "${PATH#*:${HOME}/.aws}" == "${PATH}" ] && PATH="${PATH}:${HOME}/.aws"
-
-# Go
-export GODEBUG=x509ignoreCN=0
-export GOPATH="${HOME}/go"
-[ "${PATH#*:${GOPATH}/bin}" == "${PATH}" ] && PATH="${PATH}:${GOPATH}/bin"
-
-# Neovim
-if [ -d "${HOME}/.local/share/nvim/mason/bin" ]; then
-	[ "${PATH#*:${HOME}/.local/share/nvim/mason/bin}" == "${PATH}" ] && PATH="${PATH}:${HOME}/.local/share/nvim/mason/bin"
-fi
-
-export EDITOR="$(which nvim || which vim)"
+export EDITOR=vim
 export FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
 
-# 1Password Agent
-if [[ "$(uname)" == "Darwin" ]]; then
-	export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+[[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]] && PATH="${HOME}/.local/bin:${PATH}"
+[[ ":${PATH}:" != *":${HOME}/.aws:"* ]] && PATH="${HOME}/.aws:${PATH}"
+
+# tfenv
+if [[ -d "${HOME}/.tfenv" ]]; then
+  [[ ":${PATH}:" != *":${HOME}/.tfenv/bin:"* ]] && PATH="${HOME}/.tfenv/bin:${PATH}"
 fi
 
-# BREW
-[[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+# Go
+export GODEBUG=x509ignoreCN=0
+export GOPATH="${HOME}/go"
+[[ ":${PATH}:" != *":${GOPATH}/bin:"* ]] && PATH="${GOPATH}/bin:${PATH}"
+
+# 1Password Agent
+if [[ "$(uname)" == "Darwin" ]]; then
+  export SSH_AUTH_SOCK="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+fi
 
 # Rootless Docker
 # docs: https://docs.docker.com/engine/security/rootless/
 #   $ dockerd-rootless-setuptool.sh install
 [[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
 
+# # PROMPT
+# if [ -s "$(brew --prefix)/opt/git/etc/bash_completion.d/git-prompt.sh" ] ; then
+#   source "$(brew --prefix)/opt/git/etc/bash_completion.d/git-prompt.sh"
+#   GIT_PS1_SHOWDIRTYSTATE=1
+#   GIT_PS1_SHOWSTASHSTATE=1
+#   GIT_PS1_SHOWUNTRACKEDFILES=1
+#   GIT_PS1_SHOWUPSTREAM="auto"
+#   GIT_PS1_SHOWCONFLICTSTATE="yes"
+#   GIT_PS1_SHOWCOLORHINTS=1
+#   export PROMPT_COMMAND='__git_ps1 "\n\w" "\n\\\$ "'
+# fi
+export PS1='\n\w\n\$ '
+
+# PATH (must be last)
 export PATH
