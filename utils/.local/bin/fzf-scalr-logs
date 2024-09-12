@@ -11,7 +11,7 @@ set -euo pipefail
 FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
 
 # Get scalr hostname from config file.
-# If doesn't exist, fail/exit early
+# If doesn't exist, fail/exit early.
 SCALR_HOSTNAME="$(jq -rc .hostname "${HOME}/.scalr/scalr.conf")"
 
 if [[ -z "${SCALR_HOSTNAME}" ]]; then
@@ -51,9 +51,11 @@ export -f scalr_log_previewer
 
 fzf \
   --reverse \
+  --header '/ CTRL-R (reload) / CTRL-O (open the logs in your $EDITOR)' \
   --prompt "$ scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} (${SCALR_WORKSPACE_NAME}): " \
   --bind "start:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc '.[]'" \
   --bind "ctrl-r:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc '.[]'" \
+  --bind "ctrl-o:execute:scalr_log_previewer {} | ${EDITOR:-vim} -" \
   --preview-window "follow" \
   --preview 'scalr_log_previewer {}' |
   jq -rc .id |
