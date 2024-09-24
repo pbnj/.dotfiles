@@ -51,12 +51,12 @@ export -f scalr_log_previewer
 
 fzf \
   --reverse \
-  --header '/ CTRL-R (reload) / CTRL-O (open the logs in your $EDITOR)' \
+  --header 'ENTER (open in web) | CTRL-A (approve run) | CTRL-R (reload) | CTRL-O (open logs in $EDITOR)' \
   --prompt "$ scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} (${SCALR_WORKSPACE_NAME}): " \
   --bind "start:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc '.[]'" \
   --bind "ctrl-r:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc '.[]'" \
   --bind "ctrl-o:execute:scalr_log_previewer {} | ${EDITOR:-vim} -" \
+  --bind "ctrl-a:execute:echo {} | jq -rc .id | xargs -t -I% scalr confirm-run -run=%" \
+  --bind "enter:execute:echo {} | jq -rc .id | xargs -t -I% open https://${SCALR_HOSTNAME}/v2/e/${SCALR_ENVIRONMENT_ID}/workspaces/${SCALR_WORKSPACE_ID}/runs/%" \
   --preview-window "follow" \
-  --preview 'scalr_log_previewer {}' |
-  jq -rc .id |
-  xargs -t -I{} open https://${SCALR_HOSTNAME}/v2/e/${SCALR_ENVIRONMENT_ID}/workspaces/${SCALR_WORKSPACE_ID}/runs/{}
+  --preview 'scalr_log_previewer {}'
