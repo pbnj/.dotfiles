@@ -18,6 +18,6 @@ if [ -n "${INPUT}" ]; then
   REPO="${REPO%.git}"
   # Set the clone path
   GIT_CLONE_PATH="${GIT_CLONE_PATH_PREFIX}/${REPO}"
-  gh repo clone "${REPO}" "${GIT_CLONE_PATH}"
+  gh repo clone "${REPO}" "${GIT_CLONE_PATH}" || true
   tmux new-window -c "${GIT_CLONE_PATH}"
 fi
