@@ -2,12 +2,13 @@
 
 set -euo pipefail
 
-gh pr list |
-  fzf \
+fzf \
   --reverse \
-  --header "ENTER: checkout pr & view files in vim | CTRL-A: approve | CTRL-R: request changes | CTRL-O: open in web" \
+  --header "ENTER: checkout pr & open in vim | CTRL-A: approve | CTRL-M: merge | CTRL-R: request changes | CTRL-O: open in web" \
   --prompt 'GitHub Pull Request: ' \
   --preview "gh pr view {1}; gh pr diff --color=always {1}" \
+  --bind 'start:reload:gh pr list' \
   --bind 'enter:execute:gh pr checkout {1} && vim $(gh pr diff --name-only {1})' \
-  --bind 'ctrl-a:become(gh pr review --approve {1})' \
-  --bind 'ctrl-o:become(gh pr view --web {1})'
+  --bind 'ctrl-a:execute:gh pr review --approve {1}' \
+  --bind 'ctrl-m:execute:gh pr merge {1}' \
+  --bind 'ctrl-o:execute:gh pr view --web {1}'
