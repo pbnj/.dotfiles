@@ -18,5 +18,5 @@ fzf \
   --bind "ctrl-o:execute:kubectl --kubeconfig ${KUBECONFIG} logs --all-containers --namespace {1} {2} | vim -" \
   --bind "ctrl-j:preview-down" \
   --bind "ctrl-k:preview-up" \
-  --preview-window "up:follow" \
+  --preview-window "follow" \
   --preview "kubectl --kubeconfig ${KUBECONFIG} logs --follow --all-containers --tail=10000 --namespace {1} {2}" "$@"

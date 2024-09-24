@@ -37,6 +37,7 @@
 
 [diff]
 	tool = vimdiff
+	colorMoved = default
 
 [branch]
 	autoSetupMerge = always

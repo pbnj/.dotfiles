@@ -9,8 +9,8 @@
 
 set -euo pipefail
 
-fzf-tmux \
-  -p \
+fzf \
+  --tmux \
   --multi \
   --reverse \
   --delimiter='\t' \
@@ -18,4 +18,4 @@ fzf-tmux \
   --prompt "Okta Application: " \
   --bind "start:reload:jq -rc '.[]._embedded.items[]._embedded.resource | [.label, .linkUrl] | @tsv' < ~/.okta/apps.json | sort -u" |
   awk '{print $NF}' |
-  xargs -L1 open || true
+  xargs -t -L1 open || true
