@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
-set -x
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 SELECTED_PROJECT="$(fzf --reverse --prompt='Projects: ' --tmux='center,80%' --bind "start:reload:fd . ${HOME}/Projects --type d --max-depth 3" || true)"
 

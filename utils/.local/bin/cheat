@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 # Get cheatsheet info from http://cheat.sh
 

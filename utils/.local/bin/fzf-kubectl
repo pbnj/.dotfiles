@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 KUBECONFIG="${KUBECONFIG:-$(find "${HOME}/.kube/configs" -type f | fzf --tmux --reverse --prompt 'kubeconfig: ')}"
 
@@ -8,7 +9,7 @@ KUBE_PODS="kubectl --kubeconfig=\"${KUBECONFIG}\" get pods --all-namespaces | ta
 
 fzf \
   --reverse \
-  --tmux='center,80%' \
+  --tmux 'center,80%' \
   --header "/ [ENTER] to copy yaml to system clipboard /" \
   --bind "start:reload:${KUBE_PODS}" \
   --bind "enter:execute(kubectl --kubeconfig=\"${KUBECONFIG}\" get pods --output=yaml --namespace {1} {2} | pbcopy)" \

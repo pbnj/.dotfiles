@@ -3,5 +3,6 @@
 set -o errexit
 set -o nounset
 set -o pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 tmux capture-pane -J -p -S- | vim -

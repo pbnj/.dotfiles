@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
 URL="${1:-""}"
 
 if [[ -n "${URL}" ]]; then

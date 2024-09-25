@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 LOFI_STREAMS=(
   "synthwave https://www.youtube.com/watch?v=4xDzrJKXOOY"
@@ -9,6 +10,6 @@ LOFI_STREAMS=(
 )
 
 printf "%s\n" "${LOFI_STREAMS[@]}" |
-  fzf-tmux -p --reverse --delimiter=' ' --with-nth=1 |
+  fzf --tmux --reverse --delimiter ' ' --with-nth=1 |
   awk '{print $2}' |
   xargs -t -I{} mpv {} &

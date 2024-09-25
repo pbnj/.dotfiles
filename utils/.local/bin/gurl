@@ -1,6 +1,9 @@
 #!/bin/bash
 
+# glow + cURL = gurl
+
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 URL="${1:-}"
 

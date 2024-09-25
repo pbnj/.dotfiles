@@ -1,8 +1,0 @@
-#!/bin/bash
-
-: |
-  fzf-tmux \
-    --print-query \
-    --preview-window='down,99%' \
-    --preview "cat ${1} | jq -C {q}" ||
-  true

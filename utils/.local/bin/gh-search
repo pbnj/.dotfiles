@@ -6,7 +6,7 @@
 # Usage: gh-search
 
 set -euo pipefail
-# set -x
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 GH_REPO="${1:-}"
 

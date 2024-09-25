@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 NOTE_PATH="${HOME}/.notes"
 NOTE_TOPIC="${1:-""}"

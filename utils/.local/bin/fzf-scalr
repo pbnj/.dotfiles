@@ -6,6 +6,7 @@
 # Usage:        fzf-scalr-logs
 
 set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 # Convenient FZF bindings
 FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"

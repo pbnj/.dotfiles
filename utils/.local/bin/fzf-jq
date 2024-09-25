@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+JSON_FILE="${1:-}"
+
+if [[ -n "${JSON_FILE}" ]]; then
+  : | fzf --disabled --tmux 'center,80%' --print-query --bind "start:reload:echo ${JSON_FILE}" --preview "cat {} | jq -C {q}"
+else
+  fzf \
+    --tmux "center,80%" \
+    --header "CTRL-S (search) | CTRL-Q (jq)" \
+    --bind "start:unbind(ctrl-s)+rebind(ctrl-q)+enable-search+change-prompt(search > )+change-query()+reload(fd . . --type file --extension json)" \
+    --bind "ctrl-s:unbind(ctrl-s)+rebind(ctrl-q)+enable-search+change-prompt(search > )+change-query()+reload(fd . . --type file --extension json)" \
+    --bind "ctrl-q:unbind(ctrl-q)+rebind(ctrl-s)+disable-search+change-prompt(jq > )+change-query()" \
+    --preview "cat {} | jq -C {q}" \
+    --print-query
+fi

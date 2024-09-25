@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
 # Print size of a given file or directory, like du, but sort in a
 # human-friendly from largest to smallest size.
 DIR="${1:-.}"

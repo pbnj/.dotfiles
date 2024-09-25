@@ -10,6 +10,7 @@
 # - awk
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 GIT_LS_FILES="git ls-files"
 

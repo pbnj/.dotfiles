@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 # Clone a git repo and open it in a new tmux window
 # Requires: gh, glab, git, fzf

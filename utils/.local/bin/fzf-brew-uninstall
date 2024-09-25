@@ -1,14 +1,16 @@
 #!/bin/bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 INPUT="${1:-}"
 
 fzf \
-  ---tmux \
+  --tmux 'center,80%' \
   --reverse \
   --multi \
   --query "${INPUT}" \
   --bind 'start:reload:brew list' \
   --bind 'ctrl-r:reload:brew list' \
-  --bind 'enter:execute:brew uninstall {+} && brew autoremove'
+  --bind 'enter:execute:brew uninstall {+} && brew autoremove' \
+  --preview 'brew info {}'

@@ -6,6 +6,7 @@
 # Usage: gh-clone [<REPO_URL>]
 
 set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 INPUT="${1:-$(gh-search)}"
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 STREAMER() {
   awk -F'[()]' '/https.*youtube\.com|https.*twitch\.tv/ {print $2}' <(curl -L https://raw.githubusercontent.com/bnb/awesome-developer-streams/master/README.md) | sort -ui

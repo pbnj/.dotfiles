@@ -1,3 +1,0 @@
-#!/bin/bash
-
-echo "($(git branch --show-current) $(git status --short | awk '{print $1}' | sort | uniq -c | awk '{gsub(/ /,"",$0);printf("%s ",$0)}'))"

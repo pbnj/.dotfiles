@@ -5,12 +5,13 @@
 # Description: Interactively fuzzy find terraform resources in state file and print them out
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 COMMAND="terraform state list"
 
-fzf-tmux \
-  -p '80%' \
+fzf \
   --reverse \
-  --bind "start:reload:${COMMAND}" \
+  --tmux 'center,80%' \
+  --bind "start:reload(${COMMAND})" \
   --bind "ctrl-r:reload(${COMMAND})" \
   --bind "enter:become(terraform state show -no-color {})"

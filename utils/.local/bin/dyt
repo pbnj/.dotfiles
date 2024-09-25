@@ -1,6 +1,9 @@
 #!/bin/bash
 
-set -euo pipefail
+set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 if ! hash ddgr >/dev/null 2>&1 ; then
   echo "ERROR: ddgr not be found."

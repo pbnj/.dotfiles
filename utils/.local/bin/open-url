@@ -3,6 +3,7 @@
 # fuzzy open URLs
 
 set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 # How it works:
 # 	1. Dump content of tmux buffer to stdout.

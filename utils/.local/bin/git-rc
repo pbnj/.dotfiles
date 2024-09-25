@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 RCTEMPLATE="${1:-}"
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -eou pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 # Clean unwanted files
 find ~ \( -name "*.swo" -or -name "*.swp" -or -name "*.DS_Store" \) -exec rm -r {} \;

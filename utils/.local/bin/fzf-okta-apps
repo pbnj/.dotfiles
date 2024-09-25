@@ -8,6 +8,7 @@
 #   - Windows users: replace `open` with `start`
 
 set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
 fzf \
   --tmux \
