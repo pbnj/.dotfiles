@@ -33,18 +33,19 @@ fi
 #   $ dockerd-rootless-setuptool.sh install
 [[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
 
-# # PROMPT
-# if [ -s "$(brew --prefix)/opt/git/etc/bash_completion.d/git-prompt.sh" ] ; then
-#   source "$(brew --prefix)/opt/git/etc/bash_completion.d/git-prompt.sh"
-#   GIT_PS1_SHOWDIRTYSTATE=1
-#   GIT_PS1_SHOWSTASHSTATE=1
-#   GIT_PS1_SHOWUNTRACKEDFILES=1
-#   GIT_PS1_SHOWUPSTREAM="auto"
-#   GIT_PS1_SHOWCONFLICTSTATE="yes"
-#   GIT_PS1_SHOWCOLORHINTS=1
-#   export PROMPT_COMMAND='__git_ps1 "\n\w" "\n\\\$ "'
-# fi
-export PS1='\n\w\n\$ '
+# PROMPT
+if [ -s "$(brew --prefix)/opt/git/etc/bash_completion.d/git-prompt.sh" ] ; then
+  source "$(brew --prefix)/opt/git/etc/bash_completion.d/git-prompt.sh"
+  GIT_PS1_SHOWDIRTYSTATE=1
+  GIT_PS1_SHOWSTASHSTATE=1
+  GIT_PS1_SHOWUNTRACKEDFILES=1
+  GIT_PS1_SHOWUPSTREAM="auto"
+  GIT_PS1_SHOWCONFLICTSTATE="yes"
+  GIT_PS1_SHOWCOLORHINTS=1
+  export PROMPT_COMMAND='__git_ps1 "\n\w" "\n\\\$ "'
+else
+  export PS1='\n\w\n\$ '
+fi
 
 # PATH (must be last)
 export PATH
