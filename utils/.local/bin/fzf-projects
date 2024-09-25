@@ -6,5 +6,7 @@ set -euo pipefail
 SELECTED_PROJECT="$(fzf --reverse --prompt='Projects: ' --tmux='center,80%' --bind "start:reload:fd . ${HOME}/Projects --type d --max-depth 3" || true)"
 
 if [[ -n "${SELECTED_PROJECT}" ]]; then
-  tmux new-window -c "${SELECTED_PROJECT}"
+  if [[ -n "${TMUX}" ]]; then
+    tmux new-window -c "${SELECTED_PROJECT}"
+  fi
 fi
