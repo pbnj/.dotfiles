@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+# tmux capture-pane -J -p -S- | vim -
+
+fzf \
+  --tmux 'center,80%' \
+  --reverse \
+  --multi \
+  --prompt 'tmux history > ' \
+  --bind 'start:reload(tmux capture-pane -J -p -S-)' |
+  pbcopy
