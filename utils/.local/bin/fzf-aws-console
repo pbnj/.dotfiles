@@ -15,6 +15,7 @@ fi
 AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<${AWS_PROFILE})"
 
 # Extract permission set name from selected AWS Profile
+# This assumes profile names follow a convention: <account-alias>/<account-id>/<permission-set>
 AWS_PERMISSION_SET="$(awk -F'/' '{print $3}' <<<${AWS_PROFILE})"
 
 # Construct SSO Shortcut URL
