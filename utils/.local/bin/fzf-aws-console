@@ -6,20 +6,17 @@ set -euo pipefail
 # Extract the Profile names from AWS config file using regex and pipe through fuzzy finder
 AWS_PROFILE="$(rg '\[profile (\d{12}/.*)\]' -or '$1' ~/.aws/config | fzf --tmux --reverse --prompt 'AWS Profile> ' || true)"
 
-if [[ -z "${AWS_PROFILE}" ]]; then
-  echo "No AWS Profile selected"
-  exit 1
+if [[ -n "${AWS_PROFILE}" ]]; then
+  # Extract account ID from selected AWS Profile using regex
+  AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<${AWS_PROFILE})"
+
+  # Extract permission set name from selected AWS Profile
+  # This assumes profile names follow a convention: <account-alias>/<account-id>/<permission-set>
+  AWS_PERMISSION_SET="$(awk -F'/' '{print $3}' <<<${AWS_PROFILE})"
+
+  # Construct SSO Shortcut URL
+  AWS_SSO_SHORTCUT_URL="${AWS_SSO_ACCESS_PORTAL_URL}/#/console?account_id=${AWS_ACCOUNT_ID}&role_name=${AWS_PERMISSION_SET}"
+
+  # Print URL and open it in default browser
+  echo "${AWS_SSO_SHORTCUT_URL}" | xargs -t open
 fi
-
-# Extract account ID from selected AWS Profile using regex
-AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<${AWS_PROFILE})"
-
-# Extract permission set name from selected AWS Profile
-# This assumes profile names follow a convention: <account-alias>/<account-id>/<permission-set>
-AWS_PERMISSION_SET="$(awk -F'/' '{print $3}' <<<${AWS_PROFILE})"
-
-# Construct SSO Shortcut URL
-AWS_SSO_SHORTCUT_URL="${AWS_SSO_ACCESS_PORTAL_URL}/#/console?account_id=${AWS_ACCOUNT_ID}&role_name=${AWS_PERMISSION_SET}"
-
-# Print URL and open it in default browser
-echo "${AWS_SSO_SHORTCUT_URL}" | xargs -t open

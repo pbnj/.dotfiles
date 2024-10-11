@@ -13,7 +13,7 @@ set -euo pipefail
 
 URL_PATTERN="https?://[^[:space:]'\")]+"
 
-tmux capture-pane -J -p |
+tmux capture-pane -J -p -S- |
   grep -oE "${URL_PATTERN}" |
   sort -ui |
   fzf-tmux -p '80%' --reverse --multi --prompt "URL> " |
