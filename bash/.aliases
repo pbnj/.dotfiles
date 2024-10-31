@@ -14,35 +14,15 @@ alias mv='mv -i'
 alias rm='rm -i'
 
 # vim
-hash nvim 2>/dev/null && alias vim=nvim
 alias vi="vim --clean"
 alias vg="vim +0G"
 
 # tmux
 alias tm="tmux a || tmux"
 
-# For quick edits
-# shellcheck disable=SC2139
-alias dotfiles="${EDITOR} ${HOME}/.dotfiles"
-
-# git
-alias ga="git add"
-alias gb="git browse"
-alias gc="git commit"
-alias gcb="git checkout -b"
-alias gco="git checkout"
-alias gd="git diff"
-alias gp="git push"
-alias gpull="git pull"
-alias groot='cd $(git root)'
-alias gs='git status --short'
-
 # kubectl
 # https://github.com/ahmetb/kubectl-aliases
 [ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
-
-# vault
-hash vault 2>/dev/null && complete -C "$(which vault)" vault
 
 # terraform
 alias tf=terraform
