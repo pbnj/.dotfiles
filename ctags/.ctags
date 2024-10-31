@@ -1,3 +1,0 @@
----recurse=yes
----sort=no
----regex-yaml=/^[ \t]*(.*):/\1/k,key,keys/
