@@ -7,10 +7,9 @@ RCTEMPLATE="${1:-}"
 
 GIT_ROOT="$(git rev-parse --show-toplevel)"
 
-fzf-tmux \
-  -p '80%' \
+fzf \
+  --tmux \
   --reverse \
   --multi \
-  --bind "start:reload:find ${HOME}/.vim/templates/* -type d" \
-  --query "${RCTEMPLATE}" |
+  --bind "start:reload:find ${HOME}/.vim/templates/* -type d" |
   xargs -t -I{} cp -R {}/ ${GIT_ROOT}/
