@@ -9,6 +9,10 @@ export FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:previ
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
 
+if command -v rg &>/dev/null; then
+  export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
+fi
+
 [[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]] && PATH="${HOME}/.local/bin:${PATH}"
 [[ ":${PATH}:" != *":${HOME}/.aws:"* ]] && PATH="${HOME}/.aws:${PATH}"
 

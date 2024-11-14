@@ -1,0 +1,7 @@
+# https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#configuration-file
+
+# Search hidden files / directories (e.g. dotfiles) by default
+--hidden
+
+# Because who cares about case!?
+--smart-case
