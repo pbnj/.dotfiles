@@ -5,7 +5,7 @@
 [[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # General
-export FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
+export FZF_DEFAULT_OPTS_FILE="${HOME}/.config/fzf/config"
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
 
@@ -40,7 +40,7 @@ fi
 [[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
 
 # PROMPT
-export PS1='\n\w\n\$ '
+export PS1='\n\w \$ '
 
 # PATH (must be last)
 export PATH
