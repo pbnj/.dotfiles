@@ -3,11 +3,21 @@
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
+aws-list-profiles() {
+  if ! aws sts get-caller-identity &>/dev/null; then
+    aws sso login &>/dev/null
+  fi
+  aws configure list-profiles | grep -E '^\d{12}'
+}
+
+export -f aws-list-profiles
+
 fzf \
   --tmux \
   --reverse \
   --prompt "AWS Profile> " \
-  --header "CTRL-Y (copy to clipboard) | ENTER (open in browser)" \
-  --bind "start:reload(aws configure list-profiles | grep -E '^\d{12}')" \
+  --header "CTRL-Y (copy to clipboard) | CTRL-U (copy url to clipboard) | ENTER (open in browser)" \
+  --bind "start:reload(aws-list-profiles)" \
   --bind "ctrl-y:become(echo {} | pbcopy)" \
-  --bind "enter:become(echo {} | awk -F'/' '{print \"$AWS_SSO_ACCESS_PORTAL_URL/console?account_id=\"\$1\"&role_name=\"\$3}' | xargs -t open)"
+  --bind "ctrl-u:become(echo {} | awk -F'/' '{print \"$AWS_SSO_ACCESS_PORTAL_URL/console?account_id=\"\$1\"&role_name=\"\$3}' | pbcopy)" \
+  --bind "enter:become(echo {} | awk -F'/' '{print \"$AWS_SSO_ACCESS_PORTAL_URL/console?account_id=\"\$1\"&role_name=\"\$3}' | xargs -t open)" || true

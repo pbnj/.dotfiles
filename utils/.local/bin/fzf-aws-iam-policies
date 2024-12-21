@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Description: Fuzzy find AWS IAM Policies
+# Dependencies: aws, fzf, jq
+
+set -euo pipefail
+
+AWS_PROFILE="${AWS_PROFILE:-$(rg '\[profile (\d{12}.*)\]' -or \$1 ~/.aws/config | fzf --reverse --prompt 'AWS Profile: ')}"
+IAM_POLICY_ARN="${1:-}"
+
+aws_policy_previewer() {
+  AWS_PROFILE="${1:-""}"
+  IAM_POLICY_ARN="${2:-""}"
+  IAM_POLICY_VERSION_ID="$(aws iam list-policy-versions --profile ${AWS_PROFILE} --policy-arn "${IAM_POLICY_ARN}" --output json | jq -rc .Versions[0].VersionId)"
+  aws iam get-policy-version --profile "${AWS_PROFILE}" --policy-arn "${IAM_POLICY_ARN}" --version-id "${IAM_POLICY_VERSION_ID}" --output json
+}
+
+aws_launcher() {
+  AWS_PROFILE="${1:-}"
+  IAM_ARN="${2:-}"
+  # Extract account ID from selected AWS Profile using regex
+  AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<${AWS_PROFILE})"
+  # Extract permission set name from selected AWS Profile
+  AWS_PERMISSION_SET="$(awk -F'/' '{print $3}' <<<${AWS_PROFILE})"
+  # Construct SSO Shortcut URL
+  AWS_SSO_SHORTCUT_URL="${AWS_SSO_ACCESS_PORTAL_URL}/console?account_id=${AWS_ACCOUNT_ID}&role_name=${AWS_PERMISSION_SET}"
+  # URL encode the ARN
+  URLENCODED_ARN="$(printf %s "${IAM_ARN}" | jq -sRr @uri)"
+  # URL encode the destination URL
+  URLENCODEDED_DESTINATION="$(printf %s "https://us-east-1.console.aws.amazon.com/iam/home?region=us-west-2#/policies/details/${URLENCODED_ARN}?section=permissions" | jq -sRr @uri)"
+  # Print URL and open it in default browser
+  echo "${AWS_SSO_SHORTCUT_URL}&destination=${URLENCODEDED_DESTINATION}" | xargs -t open
+}
+
+export -f aws_policy_previewer aws_launcher
+
+if ! aws sts get-caller-identity --profile "${AWS_PROFILE}" &>/dev/null; then
+  aws sso login --profile "${AWS_PROFILE}"
+fi
+
+fzf \
+  --reverse \
+  --header "CTRL-V (vim) | CTRL-O (open in browser)" \
+  --prompt "aws iam list-policies --profile \"${AWS_PROFILE}\" : " \
+  --query "${IAM_POLICY_ARN}" \
+  --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-policies | jq -rc .Policies[].Arn" \
+  --bind "ctrl-v:execute:aws_policy_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
+  --bind "ctrl-o:execute:aws_launcher \"${AWS_PROFILE}\" {} " \
+  --preview "aws_policy_previewer \"${AWS_PROFILE}\" {} | jq -C"
