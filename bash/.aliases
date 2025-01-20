@@ -33,14 +33,16 @@ alias tfv="terraform validate"
 
 # osx
 if [[ $(uname) == "Darwin" ]]; then
-	# enable remote login
-	alias macos_remote_login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on && sudo systemsetup -getremotelogin"
-	# .DS_Store
-	alias macos_dsclean="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
+  # enable remote login
+  alias macos-remote-login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on && sudo systemsetup -getremotelogin"
+  # delete .DS_Store recursively
+  alias macos-clean-dsstore="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
+  # toggle system theme
+  alias macos-toggle-system-theme="osascript -e 'tell app \"System Events\" to tell appearance preferences to set dark mode to not dark mode'"
 fi
 
 # linux
 if hash apt &>/dev/null; then
-	SUDO=$(which sudo)
-	alias auau="${SUDO} apt update && ${SUDO} apt upgrade -y"
+  SUDO=$(which sudo)
+  alias auau="${SUDO} apt update && ${SUDO} apt upgrade -y"
 fi

@@ -29,5 +29,8 @@ fi
 # FUNCTIONS
 [ -f "${HOME}/.functions" ] && . "${HOME}/.functions"
 
+# ARGOCD
+[ -f "${HOME}/.config/argocd/completion" ] && . "${HOME}/.config/argocd/completion"
+
 # DIRENV
 hash direnv 2>/dev/null && eval "$(direnv hook bash)"
