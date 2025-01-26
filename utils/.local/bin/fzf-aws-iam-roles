@@ -5,10 +5,10 @@
 
 set -euo pipefail
 
-AWS_PROFILE="${AWS_PROFILE:-$(rg '\[profile (\d{12}.*)\]' -or \$1 ~/.aws/config | fzf --reverse --prompt 'AWS Profile: ')}"
+AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-console)}"
 IAM_ROLE_NAME="${1:-}"
 
-aws_policy_previewer() {
+aws_iam_role_previewer() {
   AWS_PROFILE="${1:-""}"
   IAM_ROLE_NAME="${2:-""}"
   aws iam get-role --profile "${AWS_PROFILE}" --role-name "${IAM_ROLE_NAME}" --output json
@@ -31,18 +31,21 @@ aws_launcher() {
   echo "${AWS_SSO_SHORTCUT_URL}&destination=${URLENCODEDED_DESTINATION}" | xargs -t open
 }
 
-export -f aws_policy_previewer aws_launcher
+export -f aws_iam_role_previewer aws_launcher
 
 if ! aws sts get-caller-identity --profile "${AWS_PROFILE}" &>/dev/null; then
   aws sso login --profile "${AWS_PROFILE}"
 fi
 
 fzf \
+  --tmux 'center,80%' \
   --reverse \
-  --header "CTRL-V (vim) | CTRL-O (open in browser)" \
-  --prompt "aws iam list-roles --profile \"${AWS_PROFILE}\" : " \
+  --input-border \
+  --header "CTRL-V: open in vim / CTRL-O: open in browser" \
   --query "${IAM_ROLE_NAME}" \
   --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-roles | jq -rc .Roles[].RoleName" \
-  --bind "ctrl-v:execute:aws_policy_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
+  --bind "ctrl-v:execute:aws_iam_role_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
   --bind "ctrl-o:execute:aws_launcher \"${AWS_PROFILE}\" {} " \
-  --preview "aws_policy_previewer \"${AWS_PROFILE}\" {} | jq -C"
+  --preview-window bottom \
+  --preview "aws_iam_role_previewer \"${AWS_PROFILE}\" {} | jq -C" \
+  --prompt "AWS IAM Roles (${AWS_PROFILE})> " || true
