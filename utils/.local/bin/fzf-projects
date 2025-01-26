@@ -3,10 +3,14 @@
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
-SELECTED_PROJECT="$(fzf --reverse --prompt='Projects: ' --tmux='center,80%' --bind "start:reload:fd . ${HOME}/Projects --type d --max-depth 3" || true)"
-
-if [[ -n "${SELECTED_PROJECT}" ]]; then
-  if [[ -n "${TMUX}" ]]; then
-    tmux new-window -c "${SELECTED_PROJECT}"
-  fi
-fi
+fzf \
+  --reverse \
+  --input-border \
+  --tmux 'center,80%' \
+  --header 'ENTER: new window / CTRL-X: horizontal split / CTRL-V: vertical split' \
+  --header-border 'bottom' \
+  --bind "start:reload:fd . ${HOME}/Projects --type d --max-depth 3" \
+  --bind 'ctrl-x:become:tmux split-window -v -c {}' \
+  --bind 'ctrl-v:become:tmux split-window -h -c {}' \
+  --bind 'enter:become:tmux select-window -t $(basename {}) || tmux new-window -c {}' \
+  --prompt 'Projects> ' || true
