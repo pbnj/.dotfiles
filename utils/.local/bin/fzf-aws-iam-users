@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Description: Fuzzy find AWS IAM Policies
+# Dependencies: aws, fzf, jq
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-console)}"
+AWS_IAM_USER_NAME="${1:-}"
+
+aws_iam_user_previewer() {
+  [[ "${DEBUG:-}" == "true" ]] && set -x
+  AWS_PROFILE="${1:-}"
+  AWS_IAM_USER_NAME="${2:-}"
+  aws iam get-user --profile "${AWS_PROFILE}" --user-name "${AWS_IAM_USER_NAME}" --output json
+  for IPOLICY in $(aws iam list-user-policies --profile "${AWS_PROFILE}" --user-name "${AWS_IAM_USER_NAME}" --output json | jq -rc '.PolicyNames[]'); do
+    aws iam get-user-policy --profile "${AWS_PROFILE}" --user-name "${AWS_IAM_USER_NAME}" --policy-name ${IPOLICY} --output json
+  done
+  for APOLICY in $(aws iam list-attached-user-policies --profile "${AWS_PROFILE}" --user-name "${AWS_IAM_USER_NAME}" --output json | jq -rc '.AttachedPolicies[].PolicyArn'); do
+    POLICY_VERSION="$(aws iam get-policy --profile "${AWS_PROFILE}" --policy-arn "${APOLICY}" --output json | jq -rc '.Policy.DefaultVersionId')"
+    aws iam get-policy-version --profile "${AWS_PROFILE}" --policy-arn "${APOLICY}" --version-id "${POLICY_VERSION}" --output json
+  done
+  for GROUP in $(aws iam list-groups-for-user --profile "${AWS_PROFILE}" --user-name "${AWS_IAM_USER_NAME}" --output json | jq -rc '.Groups[].GroupName'); do
+    for IPOLICY in $(aws iam list-group-policies --profile "${AWS_PROFILE}" --group-name "${GROUP}" --output json | jq -rc '.PolicyNames[]'); do
+      aws iam get-group-policy --profile "${AWS_PROFILE}" --group-name "${GROUP}" --policy-name "${IPOLICY}" --output json
+    done
+    for APOLICY in $(aws iam list-attached-group-policies --profile "${AWS_PROFILE}" --group-name "${GROUP}" --output json | jq -rc '.AttachedPolicies[].PolicyArn'); do
+      POLICY_VERSION="$(aws iam get-policy --profile "${AWS_PROFILE}" --policy-arn "${APOLICY}" --output json | jq -rc '.Policy.DefaultVersionId')"
+      aws iam get-policy-version --profile "${AWS_PROFILE}" --policy-arn "${APOLICY}" --version-id "${POLICY_VERSION}" --output json
+    done
+  done
+}
+
+aws_launcher() {
+  AWS_PROFILE="${1:-}"
+  IAM_ROLE="${2:-}"
+  # Extract account ID from selected AWS Profile using regex
+  AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<${AWS_PROFILE})"
+  # Extract permission set name from selected AWS Profile
+  AWS_PERMISSION_SET="$(awk -F'/' '{print $3}' <<<${AWS_PROFILE})"
+  # Construct SSO Shortcut URL
+  AWS_SSO_SHORTCUT_URL="${AWS_SSO_ACCESS_PORTAL_URL}/console?account_id=${AWS_ACCOUNT_ID}&role_name=${AWS_PERMISSION_SET}"
+  # URL encode the ARN
+  URLENCODED_ARN="$(printf %s "${IAM_ROLE}" | jq -sRr @uri)"
+  # URL encode the destination URL
+  URLENCODEDED_DESTINATION="$(printf %s "https://us-east-1.console.aws.amazon.com/iam/home?region=us-west-2#/users/details/${URLENCODED_ARN}?section=permissions" | jq -sRr @uri)"
+  # Print URL and open it in default browser
+  echo "${AWS_SSO_SHORTCUT_URL}&destination=${URLENCODEDED_DESTINATION}" | xargs -t open
+}
+
+export -f aws_iam_user_previewer aws_launcher
+
+if ! aws sts get-caller-identity --profile "${AWS_PROFILE}" &>/dev/null; then
+  aws sso login --profile "${AWS_PROFILE}"
+fi
+
+fzf \
+  --tmux 'center,80%' \
+  --reverse \
+  --query "${AWS_IAM_USER_NAME}" \
+  --header "CTRL-V: open in vim / CTRL-O: open in browser" \
+  --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-users | jq -rc .Users[].UserName" \
+  --bind "ctrl-v:execute:aws_iam_user_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=yaml' -" \
+  --bind "ctrl-o:execute:aws_launcher \"${AWS_PROFILE}\" {}" \
+  --preview-window bottom \
+  --preview "aws_iam_user_previewer \"${AWS_PROFILE}\" {} | jq --color-output" \
+  --input-border
+  --prompt "AWS IAM User (${AWS_PROFILE})> " || true
