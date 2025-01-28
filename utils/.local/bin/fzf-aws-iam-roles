@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-console)}"
+AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-profiles)}"
 IAM_ROLE_NAME="${1:-}"
 
 aws_iam_role_previewer() {

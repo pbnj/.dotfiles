@@ -6,7 +6,7 @@
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
-AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-console)}"
+AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-profiles)}"
 AWS_IAM_USER_NAME="${1:-}"
 
 aws_iam_user_previewer() {

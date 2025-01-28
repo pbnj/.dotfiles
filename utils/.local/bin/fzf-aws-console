@@ -4,7 +4,7 @@ set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
 fzf \
-  --tmux "center,80%" \
+  --tmux='center,80%' \
   --reverse \
   --input-border \
   --query "${1:-}" \
@@ -14,5 +14,5 @@ fzf \
   --bind "ctrl-a:become:awk -F/ '{printf(\"%s\",\$2)}' <<<{} | pbcopy" \
   --bind "ctrl-y:become:awk -F/ '{printf(\"%s %s\",\$1,\$2)}' <<<{} | pbcopy" \
   --bind "ctrl-u:become:echo {} | awk -F/ '{print \"$AWS_SSO_ACCESS_PORTAL_URL/console?account_id=\"\$1\"&role_name=\"\$3}' | pbcopy" \
-  --bind "ctrl-o:become:echo {} | awk -F/ '{print \"$AWS_SSO_ACCESS_PORTAL_URL/console?account_id=\"\$1\"&role_name=\"\$3}' | xargs -t open" \
-  --prompt "AWS Profile> " || true
+  --bind "enter:become:echo {} | awk -F/ '{print \"$AWS_SSO_ACCESS_PORTAL_URL/console?account_id=\"\$1\"&role_name=\"\$3}' | xargs -t open" \
+  --prompt "AWS Console> " || true

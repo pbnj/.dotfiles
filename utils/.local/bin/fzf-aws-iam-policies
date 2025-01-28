@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-AWS_PROFILE="${AWS_PROFILE:-$(rg '\[profile (\d{12}.*)\]' -or \$1 ~/.aws/config | fzf --reverse --prompt 'AWS Profile: ')}"
+AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-profiles)}"
 IAM_POLICY_ARN="${1:-}"
 
 aws_policy_previewer() {
@@ -39,11 +39,13 @@ if ! aws sts get-caller-identity --profile "${AWS_PROFILE}" &>/dev/null; then
 fi
 
 fzf \
+  --tmux 'center,80%' \
   --reverse \
-  --header "CTRL-V (vim) | CTRL-O (open in browser)" \
-  --prompt "aws iam list-policies --profile \"${AWS_PROFILE}\" : " \
+  --header "CTRL-V: open in vim / CTRL-O: open in browser" \
   --query "${IAM_POLICY_ARN}" \
   --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-policies | jq -rc .Policies[].Arn" \
   --bind "ctrl-v:execute:aws_policy_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
   --bind "ctrl-o:execute:aws_launcher \"${AWS_PROFILE}\" {} " \
-  --preview "aws_policy_previewer \"${AWS_PROFILE}\" {} | jq -C"
+  --preview "aws_policy_previewer \"${AWS_PROFILE}\" {} | jq -C" \
+  --preview-window bottom \
+  --prompt 'AWS IAM Policies> ' || true
