@@ -1,3 +1,5 @@
+--input-border
+--tmux='center,80%'
 --bind='ctrl-j:preview-down'
 --bind='ctrl-k:preview-up'
 --bind='ctrl-d:preview-half-page-down'
