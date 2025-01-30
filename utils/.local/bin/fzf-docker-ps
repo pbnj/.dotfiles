@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+DOCKER_PS_CMD="docker ps -a"
+
+fzf \
+  --tmux 'center,100%' \
+  --reverse \
+  --input-border \
+  --header 'CTRL-X: kill & remove / CTRL-R: reload / CTRL-I: inspect in preview / CTRL-L: logs in preview window' \
+  --header-lines 1 \
+  --preview 'docker inspect {1} | jq -C' \
+  --bind "start:reload:${DOCKER_PS_CMD}" \
+  --bind "ctrl-x:execute(docker kill {1}; docker rm {1})+reload(${DOCKER_PS_CMD})" \
+  --bind "ctrl-r:reload:${DOCKER_PS_CMD}" \
+  --bind "ctrl-i:preview:docker inspect {1} | jq -C" \
+  --bind "ctrl-l:preview:docker logs {1}" \
+  --prompt 'docker ps> ' || true

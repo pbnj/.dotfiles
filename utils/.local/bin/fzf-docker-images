@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+fzf \
+  --reverse \
+  --tmux \
+  --header "" \
+  --bind "start:reload:docker search {q} | awk '{print \$1}'" \
+  --bind "change:reload:sleep 0.3; docker search {q} | awk '{print \$1}'" \
+  --preview "awk '{print (\$1 !~ /\//) ? \"library/\"\$1:\$1}' <<<{}| xargs -L1 -I% curl --silent https://hub.docker.com/v2/repositories/%/tags?page_size=100 | jq -rc .results[].name" \
+  --query "alpine" \
+  --prompt "DockerHub> " || true
