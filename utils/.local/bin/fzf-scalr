@@ -3,13 +3,10 @@
 # Author:       Peter Benjamin
 # Description:  Fuzzy Find Scalr Run Logs (Applies & Plans) & Browser Launcher
 # Dependencies: scalr, jq, fzf
-# Usage:        fzf-scalr-logs
+# Usage:        fzf-scalr
 
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
-
-# Convenient FZF bindings
-FZF_DEFAULT_OPTS="--bind alt-a:select-all,alt-d:deselect-all,ctrl-j:preview-down,ctrl-k:preview-up"
 
 # Get scalr hostname from config file.
 # If doesn't exist, fail/exit early.
@@ -22,13 +19,14 @@ fi
 
 SCALR_GET_WORKSPACES="scalr get-workspaces | jq -rc '.[] | {name,id,environment}'"
 
+SCALR_CACHE_FILE="/tmp/scalr-workspaces.json"
+
 # Fuzzy find workspaces. On 1st run, get workspaces and cache them in /tmp/scalr-workspaces.json. On subsequent runs, load from cache.
-SCALR_WORKSPACE_JSON="$(fzf \
-  --reverse \
-  --prompt '$ scalr get-workspaces: ' \
-  --header '/ CTRL-R (reload) /' \
-  --bind "start:reload:[[ -f /tmp/scalr-workspaces.json ]] && cat /tmp/scalr-workspaces.json || ${SCALR_GET_WORKSPACES} | tee /tmp/scalr-workspaces.json" \
-  --bind "ctrl-r:reload:${SCALR_GET_WORKSPACES} |tee /tmp/scalr-workspaces.json")"
+SCALR_WORKSPACE_JSON="$(fzf --tmux='center,80%' --input-border --reverse --prompt='Scalr Workspaces> ' --header='CTRL-R (reload)' --bind="start:reload:[[ -f ${SCALR_CACHE_FILE} ]] && cat ${SCALR_CACHE_FILE} || ${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" --bind="ctrl-r:reload:${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" || true)"
+
+if [[ -z "${SCALR_WORKSPACE_JSON}" ]]; then
+  exit 0
+fi
 
 SCALR_WORKSPACE_NAME="$(jq -rc .name <<<"${SCALR_WORKSPACE_JSON}")"
 SCALR_WORKSPACE_ID="$(jq -rc .id <<<"${SCALR_WORKSPACE_JSON}")"
@@ -50,18 +48,27 @@ scalr_log_previewer() {
 # https://github.com/junegunn/fzf/issues/1337
 export -f scalr_log_previewer
 
+FZF_HEADERS="$(cat <<EOF
+ENTER: open in web / CTRL-R: reload / CTRL-O: open logs in $EDITOR
+ALT-A: approve run / ALT-C: cancel run
+EOF
+)"
+
 fzf \
+  --bind="alt-a:execute:echo {} | jq -rc .id | xargs -t -I% scalr confirm-run -run=%" \
+  --bind="alt-c:execute:echo {} | jq -rc .id | xargs -t -I% scalr cancel-run -run=%" \
+  --bind="ctrl-o:execute:scalr_log_previewer {} | ${EDITOR:-vim} -" \
+  --bind="ctrl-r:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc .[]" \
+  --bind="enter:execute:echo {} | jq -rc .id | xargs -t -I% open https://${SCALR_HOSTNAME}/v2/e/${SCALR_ENVIRONMENT_ID}/workspaces/${SCALR_WORKSPACE_ID}/runs/%" \
+  --bind="start:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc .[]" \
+  --bind='ctrl-d:preview-half-page-down' \
+  --bind='ctrl-j:preview-down' \
+  --bind='ctrl-k:preview-up' \
+  --bind='ctrl-u:preview-half-page-up' \
+  --header="${FZF_HEADERS}" \
+  --input-border \
+  --preview-window='bottom' \
+  --preview='scalr_log_previewer {}' \
+  --prompt="Scalr Runs (${SCALR_WORKSPACE_NAME})> " \
   --reverse \
-  --header 'ENTER (open in web) | CTRL-A (approve run) | CTRL-R (reload) | CTRL-O (open logs in $EDITOR)' \
-  --prompt "$ scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} (${SCALR_WORKSPACE_NAME}): " \
-  --bind "start:reload(scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc .[])" \
-  --bind "ctrl-r:reload(scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc .[])" \
-  --bind "ctrl-o:execute:scalr_log_previewer {} | ${EDITOR:-vim} -" \
-  --bind "ctrl-a:execute:echo {} | jq -rc .id | xargs -t -I% scalr confirm-run -run=%" \
-  --bind "enter:execute:echo {} | jq -rc .id | xargs -t -I% open https://${SCALR_HOSTNAME}/v2/e/${SCALR_ENVIRONMENT_ID}/workspaces/${SCALR_WORKSPACE_ID}/runs/%" \
-  --bind "ctrl-u:preview-page-up" \
-  --bind "ctrl-d:preview-page-down" \
-  --bind "ctrl-y:preview-up" \
-  --bind "ctrl-e:preview-down" \
-  --preview-window "follow" \
-  --preview 'scalr_log_previewer {}'
+  --tmux='center,80%' || true
