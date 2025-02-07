@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+GIT_BRANCHES='git branch --all --sort=-committerdate | sed "s/.* //" '
+
+FZF_HEADER="$(cat <<EOF
+CTRL-F: fetch / CTRL-D: delete branch / ENTER: checkout
+EOF
+)"
+
+fzf \
+  --bind="ctrl-f:execute(git fetch)+reload(${GIT_BRANCHES})" \
+  --bind="ctrl-d:execute(git delete-branch {})+reload(${GIT_BRANCHES})" \
+  --bind="start:reload:${GIT_BRANCHES}" \
+  --bind='enter:become:git checkout $(sed "s#remotes/[^/]*/##" <<<{})' \
+  --header="${FZF_HEADER}" \
+  --input-border \
+  --preview-window='bottom' \
+  --preview='git log -n 50 --color=always --date=short --patch {}' \
+  --prompt='Git Checkout> ' \
+  --reverse \
+  --tmux='center,80%' || true
