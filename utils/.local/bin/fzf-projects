@@ -4,13 +4,13 @@ set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
 fzf \
-  --reverse \
-  --input-border \
-  --tmux 'center,80%' \
-  --header 'ENTER: new window / CTRL-X: horizontal split / CTRL-V: vertical split' \
-  --header-border 'bottom' \
   --bind "start:reload:fd . ${HOME}/Projects --type d --max-depth 3" \
-  --bind 'ctrl-x:become:tmux split-window -v -c {}' \
   --bind 'ctrl-v:become:tmux split-window -h -c {}' \
+  --bind 'ctrl-x:become:tmux split-window -v -c {}' \
   --bind 'enter:become:tmux select-window -t $(basename {}) || tmux new-window -c {}' \
-  --prompt 'Projects> ' || true
+  --header 'ENTER: new/goto window / CTRL-X: horizontal split / CTRL-V: vertical split' \
+  --header-border 'bottom' \
+  --input-border \
+  --prompt 'Projects> ' \
+  --reverse \
+  --tmux 'center,80%' || true

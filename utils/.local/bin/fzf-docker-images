@@ -3,12 +3,31 @@
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
-fzf \
-  --reverse \
-  --tmux \
-  --header "" \
-  --bind "start:reload:docker search {q} | awk '{print \$1}'" \
+# fzf \
+#   --reverse \
+#   --tmux \
+#   --header "" \
+#   --bind "start:reload:docker search {q} | awk '{print \$1}'" \
+#   --bind "change:reload:sleep 0.3; docker search {q} | awk '{print \$1}'" \
+#   --preview "awk '{print (\$1 !~ /\//) ? \"library/\"\$1:\$1}' <<<{}| xargs -L1 -I% curl --silent https://hub.docker.com/v2/repositories/%/tags?page_size=100 | jq -rc .results[].name" \
+#   --query "alpine" \
+#   --prompt "DockerHub> " || true
+
+DOCKER_IMAGE="$(fzf \
   --bind "change:reload:sleep 0.3; docker search {q} | awk '{print \$1}'" \
-  --preview "awk '{print (\$1 !~ /\//) ? \"library/\"\$1:\$1}' <<<{}| xargs -L1 -I% curl --silent https://hub.docker.com/v2/repositories/%/tags?page_size=100 | jq -rc .results[].name" \
-  --query "alpine" \
-  --prompt "DockerHub> " || true
+  --bind "start:reload:docker search {q} | awk '{print \$1}'" \
+  --prompt "Docker Images> " \
+  --query "${1:-alpine}" \
+  --reverse \
+  --tmux || true)"
+
+DOCKER_TAG_SEARCH="awk '{print (\$1 !~ /\//) ? \"library/\"\$1:\$1}' <<<${DOCKER_IMAGE} | xargs -L1 -I% curl --silent https://hub.docker.com/v2/repositories/%/tags?page_size=100 | jq -rc .results[].name"
+
+DOCKER_TAG="$(fzf \
+  --bind "change:reload:sleep 0.3; ${DOCKER_TAG_SEARCH}" \
+  --bind "start:reload:${DOCKER_TAG_SEARCH}" \
+  --prompt "Docker Tag> " \
+  --reverse \
+  --tmux || true)"
+
+docker run --rm -it -v $(pwd):/workdir --workdir /workdir ${DOCKER_IMAGE}:${DOCKER_TAG}

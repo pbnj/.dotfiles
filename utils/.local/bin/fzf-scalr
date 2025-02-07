@@ -54,17 +54,15 @@ ALT-A: approve run / ALT-C: cancel run
 EOF
 )"
 
+SCALR_RUNS="scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc .[]"
+
 fzf \
-  --bind="alt-a:execute:echo {} | jq -rc .id | xargs -t -I% scalr confirm-run -run=%" \
-  --bind="alt-c:execute:echo {} | jq -rc .id | xargs -t -I% scalr cancel-run -run=%" \
-  --bind="ctrl-o:execute:scalr_log_previewer {} | ${EDITOR:-vim} -" \
-  --bind="ctrl-r:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc .[]" \
-  --bind="enter:execute:echo {} | jq -rc .id | xargs -t -I% open https://${SCALR_HOSTNAME}/v2/e/${SCALR_ENVIRONMENT_ID}/workspaces/${SCALR_WORKSPACE_ID}/runs/%" \
-  --bind="start:reload:scalr get-runs -filter-workspace=${SCALR_WORKSPACE_ID} | jq -rc .[]" \
-  --bind='ctrl-d:preview-half-page-down' \
-  --bind='ctrl-j:preview-down' \
-  --bind='ctrl-k:preview-up' \
-  --bind='ctrl-u:preview-half-page-up' \
+  --bind="alt-a:execute:jq -rc .id <<<{} | xargs -t -I% scalr confirm-run -run=%" \
+  --bind="alt-c:execute:jq -rc .id <<<{} | xargs -t -I% scalr cancel-run -run=%" \
+  --bind="ctrl-o:execute:${EDITOR} $(scalr_log_previewer {})" \
+  --bind="ctrl-r:reload:${SCALR_RUNS}" \
+  --bind="enter:execute:jq -rc .id <<<{} | xargs -t -I% open https://${SCALR_HOSTNAME}/v2/e/${SCALR_ENVIRONMENT_ID}/workspaces/${SCALR_WORKSPACE_ID}/runs/%" \
+  --bind="start:reload:${SCALR_RUNS}" \
   --header="${FZF_HEADERS}" \
   --input-border \
   --preview-window='bottom' \
