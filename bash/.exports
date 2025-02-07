@@ -8,7 +8,6 @@
 export FZF_DEFAULT_OPTS_FILE="${HOME}/.config/fzf/config"
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
-export AWS_CLI_AUTO_PROMPT=on-partial
 
 if command -v rg &>/dev/null; then
   export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
@@ -41,8 +40,8 @@ fi
 [[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
 
 # PROMPT
-export PS1=']133;A\\\n\$ '
-# export PS1='\n\$ '
+# export PS1=']133;A\\\n\$ '
+export PS1='\n\w\n\$ '
 
 # PATH (must be last)
 export PATH

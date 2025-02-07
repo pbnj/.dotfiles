@@ -5,7 +5,7 @@
 # to replicate the completion behavior for aliases.
 
 alias cp='cp -i'
-alias grep="grep --color=auto --line-buffered"
+alias grep="grep --color=auto"
 alias ll="ls -alFh"
 alias mv='mv -i'
 alias rm='rm -i'
