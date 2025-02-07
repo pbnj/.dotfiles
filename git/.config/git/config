@@ -5,7 +5,7 @@
 	c = commit
 	co = checkout
 	cob = checkout -b
-	contributors = shortlog --summary --numbered
+	contributors = shortlog --summary --numbered --email
 	czc = cz commit
 	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
 	l = log --pretty=oneline --graph --abbrev-commit
