@@ -21,9 +21,9 @@ github_topic_search() {
     GH_TOPIC="${INPUT}"
   fi
   if [ -n "${GH_ORG}" ]; then
-    gh search repos --json fullName --jq .[].fullName --owner="${GH_ORG}" --topic="${GH_TOPIC}"
+    gh search repos --json fullName --jq '.[].fullName' --owner="${GH_ORG}" --topic="${GH_TOPIC}"
   else
-    gh search repos --json fullName --jq .[].fullName --topic="${GH_TOPIC}"
+    gh search repos --json fullName --jq '.[].fullName' --topic="${GH_TOPIC}"
   fi
 }
 
@@ -38,22 +38,24 @@ github_repo_search() {
     GH_REPO="${INPUT}"
   fi
   if [ -n "${GH_ORG}" ]; then
-    gh search repos --json fullName --jq .[].fullName --owner="${GH_ORG}" "${GH_REPO}"
+    gh search repos --json fullName --jq '.[].fullName' --owner="${GH_ORG}" "${GH_REPO}"
   else
-    gh search repos --json fullName --jq .[].fullName "${GH_REPO}"
+    gh search repos --json fullName --jq '.[].fullName' "${GH_REPO}"
   fi
 }
 
 export -f github_repo_search github_topic_search
 
 fzf \
+  --bind="change:reload:sleep 0.1; github_repo_search {q} || true" \
+  --bind="ctrl-o:execute:gh repo view --web {}" \
+  --bind="ctrl-r:unbind(ctrl-r)+change-prompt(GitHub Repo> )+rebind(ctrl-t)+enable-search+reload(github_repo_search {q})" \
+  --bind="ctrl-t:unbind(ctrl-t)+change-prompt(GitHub Topic> )+rebind(ctrl-r)+disable-search+reload(github_topic_search {q})" \
+  --bind="start:reload:github_repo_search {q} || true" \
+  --header='CTRL-R: Repo / CTRL-T: Topic / CTRL-O: Open in browser' \
+  --preview="gh repo view {}" \
+  --preview-window='bottom' \
+  --prompt="GitHub Repo> " \
+  --query="${GH_REPO}" \
   --reverse \
-  --prompt "GitHub Repo: " \
-  --header 'CTRL-R (Repo) | CTRL-T (Topic) | CTRL-O (Open in browser)' \
-  --query "${GH_REPO}" \
-  --bind "start:reload:github_repo_search {q} || true" \
-  --bind "change:reload:sleep 0.1; github_repo_search {q} || true" \
-  --bind "ctrl-t:unbind(ctrl-t)+change-prompt(GitHub Topic: )+rebind(ctrl-r)+disable-search+reload(github_topic_search {q})" \
-  --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitHub Repo: )+rebind(ctrl-t)+enable-search+reload(github_repo_search {q})" \
-  --bind "ctrl-o:execute:gh repo view --web {}" \
-  --preview "gh repo view {}" || true
+  --tmux='center,80%' || true
