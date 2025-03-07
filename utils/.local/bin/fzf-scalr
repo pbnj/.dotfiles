@@ -22,7 +22,15 @@ SCALR_GET_WORKSPACES="scalr get-workspaces | jq -rc '.[] | {name,id,environment}
 SCALR_CACHE_FILE="/tmp/scalr-workspaces.json"
 
 # Fuzzy find workspaces. On 1st run, get workspaces and cache them in /tmp/scalr-workspaces.json. On subsequent runs, load from cache.
-SCALR_WORKSPACE_JSON="$(fzf --tmux='center,80%' --input-border --reverse --prompt='Scalr Workspaces> ' --header='CTRL-R (reload)' --bind="start:reload:[[ -f ${SCALR_CACHE_FILE} ]] && cat ${SCALR_CACHE_FILE} || ${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" --bind="ctrl-r:reload:${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" || true)"
+SCALR_WORKSPACE_JSON="$(fzf \
+  --tmux='center,80%' \
+  --input-border \
+  --reverse \
+  --prompt='Scalr Workspaces> ' \
+  --header='CTRL-R: reload / CTRL-O: open in browser' \
+  --bind='ctrl-o:execute:open ${SCALR_API_URL}/v2/e/$(jq -rc .environment.id <<<{})/workspaces/$(jq -rc .id <<<{})/' \
+  --bind="start:reload:[[ -f ${SCALR_CACHE_FILE} ]] && cat ${SCALR_CACHE_FILE} || ${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" \
+  --bind="ctrl-r:reload:${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" || true)"
 
 if [[ -z "${SCALR_WORKSPACE_JSON}" ]]; then
   exit 0
