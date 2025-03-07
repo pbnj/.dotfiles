@@ -5,6 +5,8 @@
 [[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # General
+export FZF_DEFAULT_COMMAND="fd --type file --follow --hidden"
+export FZF_CTRL_T_COMMAND="${FZF_DEFAULT_COMMAND}"
 export FZF_DEFAULT_OPTS_FILE="${HOME}/.config/fzf/config"
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
