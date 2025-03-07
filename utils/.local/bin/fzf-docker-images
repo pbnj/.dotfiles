@@ -16,6 +16,7 @@ set -euo pipefail
 DOCKER_IMAGE="$(fzf \
   --bind "change:reload:sleep 0.3; docker search {q} | awk '{print \$1}'" \
   --bind "start:reload:docker search {q} | awk '{print \$1}'" \
+  --bind "ctrl-o:execute:" \
   --prompt "Docker Images> " \
   --query "${1:-alpine}" \
   --reverse \
@@ -30,4 +31,6 @@ DOCKER_TAG="$(fzf \
   --reverse \
   --tmux || true)"
 
-docker run --rm -it -v $(pwd):/workdir --workdir /workdir ${DOCKER_IMAGE}:${DOCKER_TAG}
+if [[ -n "${DOCKER_IMAGE}" ]] && [[ -n "${DOCKER_TAG}" ]]; then
+  docker run --rm -it -v $(pwd):/workdir --workdir /workdir ${DOCKER_IMAGE}:${DOCKER_TAG}
+fi
