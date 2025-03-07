@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# fuzzy open URLs
+
+set -euo pipefail
+[[ -n "${DEBUG:-}" ]] && set -x
+
+# How it works:
+#   1. Dump content of tmux buffer to stdout.
+#   2. Grep for URL pattern.
+#   3. Search & select one or more URLs via `fzf` fuzzy finder.
+#   4. Open selected URL(s).
+# URL_PATTERN="https?://[^[:space:]'\")]+"
+
+fzf \
+  --bind "start:reload:tmux capture-pane -JpS- | grep -oE 'https?://[^[:space:]'\''\")]+'" \
+  --bind "enter:become:open {+}" \
+  --multi \
+  --prompt='URL(s)> ' \
+  --reverse \
+  --tmux 'center,80%' || true
+
+# vim:sts=2:ts=2:sw=2:et:
