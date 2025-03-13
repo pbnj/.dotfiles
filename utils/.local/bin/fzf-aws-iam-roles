@@ -10,13 +10,15 @@ IAM_ROLE_NAME="${1:-}"
 
 aws_iam_role_previewer() {
   AWS_PROFILE="${1:-""}"
-  IAM_ROLE_NAME="${2:-""}"
+  IAM_ROLE_JSON="${2:-}"
+  IAM_ROLE_NAME="$(jq -rc '.RoleName' <<<"${IAM_ROLE_JSON}")"
   aws iam get-role --profile "${AWS_PROFILE}" --role-name "${IAM_ROLE_NAME}" --output json
 }
 
 aws_launcher() {
   AWS_PROFILE="${1:-}"
-  IAM_ROLE="${2:-}"
+  IAM_ROLE_JSON="${2:-}"
+  IAM_ROLE_NAME="$(jq -rc '.RoleName' <<<"${IAM_ROLE_JSON}")"
   # Extract account ID from selected AWS Profile using regex
   AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<${AWS_PROFILE})"
   # Extract permission set name from selected AWS Profile
@@ -38,14 +40,17 @@ if ! aws sts get-caller-identity --profile "${AWS_PROFILE}" &>/dev/null; then
 fi
 
 fzf \
-  --tmux 'center,80%' \
-  --reverse \
-  --input-border \
-  --header "CTRL-V: open in vim / CTRL-O: open in browser" \
-  --query "${IAM_ROLE_NAME}" \
-  --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-roles | jq -rc .Roles[].RoleName" \
-  --bind "ctrl-v:execute:aws_iam_role_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
+  --bind "alt-a:execute:jq -rc .Arn <<<{} | pbcopy" \
+  --bind "alt-n:execute:jq -rc .RoleName <<<{} | pbcopy" \
+  --bind "alt-i:execute:jq -rc .RoleId <<<{} | pbcopy" \
   --bind "ctrl-o:execute:aws_launcher \"${AWS_PROFILE}\" {} " \
-  --preview-window bottom \
+  --bind "ctrl-v:execute:aws_iam_role_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
+  --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-roles | jq -rc '.Roles[] | {RoleName, RoleId, Arn}'" \
+  --header "CTRL-V: open in vim / CTRL-O: open in browser / ALT-A: copy arn / ALT-N: copy name / ALT-I: copy id" \
+  --input-border \
   --preview "aws_iam_role_previewer \"${AWS_PROFILE}\" {} | jq -C" \
-  --prompt "AWS IAM Roles (${AWS_PROFILE})> " || true
+  --preview-window bottom \
+  --prompt "AWS IAM Roles> " \
+  --query "${IAM_ROLE_NAME}" \
+  --reverse \
+  --tmux 'center,80%' || true
