@@ -13,7 +13,8 @@ option_as_alt = "OnlyLeft"
 opacity = 1.0
 
 [font]
-normal = {family = "Iosevka"}
+normal = {family = "Iosevka", style = "Light"}
+bold = {family = "Iosevka", style = "Medium"}
 size = 13
 
 [selection]
