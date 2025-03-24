@@ -3,10 +3,13 @@
 # Author:       Peter Benjamin
 # Description:  Fuzzy Find Scalr Run Logs (Applies & Plans) & Browser Launcher
 # Dependencies: scalr, jq, fzf
-# Usage:        fzf-scalr
+# Usage:        fzf-scalr [<workspace>]
 
 set -euo pipefail
-[[ "${DEBUG:-}" == "true" ]] && set -x
+[[ -n "${DEBUG:-}" ]] && set -x
+
+# Optional input
+SCALR_WORKSPACE="${1:-}"
 
 # Get scalr hostname from config file.
 # If doesn't exist, fail/exit early.
@@ -26,11 +29,12 @@ SCALR_WORKSPACE_JSON="$(fzf \
   --tmux='center,80%' \
   --input-border \
   --reverse \
-  --prompt='Scalr Workspaces> ' \
   --header='CTRL-R: reload / CTRL-O: open in browser' \
   --bind='ctrl-o:execute:open ${SCALR_API_URL}/v2/e/$(jq -rc .environment.id <<<{})/workspaces/$(jq -rc .id <<<{})/' \
   --bind="start:reload:[[ -f ${SCALR_CACHE_FILE} ]] && cat ${SCALR_CACHE_FILE} || ${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" \
-  --bind="ctrl-r:reload:${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" || true)"
+  --bind="ctrl-r:reload:${SCALR_GET_WORKSPACES} | tee ${SCALR_CACHE_FILE}" \
+  --query="${SCALR_WORKSPACE}" \
+  --prompt='Scalr Workspaces> ' || true)"
 
 if [[ -z "${SCALR_WORKSPACE_JSON}" ]]; then
   exit 0
