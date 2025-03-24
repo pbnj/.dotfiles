@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -euo pipefail
+[[ -n "${DEBUG:-}" ]] && set -x
+
+INPUT="$(cat)"
+
+echo "${INPUT}" | q chat -a
