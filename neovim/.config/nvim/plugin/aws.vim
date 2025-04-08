@@ -1,8 +1,13 @@
 if exists('g:loaded_aws') | finish | endif
 let g:loaded_aws = 1
 
-command! -nargs=? -complete=customlist,s:aws_profile_completion AWSConsole terminal ++hidden ++close fzf-aws-console <args>
-command! AWSLogin terminal ++close aws sso login
+if has('nvim')
+  command! -nargs=? -complete=customlist,s:aws_profile_completion AWSConsole terminal fzf-aws-console <args>
+  command! AWSLogin terminal aws sso login
+else
+  command! -nargs=? -complete=customlist,s:aws_profile_completion AWSConsole terminal ++hidden ++close fzf-aws-console <args>
+  command! AWSLogin terminal ++close aws sso login
+endif
 
 function! s:amazon_q(args, line_start, line_end, count, mods) range
   let cmd = 'terminal q chat'

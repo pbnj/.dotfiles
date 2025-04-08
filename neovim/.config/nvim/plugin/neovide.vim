@@ -8,4 +8,6 @@ nnoremap <D-s> :w<cr>
 nnoremap <D-v> "+P
 vnoremap <D-c> "+y
 vnoremap <D-v> "+P
-let g:neovide_window_blurred = v:true
+
+let &title = 1
+let &titlestring = '%F'

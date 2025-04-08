@@ -19,6 +19,7 @@ endif
 call plug#begin()
 
 " misc
+Plug 'https://github.com/airblade/vim-rooter'
 Plug 'https://github.com/dstein64/vim-startuptime', { 'on': ['StartupTime'] }
 Plug 'https://github.com/nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
 
@@ -45,53 +46,51 @@ filetype plugin indent on
 syntax on
 
 " Options
-let &autoindent     = 1
-let &autoread       = 1
-let &backspace      = 'indent,eol,start'
-let &belloff        = 'all'
-let &breakindent    = 1
-let &clipboard      = 'unnamedplus'
-let &complete       = '.,w,b,u,t'
-let &completeopt    = 'menuone'
-let &cursorline     = 0
-let &expandtab      = 1
-let &fillchars      = 'vert:│,fold:-,eob:~,lastline:@'
-let &foldenable     = 0
-let &grepformat     = '%f:%l:%c:%m,%f:%l:%m'
-let &grepprg        = executable('rg') ? 'rg --vimgrep --smart-case $*' : 'git grep $*'
-let &hidden         = 1
-let &hlsearch       = 1
-let &ignorecase     = 1
-let &incsearch      = 1
-let &infercase      = 1
-let &iskeyword      = '@,48-57,_,192-255,-,#'
-let &laststatus     = 2
-let &lazyredraw     = 1
-let &list           = 1
-let &listchars      = 'tab:│⋅,trail:⋅,nbsp:␣'
-let &modeline       = 1
-let &modelines      = 5
-let &mouse          = 'a'
-let &number         = 0
-let &pumheight      = 50
-let &ruler          = 0
-let &scrolloff      = 0
-let &shortmess      = 'filnxtocTOCI'
-let &showmode       = 1
-let &signcolumn     = 'number'
-let &smartcase      = 1
-let &smarttab       = 1
-let &statusline     = ' %f:%l:%c %m%r%h%w%q%y'
-let &swapfile       = 0
-let &t_Co           = 256
-" let &termguicolors  = 0
-let &ttimeout       = 1
-let &ttimeoutlen    = 50
-let &ttyfast        = 1
-let &undofile       = 1
+let &autoindent = 1
+let &autoread = 1
+let &backspace = 'indent,eol,start'
+let &belloff = 'all'
+let &breakindent = 1
+let &clipboard = 'unnamedplus'
+let &complete = '.,w,b,u,t'
+let &completeopt = 'menuone'
+let &cursorline = 0
+let &expandtab = 1
+let &fillchars = 'vert:│,fold:-,eob:~,lastline:@'
+let &foldenable = 0
+let &grepformat = '%f:%l:%c:%m,%f:%l:%m'
+let &grepprg = executable('rg') ? 'rg --vimgrep --smart-case $*' : 'git grep $*'
+let &hidden = 1
+let &hlsearch = 1
+let &ignorecase = 1
+let &incsearch = 1
+let &infercase = 1
+let &iskeyword = '@,48-57,_,192-255,-,#'
+let &laststatus = 2
+let &lazyredraw = 1
+let &list = 1
+let &listchars = 'tab:│⋅,trail:⋅,nbsp:␣'
+let &modeline = 1
+let &modelines = 5
+let &mouse = 'a'
+let &number = 1
+let &pumheight = 50
+let &ruler = 0
+let &scrolloff = 0
+let &shortmess = 'filnxtocTOCI'
+let &showmode = 1
+let &signcolumn = 'number'
+let &smartcase = 1
+let &smarttab = 1
+let &statusline = ' %f:%l:%c %m%r%h%w%q%y %{FugitiveStatusline()}'
+let &swapfile = 0
+let &ttimeout = 1
+let &ttimeoutlen = 50
+let &ttyfast = 1
+let &undofile = 1
 let &wildignorecase = 1
-let &wildmenu       = 1
-let &wrap           = 0
+let &wildmenu = 1
+let &wrap = 0
 
 " disable syntax if file is larger than 10MB (performance improvement)
 augroup LARGEFILE
