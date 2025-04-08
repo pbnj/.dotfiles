@@ -15,7 +15,7 @@ aws_iam_role_previewer() {
   aws iam get-role --profile "${AWS_PROFILE}" --role-name "${IAM_ROLE_NAME}" --output json
 }
 
-aws_launcher() {
+aws_url_generator() {
   AWS_PROFILE="${1:-}"
   IAM_ROLE_JSON="${2:-}"
   IAM_ROLE_NAME="$(jq -rc '.RoleName' <<<"${IAM_ROLE_JSON}")"
@@ -26,14 +26,14 @@ aws_launcher() {
   # Construct SSO Shortcut URL
   AWS_SSO_SHORTCUT_URL="${AWS_SSO_ACCESS_PORTAL_URL}/console?account_id=${AWS_ACCOUNT_ID}&role_name=${AWS_PERMISSION_SET}"
   # URL encode the ARN
-  URLENCODED_ARN="$(printf %s "${IAM_ROLE}" | jq -sRr @uri)"
+  URLENCODED_ARN="$(printf %s "${IAM_ROLE_NAME}" | jq -sRr @uri)"
   # URL encode the destination URL
   URLENCODEDED_DESTINATION="$(printf %s "https://us-east-1.console.aws.amazon.com/iam/home?region=us-west-2#/roles/details/${URLENCODED_ARN}?section=permissions" | jq -sRr @uri)"
   # Print URL and open it in default browser
   echo "${AWS_SSO_SHORTCUT_URL}&destination=${URLENCODEDED_DESTINATION}" | xargs -t open
 }
 
-export -f aws_iam_role_previewer aws_launcher
+export -f aws_iam_role_previewer aws_url_generator
 
 if ! aws sts get-caller-identity --profile "${AWS_PROFILE}" &>/dev/null; then
   aws sso login --profile "${AWS_PROFILE}"
@@ -43,7 +43,7 @@ fzf \
   --bind "alt-a:execute:jq -rc .Arn <<<{} | pbcopy" \
   --bind "alt-n:execute:jq -rc .RoleName <<<{} | pbcopy" \
   --bind "alt-i:execute:jq -rc .RoleId <<<{} | pbcopy" \
-  --bind "ctrl-o:execute:aws_launcher \"${AWS_PROFILE}\" {} " \
+  --bind "ctrl-o:execute:aws_url_generator \"${AWS_PROFILE}\" {}" \
   --bind "ctrl-v:execute:aws_iam_role_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
   --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-roles | jq -rc '.Roles[] | {RoleName, RoleId, Arn}'" \
   --header "CTRL-V: open in vim / CTRL-O: open in browser / ALT-A: copy arn / ALT-N: copy name / ALT-I: copy id" \

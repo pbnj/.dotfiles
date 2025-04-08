@@ -20,6 +20,9 @@ fi
 
 # vim
 export EDITOR=vim
+if test command -v nvim &>/dev/null; then
+  export EDITOR=nvim
+fi
 
 # tfenv
 if [[ -d "${HOME}/.tfenv" ]]; then
