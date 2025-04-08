@@ -21,9 +21,10 @@ aws_s3_previewer() {
 aws_s3_launcher() {
   AWS_PROFILE="${1:-}"
   AWS_S3_BUCKET="${2:-}"
-  AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<${AWS_PROFILE})"
-  AWS_PERMISSION_SET="$(awk -F'/' '{print $3}' <<<${AWS_PROFILE})"
-  AWS_SSO_SHORTCUT_URL="${AWS_SSO_ACCESS_PORTAL_URL}/console?account_id=${AWS_ACCOUNT_ID}&role_name=${AWS_PERMISSION_SET}"
+  AWS_ACCOUNT_ID="$(rg -o '\d{12}' <<<"${AWS_PROFILE}")"
+  AWS_PERMISSION_SET="$(awk -F'/' '{print $3}' <<<"${AWS_PROFILE}")"
+  AWS_SSO_START_URL="$(grep 'sso_start_url' ~/.aws/config | awk -F'=' '{print $2}' | uniq)"
+  AWS_SSO_SHORTCUT_URL="${AWS_SSO_START_URL}/console?account_id=${AWS_ACCOUNT_ID}&role_name=${AWS_PERMISSION_SET}"
   AWS_S3_BUCKET_URLENCODED="$(printf %s "${AWS_S3_BUCKET}" | jq -sRr @uri)"
   AWS_DESTINATION_URLENCODED="$(printf %s "https://s3.console.aws.amazon.com/s3/buckets/${AWS_S3_BUCKET_URLENCODED}?region=us-west-2&tab=permissions" | jq -sRr @uri)"
   echo "${AWS_SSO_SHORTCUT_URL}&destination=${AWS_DESTINATION_URLENCODED}"
@@ -33,13 +34,12 @@ export -f aws_s3_launcher aws_s3_previewer
 
 fzf \
   --bind "start:reload:aws --profile=${AWS_PROFILE} s3api list-buckets | jq -rc '.Buckets[].Name'" \
-  --bind "ctrl-o:execute:aws_s3_launcher ${AWS_PROFILE} {} | xargs -t open" \
   --bind "ctrl-y:execute:aws_s3_launcher ${AWS_PROFILE} {} | pbcopy" \
   --bind "ctrl-v:become:cat <(aws_s3_launcher ${AWS_PROFILE} {}) <(aws_s3_previewer ${AWS_PROFILE} {}) | vim -c 'set ft=yaml' -" \
-  --bind "enter:become:cat <(aws_s3_launcher ${AWS_PROFILE} {}) <(aws_s3_previewer ${AWS_PROFILE} {}) | vim -c 'set ft=yaml' -" \
-  --header "CTRL-O: Open S3 Console in browser / CTRL-Y: Copy S3 Console URL / CTRL-V: Open in Vim" \
+  --bind "enter:become:aws_s3_launcher ${AWS_PROFILE} {}" \
+  --header "ENTER: Open S3 Console in browser | CTRL-Y: Copy S3 Console URL | CTRL-V: Open in Vim" \
   --preview "aws_s3_previewer ${AWS_PROFILE} {} | yq -C" \
   --preview-window "bottom" \
   --prompt "AWS S3 Bucket(s)> " \
   --reverse \
-  --tmux 'center,80%' || true
+  --tmux 'center,80%' | xargs -t open || true
