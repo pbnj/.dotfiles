@@ -19,9 +19,11 @@ fi
 [[ ":${PATH}:" != *":${HOME}/.aws:"* ]] && PATH="${HOME}/.aws:${PATH}"
 
 # vim
-export EDITOR=vim
-if test command -v nvim &>/dev/null; then
+if command -v nvim &>/dev/null
+then
   export EDITOR=nvim
+else
+  export EDITOR=vim
 fi
 
 # tfenv
@@ -44,8 +46,9 @@ fi
 #   $ dockerd-rootless-setuptool.sh install
 [[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
 
-# PROMPT
-# export PS1=']133;A\\\n\$ '
+# # PROMPT
+# # export PS1=']133;A\\\n\$ '
+export PROMPT_COMMAND='printf "\033]133;A\007"'
 export PS1='\n\w\n\$ '
 
 # PATH (must be last)
