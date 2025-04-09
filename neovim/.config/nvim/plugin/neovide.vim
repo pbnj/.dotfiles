@@ -11,3 +11,6 @@ vnoremap <D-v> "+P
 
 let &title = 1
 let &titlestring = '%F'
+
+let g:neovide_opacity = 0.9
+let g:neovide_window_blurred = v:true

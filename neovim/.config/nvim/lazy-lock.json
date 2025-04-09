@@ -1,0 +1,62 @@
+{
+  "fzf-lua": {
+    "branch": "main",
+    "commit": "47b85a25c0c0b2c20b4e75199ed01bb71e7814f5"
+  },
+  "lazy.nvim": {
+    "branch": "main",
+    "commit": "6c3bda4aca61a13a9c63f1c1d1b16b9d3be90d7a"
+  },
+  "lualine.nvim": {
+    "branch": "master",
+    "commit": "1ba400068bc178eb698b96ecfde82db59e7a7b8f"
+  },
+  "nvim-treesitter": {
+    "branch": "master",
+    "commit": "0e21ee8df6235511c02bab4a5b391d18e165a58d"
+  },
+  "nvim-treesitter-textobjects": {
+    "branch": "master",
+    "commit": "698b5f805722254bca3c509591c1806d268b6c2f"
+  },
+  "nvim-web-devicons": {
+    "branch": "master",
+    "commit": "57dfa947cc88cdf1baa2c7e13ed31edddd8fb1d1"
+  },
+  "oil.nvim": {
+    "branch": "master",
+    "commit": "302bbaceeafc690e6419e0c8296e804d60cb9446"
+  },
+  "showkeys": {
+    "branch": "main",
+    "commit": "8daf5abb5fece0c9e1fa2c5679aaf226a80f5c38"
+  },
+  "tokyonight.nvim": {
+    "branch": "main",
+    "commit": "057ef5d260c1931f1dffd0f052c685dcd14100a3"
+  },
+  "vim-fugitive": {
+    "branch": "master",
+    "commit": "4a745ea72fa93bb15dd077109afbb3d1809383f2"
+  },
+  "vim-rhubarb": {
+    "branch": "master",
+    "commit": "386daa2e9d98e23e27ad089afcbe5c5a903e488d"
+  },
+  "vim-rooter": {
+    "branch": "master",
+    "commit": "51402fb77c4d6ae94994e37dc7ca13bec8f4afcc"
+  },
+  "vim-rsi": {
+    "branch": "master",
+    "commit": "45540637ead22f011e8215f1c90142e49d946a54"
+  },
+  "vim-sleuth": {
+    "branch": "master",
+    "commit": "be69bff86754b1aa5adcbb527d7fcd1635a84080"
+  },
+  "vim-unimpaired": {
+    "branch": "master",
+    "commit": "6d44a6dc2ec34607c41ec78acf81657248580bf1"
+  }
+}

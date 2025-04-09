@@ -38,8 +38,6 @@ Plug 'https://github.com/tpope/vim-unimpaired'
 Plug 'https://github.com/junegunn/fzf', { 'dir': '~/.fzf', 'do': { -> fzf#install() } }
 Plug 'https://github.com/junegunn/fzf.vim'
 
-Plug 'https://github.com/folke/tokyonight.nvim'
-
 call plug#end()
 
 filetype plugin indent on

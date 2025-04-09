@@ -27,9 +27,9 @@ command! URLs
 
 command! Projects call fzf#vim#files('~/Projects/')
 
-nnoremap <leader>fp <cmd>Projects<cr>
-nnoremap <leader>ff <cmd>Files<cr>
-nnoremap <leader>ft <cmd>FileTypes<cr>
-nnoremap <leader>fb <cmd>Buffers<cr>
-nnoremap <leader>fu <cmd>URLs<cr>
-nnoremap <leader>fg <cmd>GFiles<cr>
+"nnoremap <leader>fp <cmd>Projects<cr>
+"nnoremap <leader>ff <cmd>Files<cr>
+"nnoremap <leader>ft <cmd>FileTypes<cr>
+"nnoremap <leader>fb <cmd>Buffers<cr>
+"nnoremap <leader>fu <cmd>URLs<cr>
+"nnoremap <leader>fg <cmd>GFiles<cr>
