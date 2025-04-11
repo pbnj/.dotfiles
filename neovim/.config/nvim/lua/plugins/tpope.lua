@@ -4,4 +4,5 @@ return {
   { "https://github.com/tpope/vim-sleuth" },
   { "https://github.com/tpope/vim-unimpaired" },
   { "https://github.com/tpope/vim-surround" },
+  { "https://github.com/tpope/vim-eunuch" },
 }

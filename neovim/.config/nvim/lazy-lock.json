@@ -75,6 +75,10 @@
     "branch": "main",
     "commit": "057ef5d260c1931f1dffd0f052c685dcd14100a3"
   },
+  "vim-eunuch": {
+    "branch": "master",
+    "commit": "e86bb794a1c10a2edac130feb0ea590a00d03f1e"
+  },
   "vim-fugitive": {
     "branch": "master",
     "commit": "4a745ea72fa93bb15dd077109afbb3d1809383f2"
