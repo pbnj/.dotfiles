@@ -1,7 +1,7 @@
 # https://alacritty.org/config-alacritty.html
 [general]
 live_config_reload = true
-import = [ "~/.config/alacritty/tokyo_night.toml" ]
+import = [ "~/.local/share/nvim/plugged/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml" ]
 
 [env]
 TERM = "xterm-256color"
@@ -11,11 +11,12 @@ decorations = "Buttonless"
 dynamic_padding = true
 option_as_alt = "OnlyLeft"
 opacity = 1.0
+blur = false
 
 [font]
-normal = {family = "Iosevka Term", style = "Light"}
-bold = {family = "Iosevka Term", style = "Medium"}
-italic = {family = "Iosevka Term", style = "Light Italic"}
+normal = {family = "FiraCode Nerd Font", style = "Light"}
+bold = {family = "FiraCode Nerd Font", style = "Medium"}
+italic = {family = "FiraCode Nerd Font", style = "Light Italic"}
 size = 13
 
 [selection]
