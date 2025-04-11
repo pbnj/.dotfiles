@@ -223,6 +223,7 @@ return {
         "markdownlint",
         "prettier",
         "prettierd",
+        "ruff",
         "shellcheck",
         "shfmt",
         "snyk",
