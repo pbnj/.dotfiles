@@ -17,6 +17,7 @@ fi
 
 [[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]] && PATH="${HOME}/.local/bin:${PATH}"
 [[ ":${PATH}:" != *":${HOME}/.aws:"* ]] && PATH="${HOME}/.aws:${PATH}"
+[[ ":${PATH}:" != *":${HOME}/.local/share/nvim/mason/bin:"* ]] && PATH="${HOME}/.local/share/nvim/mason/bin:${PATH}"
 
 # vim
 if command -v nvim &>/dev/null

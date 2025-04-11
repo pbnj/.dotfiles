@@ -11,7 +11,7 @@ alias mv='mv -i'
 alias rm='rm -i'
 
 # vim
-alias nv=nvim
+command -v nvim &>/dev/null && alias vim=nvim
 alias vi="vim --clean"
 alias vg="vim +0G"
 
