@@ -7,7 +7,6 @@ return {
     },
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
-      gitcommit = { "commitmsgfmt" },
       go = { "goimports", "golangci-lint" },
       json = { "jq" },
       lua = { "stylua" },
