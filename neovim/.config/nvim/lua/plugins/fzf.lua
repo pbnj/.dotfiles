@@ -26,6 +26,13 @@ return {
       desc = "Fuzzy Buffers",
     },
     {
+      "<leader>fr",
+      function()
+        require("fzf-lua").resume()
+      end,
+      desc = "Fuzzy Resume",
+    },
+    {
       "<leader>fp",
       function()
         require("fzf-lua").files({ cwd = "~/Projects" })
