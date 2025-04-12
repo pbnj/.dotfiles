@@ -12,9 +12,16 @@ return {
       desc = "Fuzzy Files",
     },
     {
-      "<leader>fg",
+      "<leader>f/",
       function()
         require("fzf-lua").live_grep()
+      end,
+      desc = "Fuzzy Grep",
+    },
+    {
+      "<leader>f:",
+      function()
+        require("fzf-lua").command_history()
       end,
       desc = "Fuzzy Grep",
     },
