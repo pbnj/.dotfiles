@@ -20,6 +20,13 @@ return {
     },
     sources = {
       default = { "lsp", "path", "snippets", "buffer" },
+      providers = {
+        buffer = {
+          opts = {
+            get_bufnrs = vim.api.nvim_list_bufs,
+          },
+        },
+      },
     },
   },
   opts_extend = { "sources.default" },

@@ -15,7 +15,7 @@ return {
         if vim.wo.diff then
           vim.cmd.normal({ "]c", bang = true })
         else
-          gitsigns.nav_hunk("next")
+          gitsigns.nav_hunk("next", { preview = true })
         end
       end)
 
@@ -23,7 +23,7 @@ return {
         if vim.wo.diff then
           vim.cmd.normal({ "[c", bang = true })
         else
-          gitsigns.nav_hunk("prev")
+          gitsigns.nav_hunk("prev", { preview = true })
         end
       end)
 

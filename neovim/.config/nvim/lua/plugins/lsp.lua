@@ -218,6 +218,7 @@ return {
       vim.list_extend(ensure_installed, {
         "doctoc",
         "editorconfig-checker",
+        "gh",
         "gitleaks",
         "goimports",
         "jq",

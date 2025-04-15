@@ -8,12 +8,19 @@ return {
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
-      json = { "jq" },
+      json = { "prettierd", "jq", stop_after_first = true },
       lua = { "stylua" },
-      markdown = { "markdownlint", "doctoc", "prettierd" },
+      markdown = { "markdownlint", "doctoc_update", "prettierd" },
       python = { "ruff_fix" },
-      rust = { "rustfmt", lsp_format = "fallback" },
+      rust = { "rustfmt" },
       terraform = { "terraform_fmt" },
+    },
+    formatters = {
+      doctoc_update = {
+        command = "doctoc",
+        args = { "--update-only", "$FILENAME" },
+        stdin = false,
+      },
     },
   },
 }

@@ -1,5 +1,5 @@
 return {
-  "stevearc/oil.nvim",
+  "https://github.com/stevearc/oil.nvim",
   ---@module 'oil'
   ---@type oil.SetupOpts
   opts = {
@@ -8,6 +8,12 @@ return {
   dependencies = { "nvim-tree/nvim-web-devicons" }, -- use if you prefer nvim-web-devicons
   lazy = false,
   keys = {
-    { "-", "<cmd>Oil --float<cr>", { desc = "Open parent directory in Oil" } },
+    {
+      "-",
+      function()
+        require("oil").open()
+      end,
+      { desc = "Open parent directory in Oil" },
+    },
   },
 }
