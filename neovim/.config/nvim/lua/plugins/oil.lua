@@ -1,7 +1,6 @@
 return {
   "https://github.com/stevearc/oil.nvim",
-  ---@module 'oil'
-  ---@type oil.SetupOpts
+  enabled = false,
   opts = {
     view_options = { show_hidden = true },
   },
