@@ -14,10 +14,11 @@ opacity = 1.0
 blur = false
 
 [font]
-normal = {family = "FiraCode Nerd Font", style = "Light"}
-bold = {family = "FiraCode Nerd Font", style = "Medium"}
-italic = {family = "FiraCode Nerd Font", style = "Light Italic"}
-size = 13
+size = 15
+
+normal = {family = "JetBrainsMono Nerd Font", style = "Light"}
+bold = {family = "JetBrainsMono Nerd Font", style = "Medium"}
+italic = {family = "JetBrainsMono Nerd Font", style = "Light Italic"}
 
 [selection]
 save_to_clipboard = true
