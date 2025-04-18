@@ -1,20 +1,12 @@
 return {
   {
-    "folke/lazydev.nvim",
-    ft = "lua",
-    opts = {
-      library = {
-        { path = "${3rd}/luv/library", words = { "vim%.uv" } },
-      },
-    },
-  },
-  {
-    "neovim/nvim-lspconfig",
+    "https://github.com/neovim/nvim-lspconfig",
+    event = "VeryLazy",
     dependencies = {
-      { "williamboman/mason.nvim", opts = {} },
-      "williamboman/mason-lspconfig.nvim",
-      "WhoIsSethDaniel/mason-tool-installer.nvim",
-      { "j-hui/fidget.nvim", opts = {} },
+      { "https://github.com/williamboman/mason.nvim", opts = {} },
+      "https://github.com/williamboman/mason-lspconfig.nvim",
+      "https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim",
+      { "https://github.com/j-hui/fidget.nvim", enabled = false, opts = {} },
     },
     config = function()
       -- Brief aside: **What is LSP?**
@@ -159,8 +151,8 @@ return {
       vim.diagnostic.config({
         severity_sort = true,
         float = { border = "rounded", source = "if_many" },
-        underline = { severity = vim.diagnostic.severity.ERROR },
-        virtual_text = { current_line = true },
+        underline = true,
+        virtual_lines = { current_line = true },
         signs = {
           text = {
             [vim.diagnostic.severity.ERROR] = "󰅚",
@@ -169,13 +161,18 @@ return {
             [vim.diagnostic.severity.HINT] = "󰌶",
           },
         },
+        loclist = {
+          open = false,
+          severity = { min = vim.diagnostic.severity.INFO },
+        },
       })
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
       --  When you add nvim-cmp, luasnip, etc. Neovim now has *more* capabilities.
       --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
+      -- local capabilities = vim.lsp.protocol.make_client_capabilities()
+      local capabilities = require("blink.cmp").get_lsp_capabilities()
       -- capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
 
       -- Enable the following language servers
@@ -196,6 +193,14 @@ return {
         lua_ls = {},
         pyright = {},
         rust_analyzer = {},
+        snyk_ls = {
+          settings = {},
+          init_options = {
+            organization = vim.env.SNYK_ORG,
+            token = vim.env.SNYK_TOKEN,
+            enableTrustedFoldersFeature = "false",
+          },
+        },
         terraformls = {},
         tflint = {},
         yamlls = {},
@@ -233,11 +238,13 @@ return {
         "tflint",
         "trivy",
       })
-      require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
-
+      require("mason-tool-installer").setup({
+        ensure_installed = ensure_installed,
+        run_on_start = true,
+      })
       require("mason-lspconfig").setup({
-        ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-        automatic_installation = false,
+        ensure_installed = {},
+        automatic_installation = true,
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}

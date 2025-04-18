@@ -4,28 +4,10 @@ return {
   opts = {
     keymap = {
       builtin = {
-        ["ctrl-j"] = "preview-down",
-        ["ctrl-k"] = "preview-up",
-        ["ctrl-d"] = "preview-half-page-down",
-        ["ctrl-u"] = "preview-half-page-up",
-      },
-      fzf = {
-        ["ctrl-j"] = "preview-down",
-        ["ctrl-k"] = "preview-up",
-        ["ctrl-d"] = "preview-half-page-down",
-        ["ctrl-u"] = "preview-half-page-up",
-      },
-      files = {
-        ["ctrl-j"] = "preview-down",
-        ["ctrl-k"] = "preview-up",
-        ["ctrl-d"] = "preview-half-page-down",
-        ["ctrl-u"] = "preview-half-page-up",
-      },
-      oldfiles = {
-        ["ctrl-j"] = "preview-down",
-        ["ctrl-k"] = "preview-up",
-        ["ctrl-d"] = "preview-half-page-down",
-        ["ctrl-u"] = "preview-half-page-up",
+        ["<c-j>"] = "preview-down",
+        ["<c-k>"] = "preview-up",
+        ["<c-d>"] = "preview-half-page-down",
+        ["<c-u>"] = "preview-half-page-up",
       },
     },
   },
@@ -39,7 +21,7 @@ return {
       desc = "Fuzzy Grep",
     },
     {
-      "<leader>:",
+      "<leader>;",
       function()
         require("fzf-lua").command_history()
       end,
@@ -99,8 +81,16 @@ return {
       function()
         require("fzf-lua").grep_visual()
       end,
-      "v",
+      mode = "v",
       desc = "Fuzzy Grep Visual Selection",
+    },
+    {
+      "<leader>fh",
+      function()
+        require("fzf-lua").help_tags({ query = require("fzf-lua.utils").get_visual_selection() })
+      end,
+      mode = "v",
+      desc = "Fuzzy Help Visual Selection",
     },
   },
 }

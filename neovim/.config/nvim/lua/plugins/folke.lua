@@ -1,24 +1,42 @@
 return {
   {
+    "https://github.com/folke/trouble.nvim",
+    opts = {},
+    cmd = "Trouble",
+    keys = {
+      {
+        "<leader>xx",
+        function()
+          require("trouble").toggle({ mode = "diagnostics" })
+        end,
+        desc = "Toggle Diagnostics (Trouble)",
+      },
+      {
+        "]x",
+        function()
+          require("trouble").next({ mode = "diagnostics", jump = true })
+        end,
+        desc = "Next Diagnostics (Trouble)",
+      },
+      {
+        "[x",
+        function()
+          require("trouble").prev({ mode = "diagnostics", jump = true })
+        end,
+        desc = "Previous Diagnostics (Trouble)",
+      },
+    },
+  },
+  {
     "https://github.com/folke/snacks.nvim",
-    priority = 1000,
+    enabled = false,
     lazy = false,
+    priority = 1000,
     opts = {
       bigfile = { enabled = true },
-      dashboard = { enabled = true },
-      ---@class snacks.explorer.Config
-      explorer = {
-        enabled = true,
-      },
       indent = { enabled = true },
-      input = { enabled = true },
-      picker = { enabled = true },
-      notifier = { enabled = true },
-      quickfile = { enabled = true },
       scope = { enabled = true },
       scroll = { enabled = true },
-      statuscolumn = { enabled = true },
-      words = { enabled = true },
     },
   },
   {
@@ -29,5 +47,11 @@ return {
     config = function()
       vim.cmd([[colorscheme tokyonight]])
     end,
+  },
+  {
+    "https://github.com/folke/todo-comments.nvim",
+    event = "VeryLazy",
+    dependencies = { "https://github.com/nvim-lua/plenary.nvim" },
+    opts = {},
   },
 }

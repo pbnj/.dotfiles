@@ -2,29 +2,12 @@ if exists('g:loaded_aws') | finish | endif
 let g:loaded_aws = 1
 
 if has('nvim')
-  command! -nargs=? -complete=customlist,s:aws_profile_completion AWSConsole terminal fzf-aws-console <args>
-  command! AWSLogin terminal aws sso login
+  "command! -nargs=? -complete=customlist,s:aws_profile_completion AWSConsole terminal fzf-aws-console <args>
+  "command! AWSLogin terminal aws sso login
 else
   command! -nargs=? -complete=customlist,s:aws_profile_completion AWSConsole terminal ++hidden ++close fzf-aws-console <args>
   command! AWSLogin terminal ++close aws sso login
 endif
-
-function! s:amazon_q(args, line_start, line_end, count, mods) range
-  let cmd = 'terminal q chat'
-  let args = [a:args]->filter('v:val != ""')
-  let formatted_string = ''
-  if !empty(args)
-    if a:count > -1
-      let lines = getline(a:line_start, a:line_end)
-      call add(args, ":")
-      call add(args, lines)
-    endif
-    let formatted_string = flatten(args)->join(' ')->escape('"')->escape('%')->escape('#')
-    let cmd = printf(cmd .. ' "%s"', formatted_string)
-  endif
-  exe a:mods .. ' ' .. cmd
-endfunction
-command! -nargs=? -range -complete=file_in_path Q call s:amazon_q(<q-args>, <line1>, <line2>, <count>, <q-mods>)
 
 " Completion for AWS
 function! s:aws_completion(A,L,P) abort

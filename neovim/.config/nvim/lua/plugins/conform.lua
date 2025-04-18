@@ -1,5 +1,6 @@
 return {
   "https://github.com/stevearc/conform.nvim",
+  event = "VeryLazy",
   opts = {
     format_on_save = {
       timeout_ms = 500,

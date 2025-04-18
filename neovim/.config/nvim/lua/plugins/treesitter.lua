@@ -1,10 +1,11 @@
 return {
   {
-    "nvim-treesitter/nvim-treesitter",
+    "https://github.com/nvim-treesitter/nvim-treesitter",
+    event = "VeryLazy",
     build = ":TSUpdate",
-    config = function ()
+    dependencies = { "https://github.com/nvim-treesitter/nvim-treesitter-textobjects" },
+    config = function()
       local configs = require("nvim-treesitter.configs")
-
       configs.setup({
         ensure_installed = {
           "awk",
@@ -19,7 +20,10 @@ return {
           "gitattributes",
           "gitcommit",
           "gitignore",
-          "go", "gomod", "gosum", "gotmpl",
+          "go",
+          "gomod",
+          "gosum",
+          "gotmpl",
           "graphql",
           "hcl",
           "http",
@@ -31,7 +35,9 @@ return {
           "mermaid",
           "python",
           "query",
-          "rust", "regex", "requirements",
+          "rust",
+          "regex",
+          "requirements",
           "terraform",
           "toml",
           "tsv",
@@ -43,7 +49,6 @@ return {
         highlight = { enable = true },
         indent = { enable = true },
       })
-    end
+    end,
   },
-  {"https://github.com/nvim-treesitter/nvim-treesitter-textobjects"}
 }
