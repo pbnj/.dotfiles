@@ -12,7 +12,7 @@ return {
       },
     },
   },
-  -- event = "VeryLazy",
+  event = "VeryLazy",
   opts = {
     keymap = { preset = "default" },
     signature = { enabled = true },
