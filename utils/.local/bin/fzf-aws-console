@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
-[[ "${DEBUG:-}" == "true" ]] && set -x
+[[ -n "${DEBUG:-}" ]] && set -x
 
 AWS_SSO_START_URL="$(grep 'sso_start_url' ~/.aws/config | awk -F'=' '{print $2}' | uniq)"
 

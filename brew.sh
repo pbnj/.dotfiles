@@ -33,26 +33,27 @@ brew install vim
 
 # language/framework specific utilities
 
-brew install gitleaks                         # secret scanner
-brew install hadolint                         # docker linter
-brew install helm                             # cli for helm
-brew install jq                               # cli processor for json
-brew install kubernetes-cli                   # cli for k8s
-brew install markdownlint-cli
-brew install nmap                             # network mapper
-brew install pandoc                           # universal document processor
-brew install prettier
-brew install ripgrep                          # better grep
-brew install shellcheck                       # shell/bash linter
-brew install shfmt                            # shell/bash formatter
-brew install slides                           # terminal presentation tool
-brew install snyk                             # security scanner
-brew install stow                             # symlink farm manager
-brew install tfenv                            # terraform version manager
-brew install tflint                           # terraform linter
-brew install tmux                             # terminal multiplexer
-brew install trivy                            # security scanner
-brew install trufflehog                       # secret scanner
+brew install gitleaks         # secret scanner
+brew install hadolint         # docker linter
+brew install helm             # cli for helm
+brew install jq               # cli processor for json
+brew install kubernetes-cli   # cli for k8s
+brew install markdownlint-cli # markdown linter
+brew install mako             # markdown linter
+brew install nmap             # network mapper
+brew install pandoc           # universal document processor
+brew install prettier         # formatter
+brew install ripgrep          # better grep
+brew install shellcheck       # shell/bash linter
+brew install shfmt            # shell/bash formatter
+brew install slides           # terminal presentation tool
+brew install snyk             # security scanner
+brew install stow             # symlink farm manager
+brew install tfenv            # terraform version manager
+brew install tflint           # terraform linter
+brew install tmux             # terminal multiplexer
+brew install trivy            # security scanner
+brew install trufflehog       # secret scanner
 
 # extras
 
