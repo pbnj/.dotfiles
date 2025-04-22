@@ -5,8 +5,14 @@ return {
     build = ":TSUpdate",
     dependencies = { "https://github.com/nvim-treesitter/nvim-treesitter-textobjects" },
     config = function()
-      local configs = require("nvim-treesitter.configs")
-      configs.setup({
+      require("nvim-treesitter.configs").setup({
+        auto_install = true,
+        highlight = { enable = true },
+        ignore_install = {},
+        indent = { enable = true },
+        modules = {},
+        sync_install = false,
+        textobjects = { enable = true },
         ensure_installed = {
           "awk",
           "bash",
@@ -45,9 +51,6 @@ return {
           "vimdoc",
           "yaml",
         },
-        sync_install = false,
-        highlight = { enable = true },
-        indent = { enable = true },
       })
     end,
   },

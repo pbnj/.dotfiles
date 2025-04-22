@@ -54,11 +54,15 @@ return {
         bashls = {},
         docker_compose_language_service = {},
         dockerls = {},
+        -- gh_actions_ls = {},
         gopls = {},
         jsonls = {},
         lua_ls = {},
         pyright = {},
         rust_analyzer = {},
+        terraformls = {},
+        tflint = {},
+        yamlls = {},
         snyk_ls = {
           settings = {},
           init_options = {
@@ -67,9 +71,6 @@ return {
             enableTrustedFoldersFeature = "false",
           },
         },
-        terraformls = {},
-        tflint = {},
-        yamlls = {},
       }
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
@@ -89,6 +90,7 @@ return {
         "stylua",
         "tflint",
         "trivy",
+        "yq",
       })
       require("mason-tool-installer").setup({
         ensure_installed = ensure_installed,
