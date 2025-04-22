@@ -1,9 +1,9 @@
 return {
   "https://github.com/stevearc/oil.nvim",
+  dependencies = { "https://github.com/echasnovski/mini.nvim" },
   opts = {
     view_options = { show_hidden = true },
   },
-  dependencies = { "nvim-tree/nvim-web-devicons" }, -- use if you prefer nvim-web-devicons
   lazy = false,
   keys = {
     {

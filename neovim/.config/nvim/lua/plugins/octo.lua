@@ -3,7 +3,7 @@ return {
   cmd = "Octo",
   dependencies = {
     "https://github.com/ibhagwan/fzf-lua",
-    "https://github.com/nvim-tree/nvim-web-devicons",
+    "https://github.com/echasnovski/mini.nvim",
   },
   opts = {
     picker = "fzf-lua",

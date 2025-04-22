@@ -1,6 +1,6 @@
 return {
   "https://github.com/ibhagwan/fzf-lua",
-  dependencies = { "https://github.com/nvim-tree/nvim-web-devicons" },
+  dependencies = { "https://github.com/echasnovski/mini.nvim" },
   opts = {
     keymap = {
       builtin = {
