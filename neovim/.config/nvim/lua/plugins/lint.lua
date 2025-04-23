@@ -11,7 +11,7 @@ return {
       rego = { "opa_check" },
       rust = { "clippy" },
       shell = { "shellcheck" },
-      terraform = { "snyk_iac" },
+      terraform = { "snyk_iac", "tflint" },
       yaml = { "yamllint" },
     }
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {

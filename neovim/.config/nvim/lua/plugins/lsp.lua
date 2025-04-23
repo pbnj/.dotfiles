@@ -54,7 +54,6 @@ return {
         bashls = {},
         docker_compose_language_service = {},
         dockerls = {},
-        -- gh_actions_ls = {},
         gopls = {},
         jsonls = {},
         lua_ls = {},
@@ -63,14 +62,6 @@ return {
         terraformls = {},
         tflint = {},
         yamlls = {},
-        -- snyk_ls = {
-        --   settings = {},
-        --   init_options = {
-        --     organization = vim.env.SNYK_ORG,
-        --     token = vim.env.SNYK_TOKEN,
-        --     enableTrustedFoldersFeature = "false",
-        --   },
-        -- },
       }
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
