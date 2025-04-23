@@ -15,12 +15,19 @@ if vim.g.neovide then
   -- zoom font
   vim.g.neovide_scale_factor = 1.0
   local change_scale_factor = function(delta)
-    vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * delta
+    if delta == 0 then
+      vim.g.neovide_scale_factor = 1.0
+    else
+      vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * delta
+    end
   end
-  vim.keymap.set("n", "<C-=>", function()
+  vim.keymap.set("n", "<D-=>", function()
     change_scale_factor(1.25)
   end)
-  vim.keymap.set("n", "<C-->", function()
+  vim.keymap.set("n", "<D-->", function()
     change_scale_factor(1 / 1.25)
+  end)
+  vim.keymap.set("n", "<D-0>", function()
+    change_scale_factor(0)
   end)
 end
