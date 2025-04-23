@@ -7,12 +7,15 @@ if vim.g.neovide then
   vim.keymap.set("v", "<D-v>", '"+P') -- Paste visual mode
   vim.keymap.set("c", "<D-v>", "<C-R>+") -- Paste command mode
   vim.keymap.set("i", "<D-v>", "<C-R>+") -- Paste insert mode
+  vim.keymap.set("t", "<D-v>", [[<C-\><C-N>"+pi]]) -- Paste insert mode
 
-  -- transparency
+  -- options
+  vim.g.neovide_input_macos_option_key_is_meta = "only_left"
   vim.g.neovide_opacity = 0.9
+  -- opacity/transparency
   vim.g.neovide_window_blurred = true
 
-  -- zoom font
+  -- font scale
   vim.g.neovide_scale_factor = 1.0
   local change_scale_factor = function(delta)
     if delta == 0 then
