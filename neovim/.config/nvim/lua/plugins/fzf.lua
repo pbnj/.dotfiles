@@ -92,5 +92,12 @@ return {
       mode = "v",
       desc = "Fuzzy Help Visual Selection",
     },
+    {
+      "<leader>fd",
+      function()
+        require("fzf-lua").files({ cwd = vim.fn.stdpath("config") })
+      end,
+      desc = "Fuzzy Dotfiles",
+    },
   },
 }
