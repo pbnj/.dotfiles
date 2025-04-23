@@ -20,6 +20,8 @@ return {
         local bufname = vim.api.nvim_buf_get_name(bufnr)
         if bufname:match("/.github/workflows/") then
           return { "pin_github_action", "prettierd" }
+        elseif bufname:match(".snyk") then
+          return {}
         else
           return { "prettierd" }
         end
