@@ -15,6 +15,7 @@ vim.opt.hidden = true
 vim.opt.hlsearch = true
 vim.opt.ignorecase = true
 vim.opt.incsearch = true
+vim.opt.inccommand = "split"
 vim.opt.infercase = true
 vim.opt.iskeyword = "@,48-57,_,192-255,-,#"
 vim.opt.laststatus = 2

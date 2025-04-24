@@ -7,7 +7,6 @@ return {
       { "https://github.com/williamboman/mason.nvim", opts = {} },
       "https://github.com/williamboman/mason-lspconfig.nvim",
       "https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim",
-      { "https://github.com/j-hui/fidget.nvim", enabled = false, opts = {} },
     },
     config = function()
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -23,13 +22,12 @@ return {
           map("<leader>gr", require("fzf-lua").lsp_references, "Goto References")
           map("<leader>gi", require("fzf-lua").lsp_implementations, "Goto Implementation")
           map("<leader>gd", require("fzf-lua").lsp_definitions, "Goto Definition")
-          map("<leader>gD", vim.lsp.buf.declaration, "Goto Declaration")
+          map("<leader>gD", require("fzf-lua").lsp_declarations, "Goto Declaration")
           map("<leader>gO", require("fzf-lua").lsp_document_symbols, "Open Document Symbols")
           map("<leader>gW", require("fzf-lua").lsp_live_workspace_symbols, "Open Workspace Symbols")
           map("<leader>gt", require("fzf-lua").lsp_typedefs, "Goto Type Definition")
         end,
       })
-
       vim.diagnostic.config({
         severity_sort = true,
         float = { border = "rounded", source = "if_many" },

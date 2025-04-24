@@ -5,7 +5,6 @@ return {
     lint.linters_by_ft = {
       dockerfile = { "hadolint" },
       go = { "golangcilint" },
-      json = { "jsonlint" },
       markdown = { "markdownlint" },
       python = { "ruff", "mypy" },
       rego = { "opa_check" },

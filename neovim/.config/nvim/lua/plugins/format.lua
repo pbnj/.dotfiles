@@ -10,7 +10,7 @@ return {
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
-      json = { "prettierd", "jq", stop_after_first = true },
+      json = { "jq" },
       lua = { "stylua" },
       markdown = { "markdownlint", "doctoc_update", "prettierd" },
       python = { "ruff_fix" },
