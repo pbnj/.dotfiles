@@ -26,6 +26,19 @@ require("lazy").setup({
   install = { colorscheme = { "tokyonight" } },
   checker = { enabled = true },
   change_detection = { enabled = false },
+  performance = {
+    rtp = {
+      disabled_plugins = {
+        "gzip",
+        "netrw",
+        "netrwPlugin",
+        "tarPlugin",
+        "tohtml",
+        "tutor",
+        "zipPlugin",
+      },
+    },
+  },
 })
 
 require("config/keymaps")

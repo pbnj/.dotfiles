@@ -1,7 +1,6 @@
-local Terminal = require("toggleterm.terminal").Terminal
-
 -- Function to handle Amazon Q command
 local function amazon_q(args, line_start, line_end, count)
+  local Terminal = require("toggleterm.terminal").Terminal
   local cmd = "q chat"
   local arg_list = {}
   local formatted_string = ""
@@ -42,6 +41,7 @@ end, {
 
 -- Register the AWS command
 vim.api.nvim_create_user_command("AWS", function(opts)
+  local Terminal = require("toggleterm.terminal").Terminal
   local cmd = string.format("awe --no-cli-pager --cli-auto-prompt %s", opts.args)
   Terminal:new({ cmd = cmd, close_on_exit = false }):toggle()
 end, {
@@ -61,6 +61,7 @@ end
 
 -- Register the AWSProfile command
 vim.api.nvim_create_user_command("AWSProfile", function(opts)
+  local Terminal = require("toggleterm.terminal").Terminal
   local cmd = string.format("awe --no-cli-pager --cli-auto-prompt --profile=%s", opts.args)
   Terminal:new({ cmd = cmd, close_on_exit = false }):toggle()
 end, {
