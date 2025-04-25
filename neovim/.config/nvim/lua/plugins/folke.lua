@@ -29,14 +29,16 @@ return {
   },
   {
     "https://github.com/folke/snacks.nvim",
-    enabled = false,
     lazy = false,
     priority = 1000,
     opts = {
       bigfile = { enabled = true },
       indent = { enabled = true },
+      notifier = { enabled = true },
+      notify = { enabled = true },
       scope = { enabled = true },
       scroll = { enabled = true },
+      ui_select = { enabled = true },
     },
   },
   {

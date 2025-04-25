@@ -3,6 +3,7 @@ return {
     "https://github.com/neovim/nvim-lspconfig",
     event = "VeryLazy",
     dependencies = {
+      "https://github.com/folke/snacks.nvim",
       "https://github.com/saghen/blink.cmp",
       { "https://github.com/williamboman/mason.nvim", opts = {} },
       "https://github.com/williamboman/mason-lspconfig.nvim",
@@ -26,6 +27,19 @@ return {
           map("<leader>gO", require("fzf-lua").lsp_document_symbols, "Open Document Symbols")
           map("<leader>gW", require("fzf-lua").lsp_live_workspace_symbols, "Open Workspace Symbols")
           map("<leader>gt", require("fzf-lua").lsp_typedefs, "Goto Type Definition")
+        end,
+      })
+      vim.api.nvim_create_autocmd("LspProgress", {
+        ---@param ev {data: {client_id: integer, params: lsp.ProgressParams}}
+        callback = function(ev)
+          local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+          vim.notify(vim.lsp.status(), "info", {
+            id = "lsp_progress",
+            title = "LSP Progress",
+            opts = function(notif)
+              notif.icon = ev.data.params.value.kind == "end" and " " or spinner[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #spinner + 1]
+            end,
+          })
         end,
       })
       vim.diagnostic.config({
@@ -56,7 +70,17 @@ return {
         jsonls = {},
         lua_ls = {},
         pyright = {},
+        regal = {},
         rust_analyzer = {},
+        snyk_ls = {
+          filetypes = { "toml" },
+          settings = {},
+          init_options = {
+            organization = vim.env.SNYK_ORG,
+            token = vim.env.SNYK_TOKEN,
+            enableTrustedFoldersFeature = "false",
+          },
+        },
         terraformls = {},
         tflint = {},
         yamlls = {},
@@ -70,6 +94,7 @@ return {
         "goimports",
         "jq",
         "markdownlint",
+        "opa",
         "prettier",
         "prettierd",
         "ruff",

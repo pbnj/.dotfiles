@@ -6,11 +6,11 @@ return {
       dockerfile = { "hadolint" },
       go = { "golangcilint" },
       markdown = { "markdownlint" },
-      python = { "ruff", "mypy" },
+      python = { "ruff" },
       rego = { "opa_check" },
       rust = { "clippy" },
       shell = { "shellcheck" },
-      terraform = { "snyk_iac", "tflint" },
+      terraform = { "tflint" },
       yaml = { "yamllint" },
     }
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
