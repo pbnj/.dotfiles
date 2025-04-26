@@ -63,7 +63,6 @@ return {
 
       local capabilities = require("blink.cmp").get_lsp_capabilities()
       local servers = {
-        bashls = {},
         docker_compose_language_service = {},
         dockerls = {},
         gopls = {},
@@ -73,7 +72,7 @@ return {
         regal = {},
         rust_analyzer = {},
         snyk_ls = {
-          filetypes = { "toml" },
+          filetypes = { "go", "gomod", "gowork", "helm", "javascript", "json", "python", "requirements", "terraform", "terraform-vars", "toml", "typescript", "yaml" },
           settings = {},
           init_options = {
             organization = vim.env.SNYK_ORG,

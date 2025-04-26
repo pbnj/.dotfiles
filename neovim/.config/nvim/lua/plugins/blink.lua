@@ -14,7 +14,7 @@ return {
   },
   event = "InsertEnter",
   opts = {
-    keymap = { preset = "default" },
+    keymap = { preset = "super-tab" },
     signature = { enabled = true },
     fuzzy = { implementation = "prefer_rust_with_warning" },
     cmdline = {
