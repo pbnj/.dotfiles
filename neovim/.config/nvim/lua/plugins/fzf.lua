@@ -14,6 +14,18 @@ return {
   cmd = { "FzfLua" },
   keys = {
     {
+      "<leader>fdw",
+      function()
+        require("fzf-lua").diagnostics_workspace()
+      end,
+      desc = "Fuzzy diagnostics",
+    },
+    {
+      "<leader><space>",
+      [[<cmd>FzfLua<cr>]],
+      desc = "FZF",
+    },
+    {
       "<leader>/",
       function()
         require("fzf-lua").live_grep()
@@ -93,7 +105,7 @@ return {
       desc = "Fuzzy Help Visual Selection",
     },
     {
-      "<leader>fd",
+      "<leader>f.",
       function()
         require("fzf-lua").files({ cwd = vim.fn.stdpath("config") })
       end,
