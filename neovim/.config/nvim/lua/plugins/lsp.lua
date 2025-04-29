@@ -17,23 +17,24 @@ return {
             mode = mode or "n"
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = "LSP: " .. desc })
           end
-
-          map("<leader>rn", vim.lsp.buf.rename, "Rename")
-          map("<leader>ca", vim.lsp.buf.code_action, "Code Action", { "n", "x" })
-          map("<leader>gr", require("fzf-lua").lsp_references, "Goto References")
-          map("<leader>gi", require("fzf-lua").lsp_implementations, "Goto Implementation")
-          map("<leader>gd", require("fzf-lua").lsp_definitions, "Goto Definition")
-          map("<leader>gD", require("fzf-lua").lsp_declarations, "Goto Declaration")
-          map("<leader>gO", require("fzf-lua").lsp_document_symbols, "Open Document Symbols")
-          map("<leader>gW", require("fzf-lua").lsp_live_workspace_symbols, "Open Workspace Symbols")
-          map("<leader>gt", require("fzf-lua").lsp_typedefs, "Goto Type Definition")
+          map("gra", vim.lsp.buf.code_action, "Code Actions")
+          map("grD", vim.lsp.buf.declaration, "Goto Declaration")
+          map("grd", vim.lsp.buf.definition, "Goto Definition")
+          map("grf", vim.lsp.buf.format, "Format")
+          map("gri", vim.lsp.buf.implementation, "Goto Implemention")
+          map("grn", vim.lsp.buf.rename, "Rename")
+          map("grs", vim.lsp.buf.document_symbol, "Goto Document Symbol")
+          map("grS", vim.lsp.buf.workspace_symbol, "Goto Workspace Symbol")
+          map("grr", vim.lsp.buf.references, "Goto References")
+          map("grt", vim.lsp.buf.type_definition, "Goto Type Definition")
+          map("<c-s>", vim.lsp.buf.signature_help, "Goto Type Definition", "i")
         end,
       })
       vim.api.nvim_create_autocmd("LspProgress", {
         ---@param ev {data: {client_id: integer, params: lsp.ProgressParams}}
         callback = function(ev)
           local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-          vim.notify(vim.lsp.status(), "info", {
+          vim.notify(vim.lsp.status(), vim.log.levels.INFO, {
             id = "lsp_progress",
             title = "LSP Progress",
             opts = function(notif)
@@ -75,9 +76,13 @@ return {
           filetypes = { "go", "gomod", "gowork", "helm", "javascript", "json", "python", "requirements", "terraform", "terraform-vars", "toml", "typescript", "yaml" },
           settings = {},
           init_options = {
+            activateSnykCode = "true",
+            activateSnykIac = "true",
+            activateSnykOpenSource = "true",
+            additionalParams = "--all-projects",
+            enableTrustedFoldersFeature = "false",
             organization = vim.env.SNYK_ORG,
             token = vim.env.SNYK_TOKEN,
-            enableTrustedFoldersFeature = "false",
           },
         },
         terraformls = {},

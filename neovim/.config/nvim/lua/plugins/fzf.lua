@@ -14,15 +14,10 @@ return {
   cmd = { "FzfLua" },
   keys = {
     {
-      "<leader>fdw",
-      function()
-        require("fzf-lua").diagnostics_workspace()
-      end,
-      desc = "Fuzzy diagnostics",
-    },
-    {
       "<leader><space>",
-      [[<cmd>FzfLua<cr>]],
+      function()
+        require("fzf-lua").builtin()
+      end,
       desc = "FZF",
     },
     {
@@ -37,7 +32,21 @@ return {
       function()
         require("fzf-lua").command_history()
       end,
-      desc = "Fuzzy Grep",
+      desc = "Fuzzy Command History",
+    },
+    {
+      "<leader>:",
+      function()
+        require("fzf-lua").commands()
+      end,
+      desc = "Fuzzy Commands",
+    },
+    {
+      "<leader>.",
+      function()
+        require("fzf-lua").files({ cwd = vim.fn.stdpath("config") })
+      end,
+      desc = "Fuzzy Dotfiles",
     },
     {
       "<leader>fb",
@@ -47,11 +56,46 @@ return {
       desc = "Fuzzy Buffers",
     },
     {
+      "<leader>fdd",
+      function()
+        require("fzf-lua").diagnostics_document()
+      end,
+      desc = "Fuzzy Diagnostics (Document)",
+    },
+    {
+      "<leader>fdw",
+      function()
+        require("fzf-lua").diagnostics_workspace()
+      end,
+      desc = "Fuzzy Diagnostics (Workspace)",
+    },
+    {
       "<leader>ff",
       function()
         require("fzf-lua").files()
       end,
       desc = "Fuzzy Files",
+    },
+    {
+      "<leader>fgg",
+      function()
+        require("fzf-lua").git_files()
+      end,
+      desc = "Fuzzy Git Files",
+    },
+    {
+      "<leader>fgb",
+      function()
+        require("fzf-lua").git_branches()
+      end,
+      desc = "Fuzzy Git Branches",
+    },
+    {
+      "<leader>fgs",
+      function()
+        require("fzf-lua").git_status()
+      end,
+      desc = "Fuzzy Git Status",
     },
     {
       "<leader>fh",
@@ -105,11 +149,60 @@ return {
       desc = "Fuzzy Help Visual Selection",
     },
     {
-      "<leader>f.",
+      "<leader>fc",
       function()
-        require("fzf-lua").files({ cwd = vim.fn.stdpath("config") })
+        require("fzf-lua").lsp_code_actions()
       end,
-      desc = "Fuzzy Dotfiles",
+      desc = "Fuzzy Code Actions",
+    },
+    {
+      "<leader>flr",
+      function()
+        require("fzf-lua").lsp_references()
+      end,
+      desc = "Fuzzy LSP References",
+    },
+    {
+      "<leader>fli",
+      function()
+        require("fzf-lua").lsp_implementations()
+      end,
+      desc = "Fuzzy LSP Implementations",
+    },
+    {
+      "<leader>fld",
+      function()
+        require("fzf-lua").lsp_definitions()
+      end,
+      desc = "Fuzzy LSP Definitions",
+    },
+    {
+      "<leader>flD",
+      function()
+        require("fzf-lua").lsp_declarations()
+      end,
+      desc = "Fuzzy LSP Declarations",
+    },
+    {
+      "<leader>fls",
+      function()
+        require("fzf-lua").lsp_document_symbols()
+      end,
+      desc = "Fuzzy LSP Symbols (Document)",
+    },
+    {
+      "<leader>flS",
+      function()
+        require("fzf-lua").lsp_live_workspace_symbols()
+      end,
+      desc = "Fuzzy Open Symbols (Workspace)",
+    },
+    {
+      "<leader>flt",
+      function()
+        require("fzf-lua").lsp_typedefs()
+      end,
+      desc = "Fuzzy LSP Type Definition",
     },
   },
 }
