@@ -1,6 +1,9 @@
 vim.filetype.add({
-	filename = {
-		[".snyk"] = "yaml",
-		[".aws/config"] = "dosini",
-	},
+  extension = {
+    json = "jsonc",
+  },
+  filename = {
+    [".snyk"] = "yaml",
+    [".aws/config"] = "dosini",
+  },
 })

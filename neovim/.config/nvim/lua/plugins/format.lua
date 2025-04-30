@@ -3,10 +3,12 @@ return {
   event = { "BufWritePre" },
   cmd = { "ConformInfo" },
   opts = {
-    format_on_save = {
-      timeout_ms = 500,
-      lsp_format = "fallback",
-    },
+    format_on_save = function()
+      if vim.g.disable_conform or vim.b[0].disable_conform then
+        return {}
+      end
+      return { timeout_ms = 500, lsp_format = "fallback" }
+    end,
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
@@ -18,9 +20,7 @@ return {
       terraform = { "terraform_fmt" },
       yaml = function(bufnr)
         local bufname = vim.api.nvim_buf_get_name(bufnr)
-        if bufname:match("/.github/workflows/") then
-          return { "pin_github_action", "prettierd" }
-        elseif bufname:match(".snyk") then
+        if bufname:match(".snyk") then
           return {}
         else
           return { "prettierd" }

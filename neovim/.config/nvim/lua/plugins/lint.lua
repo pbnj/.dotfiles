@@ -11,7 +11,6 @@ return {
       rust = { "clippy" },
       shell = { "shellcheck" },
       terraform = { "tflint" },
-      yaml = { "yamllint" },
     }
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
       pattern = "*",
