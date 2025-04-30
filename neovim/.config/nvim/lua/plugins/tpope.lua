@@ -32,7 +32,22 @@ return {
   },
   { "https://github.com/tpope/vim-rsi", event = "VeryLazy" },
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },
-  -- { "https://github.com/tpope/vim-unimpaired", event = "VeryLazy", enabled = false },
   { "https://github.com/tpope/vim-surround", event = "VeryLazy" },
   { "https://github.com/tpope/vim-eunuch", event = "VeryLazy" },
+  {
+    "https://github.com/kristijanhusak/vim-dadbod-ui",
+    dependencies = {
+      { "https://github.com/tpope/vim-dadbod", lazy = true },
+      { "https://github.com/kristijanhusak/vim-dadbod-completion", ft = { "sql", "mysql", "plsql" }, lazy = true },
+    },
+    cmd = {
+      "DBUI",
+      "DBUIToggle",
+      "DBUIAddConnection",
+      "DBUIFindBuffer",
+    },
+    init = function()
+      vim.g.db_ui_use_nerd_fonts = 1
+    end,
+  },
 }
