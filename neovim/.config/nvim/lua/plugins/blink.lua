@@ -25,19 +25,14 @@ return {
       },
     },
     sources = {
-      default = { "lsp", "path", "buffer" },
+      default = { "lsp", "path", "buffer", "lazydev" },
       per_filetype = {
-        lua = { "lsp", "path", "buffer", "lazydev" },
         sql = { "dadbod", "buffer" },
       },
       providers = {
         lsp = { fallbacks = { "buffer" } },
         buffer = { opts = { get_bufnrs = vim.api.nvim_list_bufs } },
-        lazydev = {
-          name = "LazyDev",
-          module = "lazydev.integrations.blink",
-          score_offset = 100,
-        },
+        lazydev = { name = "LazyDev", module = "lazydev.integrations.blink", score_offset = 100 },
         dadbod = { name = "Dadbod", module = "vim_dadbod_completion.blink" },
       },
     },

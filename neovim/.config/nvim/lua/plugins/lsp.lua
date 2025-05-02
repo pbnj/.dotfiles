@@ -3,11 +3,12 @@ return {
     "https://github.com/neovim/nvim-lspconfig",
     event = "VeryLazy",
     dependencies = {
-      "https://github.com/folke/snacks.nvim",
-      "https://github.com/saghen/blink.cmp",
+      { "https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim" },
+      { "https://github.com/b0o/SchemaStore.nvim" },
+      { "https://github.com/folke/snacks.nvim" },
+      { "https://github.com/saghen/blink.cmp" },
+      { "https://github.com/williamboman/mason-lspconfig.nvim" },
       { "https://github.com/williamboman/mason.nvim", opts = {} },
-      "https://github.com/williamboman/mason-lspconfig.nvim",
-      "https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim",
     },
     config = function()
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -28,19 +29,6 @@ return {
           map("grr", vim.lsp.buf.references, "Goto References")
           map("grt", vim.lsp.buf.type_definition, "Goto Type Definition")
           map("<c-s>", vim.lsp.buf.signature_help, "Goto Type Definition", "i")
-        end,
-      })
-      vim.api.nvim_create_autocmd("LspProgress", {
-        ---@param ev {data: {client_id: integer, params: lsp.ProgressParams}}
-        callback = function(ev)
-          local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-          vim.notify(vim.lsp.status(), vim.log.levels.INFO, {
-            id = "lsp_progress",
-            title = "LSP Progress",
-            opts = function(notif)
-              notif.icon = ev.data.params.value.kind == "end" and " " or spinner[math.floor(vim.uv.hrtime() / (1e6 * 80)) % #spinner + 1]
-            end,
-          })
         end,
       })
       vim.diagnostic.config({
@@ -67,7 +55,14 @@ return {
         docker_compose_language_service = {},
         dockerls = {},
         gopls = {},
-        jsonls = {},
+        jsonls = {
+          settings = {
+            json = {
+              schemas = require("schemastore").json.schemas(),
+              validate = { enable = true },
+            },
+          },
+        },
         lua_ls = {},
         pyright = {},
         regal = {},
@@ -87,7 +82,17 @@ return {
         },
         terraformls = {},
         tflint = {},
-        yamlls = {},
+        yamlls = {
+          settings = {
+            yaml = {
+              schemaStore = {
+                enable = false, -- disable built-in yamlls schemastore
+                url = "", -- Avoid TypeError: Cannot read properties of undefined (reading 'length')
+              },
+              schemas = require("schemastore").yaml.schemas(),
+            },
+          },
+        },
       }
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {

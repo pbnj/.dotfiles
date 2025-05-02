@@ -2,6 +2,25 @@ return {
   "https://github.com/ibhagwan/fzf-lua",
   dependencies = { "https://github.com/echasnovski/mini.nvim" },
   opts = {
+    actions = {
+      files = {
+        true,
+        ["ctrl-a"] = {
+          header = "create file",
+          fn = function(_, opts)
+            local utils = require("fzf-lua.utils")
+            local file = opts.last_query
+            if type(file) ~= "string" or #file == 0 then
+              utils.warn("File name cannot be empty")
+            else
+              local fullpath = vim.fs.joinpath(opts._cwd, file)
+              vim.cmd("edit " .. fullpath)
+              utils.info(string.format("created file '%s'.", fullpath))
+            end
+          end,
+        },
+      },
+    },
     keymap = {
       builtin = {
         ["<c-j>"] = "preview-down",

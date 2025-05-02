@@ -3,29 +3,23 @@ return {
   event = { "BufWritePre" },
   cmd = { "ConformInfo" },
   opts = {
+    log_level = vim.log.levels.DEBUG,
     format_on_save = function()
       if vim.g.disable_conform or vim.b[0].disable_conform then
         return {}
       end
-      return { timeout_ms = 500, lsp_format = "fallback" }
+      return { lsp_format = "fallback" }
     end,
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
       json = { "jq" },
       lua = { "stylua" },
-      markdown = { "markdownlint", "doctoc_update", "prettierd" },
+      markdown = { "markdownlint", "doctoc_update", "prettierd", timeout_ms = 1000 },
       python = { "ruff_fix" },
       rust = { "rustfmt" },
       terraform = { "terraform_fmt" },
-      yaml = function(bufnr)
-        local bufname = vim.api.nvim_buf_get_name(bufnr)
-        if bufname:match(".snyk") then
-          return {}
-        else
-          return { "prettierd" }
-        end
-      end,
+      yaml = { "prettierd" },
     },
     formatters = {
       injected = {
@@ -49,7 +43,7 @@ return {
       },
       pin_github_action = {
         command = "pin-github-action",
-        args = { "$FILENAME" },
+        args = { "$RELATIVE_FILEPATH" },
         stdin = false,
       },
       doctoc_update = {
