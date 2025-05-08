@@ -11,11 +11,9 @@ background-blur = true
 background-opacity = 1
 copy-on-select = true
 # custom-shader = "/Users/peter.benjamin/Projects/github.com/pbnj/shader-playground/shaders/cursor_smear.glsl"
-font-family = JetBrainsMono
 font-size = 13
 macos-option-as-alt = true
 macos-titlebar-style = hidden
-quick-terminal-position = bottom
 theme = "tokyonight_moon"
 
 # Keybindings
@@ -90,4 +88,4 @@ keybind = super+k=clear_screen
 keybind = super+physical:two=goto_tab:2
 keybind = super+physical:six=goto_tab:6
 keybind = super+v=paste_from_clipboard
-keybind = global:cmd+grave_accent=toggle_quick_terminal
+# keybind = global:cmd+grave_accent=toggle_quick_terminal

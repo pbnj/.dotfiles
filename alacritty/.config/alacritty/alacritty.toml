@@ -16,9 +16,5 @@ blur = false
 [font]
 size = 15
 
-normal = {family = "JetBrainsMono Nerd Font", style = "Light"}
-bold = {family = "JetBrainsMono Nerd Font", style = "Medium"}
-italic = {family = "JetBrainsMono Nerd Font", style = "Light Italic"}
-
 [selection]
 save_to_clipboard = true
