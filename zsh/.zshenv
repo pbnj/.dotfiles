@@ -28,8 +28,8 @@ path+=(~/.tfenv/bin)
 
 # Go
 export GODEBUG=x509ignoreCN=0
-export GOPATH="~/go"
-path+=(~/go/bin)
+export GOPATH="${HOME}/go"
+path+=(${HOME}/go/bin)
 
 # 1Password Agent
 if [[ -S "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock" ]]; then

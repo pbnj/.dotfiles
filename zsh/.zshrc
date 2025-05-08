@@ -63,4 +63,4 @@ alias tfss="terraform state show"
 alias tfv="terraform validate"
 
 # direnv
-eval "$(direnv hook zsh)"
+command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
