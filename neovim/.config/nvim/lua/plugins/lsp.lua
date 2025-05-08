@@ -54,7 +54,9 @@ return {
       local servers = {
         docker_compose_language_service = {},
         dockerls = {},
+        -- gh_actions_ls = {},
         gopls = {},
+        golangci_lint_ls = {},
         jsonls = {
           settings = {
             json = {
@@ -101,7 +103,9 @@ return {
         "gh",
         "gitleaks",
         "goimports",
+        "hadolint",
         "jq",
+        "kube-linter",
         "markdownlint",
         "opa",
         "prettier",

@@ -1,6 +1,8 @@
 return {
   "https://github.com/ibhagwan/fzf-lua",
-  dependencies = { "https://github.com/echasnovski/mini.nvim" },
+  dependencies = {
+    { "https://github.com/echasnovski/mini.nvim" },
+  },
   opts = {
     actions = {
       files = {

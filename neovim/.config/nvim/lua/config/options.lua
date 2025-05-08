@@ -1,6 +1,5 @@
 vim.g.editorconfig = true
 vim.opt.backspace = "indent,eol,start"
-vim.opt.background = "light"
 vim.opt.belloff = "all"
 vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"

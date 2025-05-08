@@ -6,4 +6,7 @@ vim.filetype.add({
     [".snyk"] = "yaml",
     [".aws/config"] = "dosini",
   },
+  pattern = {
+    [".*/%.github[%w/]+workflows[%w/]+.*%.ya?ml"] = "yaml.github",
+  },
 })
