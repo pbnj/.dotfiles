@@ -62,5 +62,8 @@ alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -I{
 alias tfss="terraform state show"
 alias tfv="terraform validate"
 
+# fzf
+command -v fzf &>/dev/null && source <(fzf --zsh)
+
 # direnv
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
