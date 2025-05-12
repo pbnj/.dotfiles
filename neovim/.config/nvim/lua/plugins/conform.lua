@@ -15,7 +15,7 @@ return {
       go = { "goimports", "golangci-lint" },
       json = { "jq" },
       lua = { "stylua" },
-      markdown = { "markdownlint", "doctoc_update", "prettierd", timeout_ms = 1000 },
+      markdown = { "markdownlint", "doctoc_update", "prettierd", timeout_ms = 1500 },
       python = { "ruff_fix" },
       rust = { "rustfmt" },
       terraform = { "terraform_fmt" },
