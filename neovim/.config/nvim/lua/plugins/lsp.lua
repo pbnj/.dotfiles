@@ -103,7 +103,6 @@ return {
         "gh",
         "gitleaks",
         "goimports",
-        "hadolint",
         "jq",
         "kube-linter",
         "markdownlint",
