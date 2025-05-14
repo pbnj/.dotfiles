@@ -7,10 +7,8 @@
 # `.zshenv' should not contain commands that
 # produce output or assume the shell is attached to a tty.
 
-# BREW
-[[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
-
 # General
+export EDITOR=nvim
 export FZF_DEFAULT_COMMAND="fd --type file --follow --hidden"
 export FZF_CTRL_T_COMMAND="${FZF_DEFAULT_COMMAND}"
 export FZF_DEFAULT_OPTS_FILE="${HOME}/.config/fzf/config"
@@ -24,7 +22,6 @@ typeset -U path PATH
 path+=(~/.local/bin)
 path+=(~/.aws)
 path+=(~/.local/share/nvim/mason/bin)
-path+=(~/.tfenv/bin)
 
 # Go
 export GODEBUG=x509ignoreCN=0

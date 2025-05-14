@@ -1,6 +1,9 @@
 # vim:ft=zsh:sw=2:sts=2:ts=2:et:
 # shellcheck disable=all
 
+# BREW
+[[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+
 ########################################
 # PROMPT
 ########################################
@@ -27,9 +30,10 @@ bindkey -e
 ########################################
 # Utilities
 ########################################
-# aws completion
 autoload bashcompinit && bashcompinit
 autoload -Uz compinit && compinit
+
+# aws completion
 complete -C '/opt/homebrew/bin/aws_completer' aws
 complete -C '/opt/homebrew/bin/aws_completer' awe
 
@@ -37,6 +41,7 @@ complete -C '/opt/homebrew/bin/aws_completer' awe
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # aliases
+alias ..="cd .."
 alias bubu="brew update && brew upgrade && brew cleanup"
 alias cp='cp -i'
 alias grep="grep --color=auto"
