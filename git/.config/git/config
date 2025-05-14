@@ -52,6 +52,9 @@
 	default = current
 	autoSetupRemote = true
 
+[pull]
+	rebase = false
+
 [init]
 	defaultBranch = main
 
@@ -84,5 +87,3 @@
 	path = ~/.config/git/work.config
 [includeIf "gitdir:~/Projects/github.com/komodohealth/"]
 	path = ~/.config/git/work.config
-[pull]
-	rebase = false
