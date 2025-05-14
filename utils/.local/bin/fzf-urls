@@ -13,7 +13,7 @@ set -euo pipefail
 # URL_PATTERN="https?://[^[:space:]'\")]+"
 
 fzf \
-  --bind "start:reload:tmux capture-pane -JpS- | grep -oE 'https?://[^[:space:]'\''\")]+'" \
+  --bind "start:reload:tmux capture-pane -JpS- | grep -oE 'https?://[^[:space:]'\''\")]+' | sort -u" \
   --bind "enter:become:open {+}" \
   --multi \
   --prompt='URL(s)> ' \
