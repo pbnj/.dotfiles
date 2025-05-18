@@ -5,15 +5,26 @@ return {
     dependencies = {
       { "https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim" },
       { "https://github.com/b0o/SchemaStore.nvim" },
-      { "https://github.com/folke/snacks.nvim" },
-      { "https://github.com/saghen/blink.cmp" },
-      { "https://github.com/williamboman/mason-lspconfig.nvim" },
+      { "https://github.com/williamboman/mason-lspconfig.nvim", opts = {} },
       { "https://github.com/williamboman/mason.nvim", opts = {} },
+      {
+        "https://github.com/folke/lazydev.nvim",
+        ft = "lua",
+        opts = {
+          library = {
+            { path = "${3rd}/luv/library", words = { "vim%.uv" } },
+          },
+        },
+      },
     },
     config = function()
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("kickstart-lsp-attach", { clear = true }),
         callback = function(event)
+          local client = assert(vim.lsp.get_client_by_id(event.data.client_id))
+          if client:supports_method("textDocument/completion") then
+            vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = true })
+          end
           local map = function(keys, func, desc, mode)
             mode = mode or "n"
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = "LSP: " .. desc })
@@ -49,8 +60,7 @@ return {
           severity = { min = vim.diagnostic.severity.INFO },
         },
       })
-
-      local capabilities = require("blink.cmp").get_lsp_capabilities()
+      local capabilities = vim.tbl_deep_extend("force", {}, vim.lsp.protocol.make_client_capabilities())
       local servers = {
         docker_compose_language_service = {},
         dockerls = {},
@@ -71,6 +81,7 @@ return {
         rust_analyzer = {},
         snyk_ls = {
           filetypes = { "go", "gomod", "gowork", "helm", "javascript", "json", "python", "requirements", "terraform", "terraform-vars", "toml", "typescript", "yaml" },
+          root_markers = {'.git', '.snyk'},
           settings = {},
           init_options = {
             activateSnykCode = "true",
@@ -122,17 +133,10 @@ return {
         ensure_installed = ensure_installed,
         run_on_start = true,
       })
-      require("mason-lspconfig").setup({
-        ensure_installed = {},
-        automatic_installation = true,
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-            require("lspconfig")[server_name].setup(server)
-          end,
-        },
-      })
+
+      for server_name, server_config in pairs(servers) do
+        vim.lsp.config(server_name, server_config)
+      end
     end,
   },
 }
