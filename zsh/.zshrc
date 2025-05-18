@@ -20,7 +20,6 @@ setopt prompt_subst
 PROMPT='%~ ${vcs_info_msg_0_}
 %# '
 zstyle ':vcs_info:git:*' formats '(%F{red}%b%f)'
-RPROMPT='%D{%Y-%m-%d %L:%M:%S}'
 
 # key bindings
 bindkey '^P' history-beginning-search-backward
