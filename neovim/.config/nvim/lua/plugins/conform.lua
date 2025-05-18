@@ -1,15 +1,22 @@
 return {
   "https://github.com/stevearc/conform.nvim",
-  event = { "BufWritePre" },
+  -- event = { "BufWritePost" },
   cmd = { "ConformInfo" },
+  keys = {
+    {
+      "<leader>cf",
+      function()
+        require("conform").format({ async = true })
+      end,
+      mode = "",
+      desc = "Format Buffer",
+    },
+  },
   opts = {
-    log_level = vim.log.levels.DEBUG,
-    format_on_save = function()
-      if vim.g.disable_conform or vim.b[0].disable_conform then
-        return {}
-      end
-      return { lsp_format = "fallback" }
-    end,
+    -- format_after_save = {
+    --   lsp_format = "fallback",
+    --   async = true,
+    -- },
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
@@ -18,8 +25,15 @@ return {
       markdown = { "markdownlint", "doctoc_update", "prettierd", timeout_ms = 1500 },
       python = { "ruff_fix" },
       rust = { "rustfmt" },
+      sh = { "shellcheck", "shfmt" },
       terraform = { "terraform_fmt" },
-      yaml = { "prettierd" },
+      yaml = function()
+        local bufname = vim.api.nvim_buf_get_name(0)
+        if bufname:match("/.github/workflows/") then
+          return { "pin_github_action", "prettierd" }
+        end
+        return { "prettierd" }
+      end,
     },
     formatters = {
       injected = {
@@ -41,6 +55,11 @@ return {
           },
         },
       },
+      pinact = {
+        command = "pinact",
+        args = { "run" },
+        stdin = false,
+      },
       pin_github_action = {
         command = "pin-github-action",
         args = { "$RELATIVE_FILEPATH" },
@@ -53,4 +72,7 @@ return {
       },
     },
   },
+  init = function()
+    vim.o.formatexpr = "v:lua.require'conform'.formatexpr()"
+  end,
 }
