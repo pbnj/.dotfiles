@@ -70,17 +70,37 @@
 	showSignature = false
 	diffMerges = on
 
-; personal config
-[includeIf "gitdir:~/Projects/github.com/pbnj/"]
-	path = ~/.config/git/personal.config
-[includeIf "gitdir:~/.local/share/nvim/"]
-	path = ~/.config/git/personal.config
-[includeIf "gitdir:~/.config/nvim/"]
-	path = ~/.config/git/personal.config
-[includeIf "gitdir:~/.vim/"]
-	path = ~/.config/git/personal.config
-[includeIf "gitdir:~/.dotfiles/"]
-	path = ~/.config/git/personal.config
+[user]
+	name = Peter Benjamin
+	email = petermbenjamin@gmail.com
+	; https://developer.1password.com/docs/ssh/git-commit-signing
+	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
+
+[commit]
+	gpgsign = true
+
+[gpg]
+	format = ssh
+
+[gpg "ssh"]
+	program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+	allowedSignersFile = ~/.ssh/allowed_signers
+
+[url "personal:pbnj"]
+	insteadOf = "https://github.com/pbnj"
+	insteadOf = "git@github.com:pbnj"
+
+; ; personal config
+; [includeIf "gitdir:~/Projects/github.com/pbnj/"]
+; 	path = ~/.config/git/personal.config
+; [includeIf "gitdir:~/.local/share/nvim/"]
+; 	path = ~/.config/git/personal.config
+; [includeIf "gitdir:~/.config/nvim/"]
+; 	path = ~/.config/git/personal.config
+; [includeIf "gitdir:~/.vim/"]
+; 	path = ~/.config/git/personal.config
+; [includeIf "gitdir:~/.dotfiles/"]
+; 	path = ~/.config/git/personal.config
 
 ; work config
 [includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
