@@ -6,7 +6,6 @@
 set -euo pipefail
 
 AWS_PROFILE="${AWS_PROFILE:-$(fzf-aws-profiles)}"
-IAM_ROLE_NAME="${1:-}"
 
 aws_iam_role_previewer() {
   AWS_PROFILE="${1:-""}"
@@ -45,13 +44,12 @@ fzf \
   --bind "alt-n:execute:jq -rc .RoleName <<<{} | pbcopy" \
   --bind "alt-i:execute:jq -rc .RoleId <<<{} | pbcopy" \
   --bind "enter:become:aws_url_generator \"${AWS_PROFILE}\" {}" \
-  --bind "ctrl-v:execute:aws_iam_role_previewer \"${AWS_PROFILE}\" {} | vim -c 'set ft=json' -" \
+  --bind 'ctrl-v:execute:aws iam get-role --profile ${AWS_PROFILE} --role-name $(jq -rc ''.RoleName'' <<<{}) --output json | vim -c ''set ft=json'' -' \
   --bind "start:reload:aws --profile \"${AWS_PROFILE}\" iam list-roles | jq -rc '.Roles[] | {RoleName, RoleId, Arn}'" \
   --header "CTRL-V: open in vim | ENTER: open in browser | ALT-A: copy arn | ALT-N: copy name | ALT-I: copy id" \
   --input-border \
-  --preview "aws_iam_role_previewer \"${AWS_PROFILE}\" {} | jq -C" \
+  --preview "aws iam get-role --profile ${AWS_PROFILE} --role-name $(jq -rc '.RoleName' <<<'{}') --output json | jq -C" \
   --preview-window bottom \
-  --prompt "AWS IAM Roles> " \
-  --query "${IAM_ROLE_NAME}" \
+  --prompt 'AWS IAM Roles> ' \
   --reverse \
   --tmux 'center,80%' | xargs -t open || true

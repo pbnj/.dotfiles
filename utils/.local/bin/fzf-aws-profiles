@@ -9,9 +9,9 @@ fzf \
   --multi \
   --input-border \
   --query "${1:-}" \
-  --header "CTRL-I: copy id / CTRL-A: copy alias / CTRL-Y: copy id & alias" \
+  --header "CTRL-I: copy id / CTRL-A: copy alias / CTRL-Y: copy profile name" \
   --bind "start:reload:aws configure list-profiles | grep -E '^\\d{12}'" \
   --bind "ctrl-i:become:awk -F/ '{printf(\"%s\",\$1)}' <<<{} | pbcopy" \
   --bind "ctrl-a:become:awk -F/ '{printf(\"%s\",\$2)}' <<<{} | pbcopy" \
-  --bind "ctrl-y:become:awk -F/ '{printf(\"%s %s\",\$1,\$2)}' <<<{} | pbcopy" \
+  --bind "ctrl-y:become:printf %s {} | pbcopy" \
   --prompt "AWS Profiles> " || true

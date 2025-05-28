@@ -9,11 +9,11 @@ fzf \
   --bind "ctrl-a:become:pbcopy <<< {2}" \
   --bind "ctrl-i:become:pbcopy <<< {1}" \
   --bind "ctrl-u:become:pbcopy <<< '${AWS_SSO_START_URL}/console?account_id={1}&role_name={3}'" \
-  --bind "ctrl-y:become:pbcopy <<< '{1} {2}'" \
+  --bind "ctrl-y:become:printf %s {} | pbcopy" \
   --bind "enter:become:echo '${AWS_SSO_START_URL}/console?account_id={1}&role_name={3}'" \
   --bind "start:reload:aws configure list-profiles | grep -E '^\\d{12}'" \
   --delimiter='/' \
-  --header "CTRL-I: copy id / CTRL-A: copy alias / CTRL-Y: copy id & alias / CTRL-U: copy url / CTRL-O: open in browser" \
+  --header "CTRL-I: copy id / CTRL-A: copy alias / CTRL-Y: copy profile name / CTRL-U: copy url / CTRL-O: open in browser" \
   --prompt "AWS Console> " \
   --query "${1:-}" \
   --reverse \
