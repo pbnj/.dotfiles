@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -euo pipefail
+[[ -n "${DEBUG:-""}" ]] && set -x
+
+if ! aws sts get-caller-identity &>/dev/null ; then
+  aws sso login
+fi
+
+command aws "${@:-}"
