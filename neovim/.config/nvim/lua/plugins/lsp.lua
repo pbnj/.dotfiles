@@ -23,7 +23,7 @@ return {
         callback = function(event)
           local client = assert(vim.lsp.get_client_by_id(event.data.client_id))
           if client:supports_method("textDocument/completion") then
-            vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = true })
+            vim.lsp.completion.enable(true, client.id, event.buf )
           end
           local map = function(keys, func, desc, mode)
             mode = mode or "n"
@@ -77,7 +77,7 @@ return {
         },
         lua_ls = {},
         pyright = {},
-        regal = {},
+        -- regal = {},
         rust_analyzer = {},
         snyk_ls = {
           filetypes = { "go", "gomod", "gowork", "helm", "javascript", "json", "python", "requirements", "terraform", "terraform-vars", "toml", "typescript", "yaml" },
@@ -114,12 +114,12 @@ return {
         "gh",
         "gitleaks",
         "goimports",
+        "golangci-lint",
         "jq",
         "kube-linter",
-        "markdownlint",
+        "markdownlint-cli2",
         "opa",
         "prettier",
-        "prettierd",
         "ruff",
         "shellcheck",
         "shfmt",
@@ -135,6 +135,7 @@ return {
       })
 
       for server_name, server_config in pairs(servers) do
+        server_config.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server_config.capabilities or {})
         vim.lsp.config(server_name, server_config)
       end
     end,

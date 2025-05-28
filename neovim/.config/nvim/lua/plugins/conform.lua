@@ -22,7 +22,7 @@ return {
       go = { "goimports", "golangci-lint" },
       json = { "jq" },
       lua = { "stylua" },
-      markdown = { "markdownlint", "doctoc_update", "prettierd", timeout_ms = 1500 },
+      markdown = { "markdownlint-cli2", "doctoc_update", "prettier", timeout_ms = 1500 },
       python = { "ruff_fix" },
       rust = { "rustfmt" },
       sh = { "shellcheck", "shfmt" },
@@ -30,9 +30,9 @@ return {
       yaml = function()
         local bufname = vim.api.nvim_buf_get_name(0)
         if bufname:match("/.github/workflows/") then
-          return { "pin_github_action", "prettierd" }
+          return { "pinact", "prettier" }
         end
-        return { "prettierd" }
+        return { "prettier" }
       end,
     },
     formatters = {
