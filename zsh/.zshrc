@@ -59,6 +59,11 @@ alias tm="tmux a || tmux"
 alias vi=vim
 alias vim=nvim
 
+cdp() {
+  mkdir -p "${1}"
+  cd "${1}" || return
+}
+
 # kubectl
 # https://github.com/ahmetb/kubectl-aliases
 [ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
