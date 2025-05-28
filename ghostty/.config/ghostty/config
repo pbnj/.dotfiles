@@ -14,7 +14,7 @@ copy-on-select = true
 font-size = 13
 macos-option-as-alt = true
 macos-titlebar-style = hidden
-theme = "tokyonight_moon"
+theme = "light:tokyonight-day,dark:tokyonight_moon"
 
 # Keybindings
 keybind = super+page_up=scroll_page_up
