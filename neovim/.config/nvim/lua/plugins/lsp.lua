@@ -3,16 +3,23 @@ return {
     "https://github.com/neovim/nvim-lspconfig",
     event = "VeryLazy",
     dependencies = {
-      { "https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim" },
       { "https://github.com/b0o/SchemaStore.nvim" },
-      { "https://github.com/williamboman/mason-lspconfig.nvim", opts = {} },
-      { "https://github.com/williamboman/mason.nvim", opts = {} },
+      {
+        "https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim",
+        dependencies = {
+          { "https://github.com/williamboman/mason.nvim", opts = {} },
+          { "https://github.com/williamboman/mason-lspconfig.nvim", opts = {} },
+        },
+      },
       {
         "https://github.com/folke/lazydev.nvim",
         ft = "lua",
         opts = {
           library = {
-            { path = "${3rd}/luv/library", words = { "vim%.uv" } },
+            {
+              path = "${3rd}/luv/library",
+              words = { "vim%.uv" },
+            },
           },
         },
       },
@@ -23,7 +30,7 @@ return {
         callback = function(event)
           local client = assert(vim.lsp.get_client_by_id(event.data.client_id))
           if client:supports_method("textDocument/completion") then
-            vim.lsp.completion.enable(true, client.id, event.buf )
+            vim.lsp.completion.enable(true, client.id, event.buf)
           end
           local map = function(keys, func, desc, mode)
             mode = mode or "n"
@@ -81,7 +88,7 @@ return {
         rust_analyzer = {},
         snyk_ls = {
           filetypes = { "go", "gomod", "gowork", "helm", "javascript", "json", "python", "requirements", "terraform", "terraform-vars", "toml", "typescript", "yaml" },
-          root_markers = {'.git', '.snyk'},
+          root_markers = { ".git", ".snyk" },
           settings = {},
           init_options = {
             activateSnykCode = "true",
@@ -135,7 +142,7 @@ return {
       })
 
       for server_name, server_config in pairs(servers) do
-        server_config.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server_config.capabilities or {})
+        server_config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server_config.capabilities or {})
         vim.lsp.config(server_name, server_config)
       end
     end,

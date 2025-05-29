@@ -19,5 +19,5 @@ return {
         lint.try_lint()
       end,
     })
-  end,
+  end
 }
