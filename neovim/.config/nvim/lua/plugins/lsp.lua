@@ -30,7 +30,7 @@ return {
         callback = function(event)
           local client = assert(vim.lsp.get_client_by_id(event.data.client_id))
           if client:supports_method("textDocument/completion") then
-            vim.lsp.completion.enable(true, client.id, event.buf)
+            vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = true }) -- :help lsp-completion
           end
           local map = function(keys, func, desc, mode)
             mode = mode or "n"
@@ -47,6 +47,7 @@ return {
           map("grr", vim.lsp.buf.references, "Goto References")
           map("grt", vim.lsp.buf.type_definition, "Goto Type Definition")
           map("<c-s>", vim.lsp.buf.signature_help, "Goto Type Definition", "i")
+          map("<c-space>", vim.lsp.completion.get, "Trigger completion suggestion", "i")
         end,
       })
       vim.diagnostic.config({

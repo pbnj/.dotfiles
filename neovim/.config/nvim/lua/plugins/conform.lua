@@ -1,6 +1,6 @@
 return {
   "https://github.com/stevearc/conform.nvim",
-  -- event = { "BufWritePost" },
+  event = { "BufWritePost" },
   cmd = { "ConformInfo" },
   keys = {
     {
@@ -13,10 +13,10 @@ return {
     },
   },
   opts = {
-    -- format_after_save = {
-    --   lsp_format = "fallback",
-    --   async = true,
-    -- },
+    format_after_save = {
+      lsp_format = "fallback",
+      async = true,
+    },
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
