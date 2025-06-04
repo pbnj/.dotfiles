@@ -7,6 +7,7 @@ return {
   {
     "https://github.com/tpope/vim-fugitive",
     dependencies = { "https://github.com/tpope/vim-rhubarb" },
+    event = "VeryLazy",
     cmd = { "G", "Git", "GB", "GBrowse", "Gw", "Gwrite", "Gread" },
     keys = {
       {
