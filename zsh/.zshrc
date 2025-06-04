@@ -29,8 +29,12 @@ PROMPT='%~ ${vcs_info_msg_0_}
 zstyle ':vcs_info:git:*' formats '(%F{red}%b%f)'
 
 # key bindings
+autoload edit-command-line
+zle -N edit-command-line
+
 bindkey '^P' history-beginning-search-backward
 bindkey '^N' history-beginning-search-forward
+bindkey '^X^E' edit-command-line
 bindkey -e
 
 ########################################
