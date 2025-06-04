@@ -1,22 +1,30 @@
 return {
   "https://github.com/stevearc/conform.nvim",
-  event = { "BufWritePost" },
+  -- event = { "BufWritePost" },
   cmd = { "ConformInfo" },
   keys = {
     {
+      "Q",
+      function()
+        require("conform").format({ lsp_format = "fallback", async = true })
+      end,
+      mode = "n",
+      desc = "Format Buffer",
+    },
+    {
       "<leader>cf",
       function()
-        require("conform").format({ async = true })
+        require("conform").format({ lsp_format = "fallback", async = true })
       end,
-      mode = "",
+      mode = "n",
       desc = "Format Buffer",
     },
   },
   opts = {
-    format_after_save = {
-      lsp_format = "fallback",
-      async = true,
-    },
+    -- format_after_save = {
+    --   lsp_format = "fallback",
+    --   async = true,
+    -- },
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
