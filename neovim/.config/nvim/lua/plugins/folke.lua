@@ -15,7 +15,6 @@ return {
       input = { enabled = true },
       notifier = { enabled = true },
       notify = { enabled = true },
-      explorer = {},
       picker = {
         ui_select = true,
         matcher = {
@@ -38,9 +37,9 @@ return {
       {
         "<leader><space>",
         function()
-          Snacks.picker.smart()
+          Snacks.picker()
         end,
-        desc = "Smart Find Files",
+        desc = "All Pickers",
       },
       {
         "<leader>/",
@@ -50,11 +49,18 @@ return {
         desc = "Grep",
       },
       {
-        "<leader>:",
+        "<leader>;",
         function()
           Snacks.picker.command_history()
         end,
         desc = "Command History",
+      },
+      {
+        "<leader>:",
+        function()
+          Snacks.picker.commands()
+        end,
+        desc = "Commands",
       },
       -- find
       {
@@ -105,6 +111,20 @@ return {
           Snacks.picker.recent()
         end,
         desc = "Recent",
+      },
+      {
+        "<leader>fd",
+        function()
+          Snacks.picker.diagnostics()
+        end,
+        desc = "Diagnostics",
+      },
+      {
+        "<leader>fD",
+        function()
+          Snacks.picker.diagnostics_buffer()
+        end,
+        desc = "Buffer Diagnostics",
       },
       -- git
       {
@@ -172,16 +192,9 @@ return {
         desc = "Grep Open Buffers",
       },
       {
-        "<leader>sg",
-        function()
-          Snacks.picker.grep()
-        end,
-        desc = "Grep",
-      },
-      {
         "<leader>sw",
         function()
-          Snacks.picker.grep_word()
+          Snacks.picker.grep_word({live = true})
         end,
         desc = "Visual selection or word",
         mode = { "n", "x" },
@@ -207,34 +220,6 @@ return {
           Snacks.picker.autocmds()
         end,
         desc = "Autocmds",
-      },
-      {
-        "<leader>sc",
-        function()
-          Snacks.picker.command_history()
-        end,
-        desc = "Command History",
-      },
-      {
-        "<leader>sC",
-        function()
-          Snacks.picker.commands()
-        end,
-        desc = "Commands",
-      },
-      {
-        "<leader>sd",
-        function()
-          Snacks.picker.diagnostics()
-        end,
-        desc = "Diagnostics",
-      },
-      {
-        "<leader>sD",
-        function()
-          Snacks.picker.diagnostics_buffer()
-        end,
-        desc = "Buffer Diagnostics",
       },
       {
         "<leader>si",
@@ -422,18 +407,12 @@ return {
         desc = "Dismiss All Notifications",
       },
       {
-        "<c-/>",
+        "<c-\\>",
         function()
           Snacks.terminal()
         end,
+        mode = {"t", "n", "i"},
         desc = "Toggle Terminal",
-      },
-      {
-        "<c-_>",
-        function()
-          Snacks.terminal()
-        end,
-        desc = "which_key_ignore",
       },
       {
         "]]",
