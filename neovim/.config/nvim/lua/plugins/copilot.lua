@@ -14,4 +14,7 @@ return {
     "CopilotChatModels",
     "CopilotChatAgents",
   },
+  keys = {
+    { "<leader>ta", function() vim.cmd.CopilotChatToggle() end, desc = "Copilot Chat Toggle"}
+  },
 }

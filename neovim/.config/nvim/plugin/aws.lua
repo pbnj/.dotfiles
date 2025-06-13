@@ -59,6 +59,7 @@ end, {
   nargs = "?",
   complete = aws_profile_completion,
 })
+vim.keymap.set({ "n" }, "<leader>ac", vim.cmd.AWSConsole, { desc = "[A]WS [C]onsole" })
 
 vim.api.nvim_create_user_command("AWS", function(opts)
   local cmd = string.format("awe --no-cli-pager --cli-auto-prompt %s", opts.args)

@@ -4,7 +4,7 @@ return {
     event = "VeryLazy",
     dependencies = {
       { "https://github.com/b0o/SchemaStore.nvim" },
-      { "https://github.com/williamboman/mason.nvim", opts = {} },
+      { "https://github.com/williamboman/mason.nvim", opts = {}, keys = { { "<leader>lm", vim.cmd.Mason, desc = "[M]ason" } } },
       { "https://github.com/williamboman/mason-lspconfig.nvim", opts = {} },
       {
         "https://github.com/folke/lazydev.nvim",
@@ -141,6 +141,7 @@ return {
         "json-to-struct",
         "lua-language-server",
         "markdownlint-cli2",
+        "mmdc",
         "prettier",
         "pyright",
         "ruff",
