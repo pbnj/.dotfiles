@@ -11,6 +11,7 @@ return {
     priority = 1000,
     opts = {
       bigfile = { enabled = true },
+      image = { enabled = true }, -- requires imagemagick & mmdc cli
       indent = { enabled = true },
       input = { enabled = true },
       notifier = { enabled = true },
