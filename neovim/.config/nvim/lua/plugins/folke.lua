@@ -45,7 +45,7 @@ return {
       {
         "<leader>/",
         function()
-          Snacks.picker.grep()
+          Snacks.picker.grep({ hidden = true, live = true })
         end,
         desc = "Grep",
       },
@@ -195,7 +195,7 @@ return {
       {
         "<leader>sw",
         function()
-          Snacks.picker.grep_word({live = true})
+          Snacks.picker.grep_word({ live = true, hidden = true })
         end,
         desc = "Visual selection or word",
         mode = { "n", "x" },
@@ -323,6 +323,20 @@ return {
         desc = "Goto Implementation",
       },
       {
+        "gs",
+        function()
+          Snacks.picker.lsp_symbols()
+        end,
+        desc = "LSP Symbols",
+      },
+      {
+        "gS",
+        function()
+          Snacks.picker.lsp_workspace_symbols()
+        end,
+        desc = "LSP Workspace Symbols",
+      },
+      {
         "gy",
         function()
           Snacks.picker.lsp_type_definitions()
@@ -412,7 +426,7 @@ return {
         function()
           Snacks.terminal()
         end,
-        mode = {"t", "n", "i"},
+        mode = { "t", "n", "i" },
         desc = "Toggle Terminal",
       },
       {
@@ -491,7 +505,23 @@ return {
   {
     "https://github.com/folke/todo-comments.nvim",
     event = "VeryLazy",
-    dependencies = { "https://github.com/nvim-lua/plenary.nvim" },
+    dependencies = { "https://github.com/nvim-lua/plenary.nvim", "https://github.com/folke/snacks.nvim" },
     opts = {},
+    keys = {
+      {
+        "<leader>st",
+        function()
+          Snacks.picker.todo_comments()
+        end,
+        desc = "Todo",
+      },
+      {
+        "<leader>sT",
+        function()
+          Snacks.picker.todo_comments({ keywords = { "TODO", "FIX", "FIXME" } })
+        end,
+        desc = "Todo/Fix/Fixme",
+      },
+    },
   },
 }
