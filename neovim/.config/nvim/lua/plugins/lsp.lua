@@ -161,14 +161,14 @@ return {
         for _, name in ipairs(ensure_installed) do
           local package = registry.get_package(name)
           if not registry.is_installed(name) then
+            vim.notify(name .. " is being installed")
             package:install()
-            vim.notify(name .. " was successfully installed")
           else
             local current_version = package:get_installed_version()
             local latest_version = package:get_latest_version()
             if current_version ~= latest_version then
+              vim.notify(name .. " is being updated")
               package:install({ version = latest_version })
-              vim.notify(name .. " was successfully updated")
             end
           end
         end
