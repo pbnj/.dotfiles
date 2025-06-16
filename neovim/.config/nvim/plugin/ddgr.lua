@@ -1,89 +1,97 @@
-local function ddgr_bang_completion(a)
-  local ddgr_bang_list = {
-    "!amaps",
-    "!archiveis",
-    "!archiveweb",
-    "!aws",
-    "!azure",
-    "!bangs",
-    "!chtsh",
-    "!cloudformation",
-    "!crates",
-    "!d",
-    "!devdocs",
-    "!devto",
-    "!dhdocs",
-    "!dictionary",
-    "!dmw",
-    "!dockerhub",
-    "!docs.rs",
-    "!g",
-    "!gcp",
-    "!gdefine",
-    "!gdocs",
-    "!gh",
-    "!ghcode",
-    "!ghio",
-    "!ghrepo",
-    "!ght",
-    "!ghtopic",
-    "!ghuser",
-    "!gist",
-    "!gmail",
-    "!gmaps",
-    "!godoc",
-    "!google",
-    "!gopkg",
-    "!gsheets",
-    "!gslides",
-    "!ker",
-    "!kubernetes",
-    "!man",
-    "!mdn",
-    "!mw",
-    "!mwd",
-    "!mysql",
-    "!node",
-    "!npm",
-    "!postgres",
-    "!py3",
-    "!python",
-    "!rce",
-    "!rclippy",
-    "!reddit",
-    "!rust",
-    "!rustdoc",
-    "!spotify",
-    "!stackoverflow",
-    "!tldr",
-    "!tmg",
-    "!translate",
-    "!twitch",
-    "!typescript",
-    "!vimw",
-    "!yt",
-  }
-  local arg_list = vim.split(a, " ", { trimempty = true })
-  local last_arg = arg_list[#arg_list]
-  if last_arg == "!" then
-    return vim.tbl_filter(function(ddgr_bang)
-      return string.match(ddgr_bang, a)
-    end, ddgr_bang_list)
-  end
-end
-
 vim.api.nvim_create_user_command("DDGR", function(opts)
-  local cmd_list = { "ddgr" }
-  if opts.args:find("!") or opts.bang then
-    table.insert(cmd_list, "--gui-browser")
-    table.insert(cmd_list, "--noprompt")
-    table.insert(cmd_list, "--ducky")
-    table.insert(cmd_list, opts.args)
-    vim.system(cmd_list)
-  else
-    table.insert(cmd_list, "--expand")
-    table.insert(cmd_list, "--num=5")
-    table.insert(cmd_list, opts.args)
-    require("toggleterm.terminal").Terminal:new({ cmd = table.concat(cmd_list, " "), close_on_exit = false, direction = "float" }):toggle()
-  end
-end, { nargs = "*", complete = ddgr_bang_completion, bang = true })
+  local ddgr_bang_list = {
+    { bang = "!ai", text = "Duck.ai" },
+    { bang = "!amaps", text = "Apple Maps" },
+    { bang = "!archiveis", text = "Archive.is" },
+    { bang = "!archiveweb", text = "Archive.org" },
+    { bang = "!aws", text = "AWS" },
+    { bang = "!azure", text = "Azure" },
+    { bang = "!bangs", text = "DuckDuckGo Bangs" },
+    { bang = "!chat", text = "Duck.ai" },
+    { bang = "!chtsh", text = "Cheatsheet" },
+    { bang = "!cloudformation", text = "AWS CloudFormation" },
+    { bang = "!crates", text = "Rust Crates" },
+    { bang = "!d", text = "The Free Dictionary" },
+    { bang = "!devdocs", text = "DevDocs" },
+    { bang = "!devto", text = "DevTo" },
+    { bang = "!dhdocs", text = "Dockerhub Docs" },
+    { bang = "!dictionary", text = "The Free Dictionary" },
+    { bang = "!dmw", text = "Meriam-Webster Dictionary" },
+    { bang = "!dockerhub", text = "DockerHub" },
+    { bang = "!docs.rs", text = "Rust Docs.rs" },
+    { bang = "!g", text = "Google" },
+    { bang = "!gcp", text = "Google Cloud" },
+    { bang = "!gdefine", text = "Google Define" },
+    { bang = "!gdocs", text = "Google Docs" },
+    { bang = "!gh", text = "GitHub" },
+    { bang = "!ghcode", text = "GitHub (code search)" },
+    { bang = "!ghio", text = "GitHub User Pages" },
+    { bang = "!ghrepo", text = "GitHub Repo" },
+    { bang = "!ght", text = "GitHub Trending" },
+    { bang = "!ghtopic", text = "GitHub Topics" },
+    { bang = "!ghuser", text = "GitHub Users" },
+    { bang = "!gist", text = "GitHub Gists" },
+    { bang = "!gmail", text = "Google Mail" },
+    { bang = "!gmaps", text = "Google Maps" },
+    { bang = "!godoc", text = "Golang Docs" },
+    { bang = "!google", text = "Google" },
+    { bang = "!gopkg", text = "Golang Packages" },
+    { bang = "!gsheets", text = "Google Sheets" },
+    { bang = "!gslides", text = "Google Slides" },
+    { bang = "!i", text = "DuckDuckGo Images" },
+    { bang = "!ker", text = "Linux Kernel Archives" },
+    { bang = "!kubernetes", text = "Kubernetes" },
+    { bang = "!man", text = "Man Pages" },
+    { bang = "!mdn", text = "Mozilla Developer Network Docs" },
+    { bang = "!mysql", text = "MySQL" },
+    { bang = "!n", text = "DuckDuckGo News" },
+    { bang = "!node", text = "Node.js" },
+    { bang = "!npm", text = "Node Package Manager" },
+    { bang = "!postgres", text = "Postgres" },
+    { bang = "!py3", text = "Python3 Docs" },
+    { bang = "!python", text = "Python" },
+    { bang = "!rce", text = "Rust Compiler Error" },
+    { bang = "!rclippy", text = "Rust Clippy" },
+    { bang = "!reddit", text = "Reddit" },
+    { bang = "!rust", text = "Rust" },
+    { bang = "!rustdoc", text = "Rust Docs" },
+    { bang = "!spotify", text = "Spotify" },
+    { bang = "!stackoverflow", text = "StackOverflow" },
+    { bang = "!tldr", text = "TLDR (friendlier man-pages)" },
+    { bang = "!tmg", text = "Terraform Registry" },
+    { bang = "!translate", text = "Google Translate" },
+    { bang = "!twitch", text = "Twitch" },
+    { bang = "!typescript", text = "TypeScript Docs" },
+    { bang = "!v", text = "DuckDuckGo Videos" },
+    { bang = "!vimw", text = "Vim Docs" },
+    { bang = "!yt", text = "YouTube" },
+  }
+  require("snacks").picker({
+    source = "ddgr",
+    title = "DDGR",
+    layout = "vscode",
+    finder = function()
+      return vim
+        .iter(ddgr_bang_list)
+        :map(function(bang)
+          return { text = bang.text, bang = bang.bang }
+        end)
+        :totable()
+    end,
+    format = function(item, _)
+      local ret = {}
+      ret[#ret + 1] = { item.bang }
+      ret[#ret + 1] = { "  " }
+      ret[#ret + 1] = { item.text }
+      return ret
+    end,
+    matcher = { fuzzy = true, frecency = true },
+    confirm = function(picker, item)
+      picker:close()
+      vim.ui.input({ prompt = string.format("Search (%s): ", item.text), default = opts.args }, function(input)
+        local cmd = string.format("ddgr --noprompt --gui-browser --expand --num=5 '%s %s'", item.bang, input)
+        require("snacks").terminal(cmd)
+      end)
+    end,
+  })
+end, { nargs = "*" })
