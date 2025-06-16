@@ -12,6 +12,7 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
   if opts.args == "" then
     require("snacks").picker({
       source = "aws_console",
+      title = "AWS Console",
       layout = "vscode",
       finder = function()
         return vim
@@ -25,9 +26,9 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
             return {
               text = profile,
               item = profile,
-              account_id = account_id,
-              account_alias = account_alias,
-              account_url = account_url,
+              id = account_id,
+              alias = account_alias,
+              url = account_url,
             }
           end)
           :totable()
@@ -35,17 +36,17 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
       format = function(item, _)
         local a = Snacks.picker.util.align
         local ret = {}
-        ret[#ret + 1] = { a(item.account_id, 12, { truncate = false }) }
+        ret[#ret + 1] = { a(item.id, 12, { truncate = false }) }
         ret[#ret + 1] = { "  " }
-        ret[#ret + 1] = { a(item.account_alias, 63, { truncate = true }) }
+        ret[#ret + 1] = { a(item.alias, 63, { truncate = true }) }
         return ret
       end,
       matcher = { fuzzy = true, frecency = true },
       actions = {
-        yank_id = { action = "yank", field = "account_id", desc = "Yank ID" },
-        yank_alias = { action = "yank", field = "account_alias", desc = "Yank Alias" },
+        yank_id = { action = "yank", field = "id", desc = "Yank ID" },
+        yank_alias = { action = "yank", field = "alias", desc = "Yank Alias" },
         yank_profile = { action = "yank", desc = "Yank Profile" },
-        yank_url = { action = "yank", field = "account_url", desc = "Yank URL" },
+        yank_url = { action = "yank", field = "url", desc = "Yank URL" },
       },
       win = {
         input = {
