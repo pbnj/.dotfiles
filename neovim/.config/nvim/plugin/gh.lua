@@ -1,9 +1,8 @@
 vim.api.nvim_create_user_command("GH", function(opts)
-  local terminal = require("toggleterm.terminal").Terminal
-  local cmd = string.format("gh %s", opts.args)
-  terminal:new({ cmd = cmd, display_name = cmd, direction = "float", close_on_exit = false }):toggle()
+  local cmd = vim.iter({ "gh", opts.fargs }):flatten():totable()
+  require("snacks").terminal(cmd, { auto_close = false, auto_insert = true, interactive = true, win = { wo = { winbar = "gh " .. opts.args } } })
 end, {
-  desc = "GitHub CLI Wrapper",
+  desc = "GitHub",
   nargs = "*",
   complete = function(arg_lead, cmd_line, _)
     if string.match(cmd_line, "GH pr") then

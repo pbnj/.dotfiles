@@ -19,6 +19,7 @@ vim.api.nvim_create_user_command("DDGR", function(opts)
     { bang = "!dmw", text = "Meriam-Webster Dictionary" },
     { bang = "!dockerhub", text = "DockerHub" },
     { bang = "!docs.rs", text = "Rust Docs.rs" },
+    { bang = "!duckduckgo", text = "DuckDuckGo" },
     { bang = "!g", text = "Google" },
     { bang = "!gcp", text = "Google Cloud" },
     { bang = "!gdefine", text = "Google Define" },
@@ -69,7 +70,7 @@ vim.api.nvim_create_user_command("DDGR", function(opts)
   require("snacks").picker({
     source = "ddgr",
     title = "DDGR",
-    layout = "vscode",
+    layout = { preset = "vscode", fullscreen = opts.bang },
     finder = function()
       return vim
         .iter(ddgr_bang_list)
@@ -89,9 +90,11 @@ vim.api.nvim_create_user_command("DDGR", function(opts)
     confirm = function(picker, item)
       picker:close()
       vim.ui.input({ prompt = string.format("Search (%s): ", item.text), default = opts.args }, function(input)
-        local cmd = string.format("ddgr --noprompt --gui-browser --expand --num=5 '%s %s'", item.bang, input)
+        local cmd = string.format("ddgr --noprompt --gui-browser --expand --num=5 '%s %s'", item.bang, input or "")
         require("snacks").terminal(cmd)
       end)
     end,
   })
-end, { nargs = "*" })
+end, { nargs = "*", bang = true, desc = "DuckDuckGo (DDGR)" })
+
+vim.keymap.set({ "n" }, "<leader>dd", vim.cmd.DDGR, { desc = "DuckDuckGo (DDGR)", silent = true, noremap = true })

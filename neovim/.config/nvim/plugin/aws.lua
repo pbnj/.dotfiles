@@ -13,7 +13,7 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
     require("snacks").picker({
       source = "aws_console",
       title = "AWS Console",
-      layout = "vscode",
+      layout = { preset = "vscode", fullscreen = opts.bang },
       finder = function()
         return vim
           .iter(vim.fn.systemlist("aws configure list-profiles | grep -E '^\\d{12}'"))
@@ -45,15 +45,13 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
       actions = {
         yank_id = { action = "yank", field = "id", desc = "Yank ID" },
         yank_alias = { action = "yank", field = "alias", desc = "Yank Alias" },
-        yank_profile = { action = "yank", desc = "Yank Profile" },
         yank_url = { action = "yank", field = "url", desc = "Yank URL" },
       },
       win = {
         input = {
           keys = {
             ["<m-i>"] = { "yank_id", mode = { "n", "i" } },
-            ["<m-a>"] = { "yank_alias", mode = { "n", "i" } },
-            ["<m-p>"] = { "yank_profile", mode = { "n", "i" } },
+            ["<m-n>"] = { "yank_alias", mode = { "n", "i" } },
             ["<m-u>"] = { "yank_url", mode = { "n", "i" } },
           },
         },
@@ -64,7 +62,10 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
         local account_id = selection[1]
         local role_name = selection[3]
         local url = string.format("%s/console?account_id=%s&role_name=%s", aws_sso_start_url, account_id, role_name)
-        vim.system({ "open", url })
+        vim.ui.open(url)
+        if opts.bang then
+          vim.cmd.quit()
+        end
       end,
     })
   else
@@ -76,6 +77,7 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
   end
 end, {
   nargs = "?",
+  bang = true,
   complete = aws_profile_completion,
 })
 vim.keymap.set({ "n" }, "<leader>ac", vim.cmd.AWSConsole, { desc = "[A]WS [C]onsole" })
