@@ -100,13 +100,6 @@ return {
         desc = "Find Help Pages",
       },
       {
-        "<leader>fp",
-        function()
-          Snacks.picker.projects({ dev = { "~/Projects", "~/.dotfiles" } })
-        end,
-        desc = "Projects",
-      },
-      {
         "<leader>fr",
         function()
           Snacks.picker.recent()

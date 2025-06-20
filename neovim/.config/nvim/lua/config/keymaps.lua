@@ -1,4 +1,8 @@
 vim.keymap.set("n", "<leader>ll", vim.cmd.Lazy, { desc = "[L]azy" })
+vim.keymap.set("n", "<leader>lu", function()
+  vim.cmd.Lazy("update")
+  vim.cmd.MasonUpdate()
+end, { desc = "[L]azy Update Lazy & Mason packages" })
 vim.keymap.set("n", "j", "gj")
 vim.keymap.set("n", "k", "gk")
 vim.keymap.set("c", "<c-p>", "<up>")
