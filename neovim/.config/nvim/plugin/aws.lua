@@ -153,6 +153,7 @@ vim.api.nvim_create_user_command("AWSIAMPolicies", function(opts)
     confirm = function(picker, item)
       picker:close()
       vim.api.nvim_set_current_line(item.arn)
+      -- TODO: open selected policy in aws console
     end,
   })
 end, {
