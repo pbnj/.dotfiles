@@ -5,7 +5,6 @@ return {
     version = false,
     config = function()
       require("mini.misc").setup_auto_root()
-      require("mini.statusline").setup()
       require("mini.icons").setup()
       require("mini.diff").setup()
     end,
