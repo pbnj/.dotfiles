@@ -21,6 +21,27 @@ return {
         matcher = {
           frecency = true,
         },
+        sources = {
+          files = {
+            actions = {
+              ---@class snacks.picker.actions
+              delete_file = function(picker, _)
+                for _, item in ipairs(picker:selected({ fallback = true })) do
+                  vim.system({ "rm", "-rf", item._path })
+                  Snacks.notify.info("Deleted " .. item._path)
+                end
+                picker:find()
+              end,
+            },
+            win = {
+              input = {
+                keys = {
+                  ["dd"] = { "delete_file", mode = { "n" } },
+                },
+              },
+            },
+          },
+        },
         win = {
           input = {
             keys = {
@@ -81,7 +102,7 @@ return {
       {
         "<leader>ff",
         function()
-          Snacks.picker.files({ hidden = true })
+          Snacks.picker.files({ hidden = true, formatters = { file = { truncate = 100 } } })
         end,
         desc = "Find Files",
       },
