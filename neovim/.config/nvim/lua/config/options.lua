@@ -11,6 +11,7 @@ vim.opt.cursorline = false
 vim.opt.expandtab = true
 vim.opt.foldenable = false
 vim.opt.grepformat:append({ "%f:%l:%c:%m", "%f:%l:%m" })
+vim.opt.guifont = { "Iosevka Nerd Font Mono" }
 vim.opt.hidden = true
 vim.opt.hlsearch = true
 vim.opt.ignorecase = true
