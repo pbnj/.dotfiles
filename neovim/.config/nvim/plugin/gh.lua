@@ -1,8 +1,8 @@
 vim.api.nvim_create_user_command("GH", function(opts)
   local cmd = vim.iter({ "gh", opts.fargs }):flatten():totable()
-  require("snacks").terminal(cmd, { auto_close = false, auto_insert = true, interactive = true, win = { wo = { winbar = "gh " .. opts.args } } })
+  require("snacks").terminal(cmd, { auto_close = false, win = { wo = { winbar = "gh " .. opts.args } } })
 end, {
-  desc = "GitHub",
+  desc = "GitHub CLI (GH)",
   nargs = "*",
   complete = function(arg_lead, cmd_line, _)
     if string.match(cmd_line, "GH pr") then
@@ -124,19 +124,31 @@ end, {
   end,
 })
 
--- if exists('g:loaded_gh') | finish | endif
--- let g:loaded_gh = 1
---
--- " Custom Vim command for `gh` tool with completion for subcommand names
--- function! s:gh_completion(A,L,P) abort
---   return filter(
---          [],
---         \ 'v:val =~ a:A' )
--- endfunction
---
--- command! -nargs=* -complete=customlist,s:gh_completion GH
---       \ terminal gh <args>
---
+vim.api.nvim_create_user_command("GHRepoClone", function(opts)
+  local cmd = { "gh", "repo", "clone", opts.args }
+  local gh_repo_url = vim.split(opts.args, "/") -- { "https:", "", "github.com", "komodohealth", "cloud-iam" }
+  local gh_domain = gh_repo_url[3]
+  local gh_repo_org = gh_repo_url[4]
+  local gh_repo_name = gh_repo_url[5]
+  local projects_dir = vim.fn.expand("~/Projects/")
+  local cwd = string.format("%s/%s/%s/", projects_dir, gh_domain, gh_repo_org)
+  vim.fn.mkdir(cwd, "p")
+  vim
+    .system(cmd, { cwd = cwd }, function(job)
+      if job.code == 0 then
+        require("snacks").notifier("GH Repo Clone Success", "info")
+      else
+        require("snacks").notifier(job.stderr, "error")
+      end
+    end)
+    :wait()
+  require("snacks").picker.files({ cwd = string.format("%s/%s/%s/%s", projects_dir, gh_domain, gh_repo_org, gh_repo_name), prompt = string.format("%s> ", gh_repo_name) })
+end, {
+  desc = "GitHub CLI (GH) - Clone Repo",
+  nargs = 1,
+  -- complete = function(arg_lead, cmd_line, _) end,
+})
+
 -- " REPO subcommand
 -- function! s:gh_repo_completion(A,L,P) abort
 --   let l:org_repo = split(a:A, '/')
