@@ -3,6 +3,6 @@ return {
   opts = { maxkeys = 5 },
   cmd = "ShowkeysToggle",
   keys = {
-    { "<leader>tk", "<cmd>ShowkeysToggle<cr>" },
+    { "<leader>tk", "<cmd>ShowkeysToggle<cr>", desc = "Toggle ShowKeys" },
   },
 }

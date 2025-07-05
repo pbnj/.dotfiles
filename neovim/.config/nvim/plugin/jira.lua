@@ -1,8 +1,6 @@
 -- " brew install ankitpokhrel/jira-cli/jira-cli
 vim.api.nvim_create_user_command("Jira", function(opts)
-  local Terminal = require("toggleterm.terminal").Terminal
-  local cmd = string.format("jira %s", opts.args)
-  Terminal:new({ cmd = cmd, direction = "float", close_on_exit = false }):toggle()
+  Snacks.terminal(vim.iter({ "jira", opts.fargs }):flatten():totable())
 end, {
   nargs = "*",
   complete = function(arg_lead, line)

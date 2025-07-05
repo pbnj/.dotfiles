@@ -38,6 +38,13 @@ return {
         end,
         desc = "Git Pull (Fugitive)",
       },
+      {
+        "<leader>gw",
+        function()
+          vim.cmd("Gwrite")
+        end,
+        desc = "Gwrite (Fugitive)",
+      },
     },
   },
   {
