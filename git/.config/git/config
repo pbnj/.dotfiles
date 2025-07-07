@@ -86,24 +86,12 @@
 	program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
 	allowedSignersFile = ~/.ssh/allowed_signers
 
-[url "personal:pbnj"]
-	insteadOf = "https://github.com/pbnj"
-	insteadOf = "git@github.com:pbnj"
-
-; ; personal config
-; [includeIf "gitdir:~/Projects/github.com/pbnj/"]
-; 	path = ~/.config/git/personal.config
-; [includeIf "gitdir:~/.local/share/nvim/"]
-; 	path = ~/.config/git/personal.config
-; [includeIf "gitdir:~/.config/nvim/"]
-; 	path = ~/.config/git/personal.config
-; [includeIf "gitdir:~/.vim/"]
-; 	path = ~/.config/git/personal.config
-; [includeIf "gitdir:~/.dotfiles/"]
-; 	path = ~/.config/git/personal.config
-
 ; work config
-[includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
+[include]
 	path = ~/.config/git/work.config
-[includeIf "gitdir:~/Projects/github.com/komodohealth/"]
-	path = ~/.config/git/work.config
+
+; personal config
+[includeIf "hasconfig:remote.*.url:https://github.com/pbnj/**"]
+	path = ~/.config/git/personal.config
+[includeIf "hasconfig:remote.*.url:git@github.com:pbnj/**"]
+	path = ~/.config/git/personal.config
