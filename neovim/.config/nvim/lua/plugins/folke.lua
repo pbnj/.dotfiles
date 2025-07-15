@@ -1,10 +1,51 @@
 return {
-  -- {
-  --   "https://github.com/folke/noice.nvim",
-  --   event = "VeryLazy",
-  --   dependencies = { "https://github.com/MunifTanjim/nui.nvim" },
-  --   opts = { presets = { command_palette = true } },
-  -- },
+  {
+    "https://github.com/folke/tokyonight.nvim",
+    lazy = false,
+    priority = 1000,
+    opts = {},
+    config = function()
+      require("tokyonight").setup({ transparent = true })
+      vim.cmd([[colorscheme tokyonight]])
+    end,
+  },
+  {
+    "https://github.com/folke/trouble.nvim",
+    opts = {},
+    cmd = { "Trouble" },
+    keys = {
+      {
+        "<leader>xx",
+        "<cmd>Trouble diagnostics toggle<cr>",
+        desc = "Diagnostics (Trouble)",
+      },
+      {
+        "<leader>xX",
+        "<cmd>Trouble diagnostics toggle filter.buf=0<cr>",
+        desc = "Buffer Diagnostics (Trouble)",
+      },
+      {
+        "<leader>cs",
+        "<cmd>Trouble symbols toggle focus=false<cr>",
+        desc = "Symbols (Trouble)",
+      },
+      {
+        "<leader>cl",
+        "<cmd>Trouble lsp toggle focus=false win.position=right<cr>",
+        desc = "LSP Definitions / references / ... (Trouble)",
+      },
+      {
+        "<leader>xL",
+        "<cmd>Trouble loclist toggle<cr>",
+        desc = "Location List (Trouble)",
+      },
+      {
+        "<leader>xQ",
+        "<cmd>Trouble qflist toggle<cr>",
+        desc = "Quickfix List (Trouble)",
+      },
+    },
+  },
   {
     "https://github.com/folke/snacks.nvim",
     lazy = false,
@@ -490,7 +531,6 @@ return {
             Snacks.debug.backtrace()
           end
           vim.print = _G.dd -- Override print to use snacks for `:=` command
-
           -- Create some toggle mappings
           Snacks.toggle.option("spell", { name = "Spelling" }):map("<leader>ts")
           Snacks.toggle.option("wrap", { name = "Wrap" }):map("<leader>tw")
@@ -508,20 +548,28 @@ return {
     end,
   },
   {
-    "https://github.com/folke/tokyonight.nvim",
-    lazy = false,
-    priority = 1000,
-    opts = {},
-    config = function()
-      vim.cmd([[colorscheme tokyonight]])
-    end,
-  },
-  {
     "https://github.com/folke/todo-comments.nvim",
     event = "VeryLazy",
-    dependencies = { "https://github.com/nvim-lua/plenary.nvim", "https://github.com/folke/snacks.nvim" },
+    dependencies = {
+      "https://github.com/nvim-lua/plenary.nvim",
+      "https://github.com/folke/snacks.nvim",
+    },
     opts = {},
     keys = {
+      {
+        "]t",
+        function()
+          require("todo-comments").jump_next()
+        end,
+        desc = "Next todo comment",
+      },
+      {
+        "[t",
+        function()
+          require("todo-comments").jump_prev()
+        end,
+        desc = "Previous todo comment",
+      },
       {
         "<leader>st",
         function()
