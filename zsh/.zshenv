@@ -21,7 +21,6 @@ typeset -U path PATH
 
 path+=(~/.local/bin)
 path+=(~/.aws)
-path+=(~/.local/share/nvim/mason/bin)
 
 # Go
 export GODEBUG=x509ignoreCN=0

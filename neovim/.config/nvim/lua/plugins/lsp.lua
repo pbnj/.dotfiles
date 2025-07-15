@@ -96,90 +96,10 @@ return {
                 url = "", -- Avoid TypeError: Cannot read properties of undefined (reading 'length')
               },
               schemas = require("schemastore").yaml.schemas(),
-              customTags = {
-                "!And",
-                "!If scalar",
-                "!Not",
-                "!Equals scalar",
-                "!Or scalar",
-                "!FindInMap scalar",
-                "!Base64",
-                "!Cidr",
-                "!Ref",
-                "!Sub",
-                "!GetAtt sequence",
-                "!GetAZs",
-                "!ImportValue sequence",
-                "!Select sequence",
-                "!Split sequence",
-                "!Join sequence",
-              },
             },
           },
         },
       }
-      local ensure_installed = {
-        "bash-language-server",
-        "docker-compose-language-service",
-        "dockerfile-language-server",
-        "doctoc",
-        "editorconfig-checker",
-        "gh",
-        "gh-actions-language-server",
-        "gitleaks",
-        "goimports",
-        "golangci-lint",
-        "golangci-lint-langserver",
-        "gomodifytags",
-        "gopls",
-        "gotests",
-        "gotestsum",
-        "iferr",
-        "impl",
-        "jq",
-        "json-lsp",
-        "json-to-struct",
-        "lua-language-server",
-        "markdownlint-cli2",
-        "mmdc",
-        "prettier",
-        "pyright",
-        "ruff",
-        "rust-analyzer",
-        "shellcheck",
-        "shfmt",
-        "snyk",
-        "stylua",
-        "terraform-ls",
-        "tflint",
-        "trivy",
-        "yaml-language-server",
-        "yq",
-      }
-      local registry = require("mason-registry")
-      registry.refresh(function()
-        for _, name in ipairs(ensure_installed) do
-          local package = registry.get_package(name)
-          if not registry.is_installed(name) then
-            vim.notify(name .. " is being installed")
-            package:install()
-          else
-            local current_version = package:get_installed_version()
-            local latest_version = package:get_latest_version()
-            if current_version ~= latest_version then
-              vim.notify(name .. " is being updated")
-              package:install({ version = latest_version })
-            end
-          end
-        end
-        local all_installed_packages = registry:get_installed_package_names()
-        for _, name in ipairs(all_installed_packages) do
-          if not vim.tbl_contains(ensure_installed, name) then
-            registry.get_package(name):uninstall()
-            vim.notify(name .. " was successfully uninstalled")
-          end
-        end
-      end)
       for server_name, server_config in pairs(servers) do
         server_config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server_config.capabilities or {})
         vim.lsp.config(server_name, server_config)
