@@ -1,6 +1,6 @@
 local function aws_profile_completion(arglead)
   return vim
-    .iter(vim.fn.systemlist("aws configure list-profiles | grep -E '^\\d{12}'"))
+    .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
     :filter(function(profile)
       return string.match(profile, arglead)
     end)
@@ -8,72 +8,26 @@ local function aws_profile_completion(arglead)
 end
 
 vim.api.nvim_create_user_command("AWSConsole", function(opts)
-  local aws_sso_start_url = vim.trim(vim.fn.system("aws configure get sso_start_url"))
   if opts.args == "" then
-    require("snacks").picker({
-      source = "aws_console",
-      title = "AWS Console",
-      layout = { preset = "vscode", fullscreen = opts.bang },
-      finder = function()
-        return vim
-          .iter(vim.fn.systemlist("aws configure list-profiles | grep -E '^\\d{12}'"))
-          :map(function(profile)
-            local profile_split = vim.split(profile, "/")
-            local account_id = profile_split[1]
-            local account_alias = profile_split[2]
-            local role_name = profile_split[3]
-            local account_url = string.format("%s/console?account_id=%s&role_name=%s", aws_sso_start_url, account_id, role_name)
-            return {
-              text = profile,
-              item = profile,
-              id = account_id,
-              alias = account_alias,
-              url = account_url,
-            }
-          end)
-          :totable()
-      end,
-      format = function(item, _)
-        local a = Snacks.picker.util.align
-        local ret = {}
-        ret[#ret + 1] = { a(item.id, 12, { truncate = false }) }
-        ret[#ret + 1] = { "  " }
-        ret[#ret + 1] = { a(item.alias, 63, { truncate = true }) }
-        return ret
-      end,
-      matcher = { fuzzy = true, frecency = true },
-      actions = {
-        yank_id = { action = "yank", field = "id", desc = "Yank ID" },
-        yank_alias = { action = "yank", field = "alias", desc = "Yank Alias" },
-        yank_url = { action = "yank", field = "url", desc = "Yank URL" },
-      },
-      win = {
-        input = {
-          keys = {
-            ["<m-i>"] = { "yank_id", mode = { "n", "i" } },
-            ["<m-n>"] = { "yank_alias", mode = { "n", "i" } },
-            ["<m-u>"] = { "yank_url", mode = { "n", "i" } },
-          },
-        },
-      },
-      confirm = function(picker, item)
-        picker:close()
-        local selection = vim.split(item.text, "/")
-        local account_id = selection[1]
-        local role_name = selection[3]
-        local url = string.format("%s/console?account_id=%s&role_name=%s", aws_sso_start_url, account_id, role_name)
-        vim.ui.open(url)
-        if opts.bang then
-          vim.cmd.quit()
-        end
-      end,
-    })
+    vim.ui.select(vim.fn.systemlist({ "aws", "configure", "list-profiles" }), {
+      prompt = "AWS Profiles",
+    }, function(profile)
+      local account_id = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_id", "--profile", profile }))
+      local role_name = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_role_name", "--profile", profile }))
+      local sso_start_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_start_url", "--profile", profile }))
+      local url = string.format("%s/console?account_id=%s&role_name=%s", sso_start_url, account_id, role_name)
+      vim.ui.open(url)
+      if opts.bang then
+        vim.cmd.quitall()
+      end
+    end)
   else
-    local selection = vim.split(opts.args, "/")
-    local account_id = selection[1]
-    local role_name = selection[3]
-    local url = string.format("%s/console?account_id=%s&role_name=%s", aws_sso_start_url, account_id, role_name)
-    vim.system({ "open", url })
+    local profile = opts.args
+    local account_id = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_id", "--profile", profile }))
+    local role_name = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_role_name", "--profile", profile }))
+    local sso_start_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_start_url", "--profile", profile }))
+    local url = string.format("%s/console?account_id=%s&role_name=%s", sso_start_url, account_id, role_name)
+    vim.ui.open(url)
   end
 end, {
   nargs = "?",
@@ -94,7 +48,7 @@ vim.api.nvim_create_user_command("AWSIAMPolicies", function(opts)
   require("snacks").picker({
     source = "aws_iam_policies",
     title = profile and string.format("AWS IAM Policies (%s)", profile) or "AWS IAM Policies",
-    layout = { preset = "vscode" },
+    layout = { preset = "default" },
     finder = function()
       local url = ""
       local cmd = { "aws", "iam", "list-policies", "--output", "json" }
