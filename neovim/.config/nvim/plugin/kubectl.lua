@@ -1,66 +1,6 @@
 vim.api.nvim_create_user_command("Kubectl", function(opts)
   local cmd = vim.iter({ "kubectl", opts.fargs }):flatten():totable()
-  if #opts.fargs == 0 then
-    require("snacks").picker({
-      source = "kubectl",
-      title = "Kubectl",
-      layout = { preset = "vscode", fullscreen = opts.bang },
-      finder = function()
-        return vim
-          .iter({
-            "--kubeconfig=",
-            "--context=",
-            "--namespace=",
-            "annotate",
-            "api",
-            "apply",
-            "attach",
-            "auth",
-            "autoscale",
-            "certificate",
-            "cluster",
-            "completion",
-            "config",
-            "cordon",
-            "cp",
-            "create",
-            "debug",
-            "delete",
-            "describe",
-            "diff",
-            "drain",
-            "edit",
-            "events",
-            "exec",
-            "explain",
-            "expose",
-            "get",
-            "kustomize",
-            "label",
-            "logs",
-            "patch",
-            "plugin",
-            "port",
-            "proxy",
-            "replace",
-            "rollout",
-            "run",
-            "scale",
-            "set",
-            "taint",
-            "top",
-            "uncordon",
-            "version",
-            "wait",
-          })
-          :filter(function(kcmd)
-            return string.match(kcmd, arg_lead)
-          end)
-          :totable()
-      end,
-    })
-  end
-  require("snacks").terminal(cmd, { auto_close = false, interactive = false })
+  require("snacks").terminal(cmd, { auto_close = false, interactive = false, win = { position = "bottom" } })
 end, {
   nargs = "*",
   desc = "Kubectl",
