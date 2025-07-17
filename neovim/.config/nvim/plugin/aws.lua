@@ -8,27 +8,60 @@ local function aws_profile_completion(arglead)
 end
 
 vim.api.nvim_create_user_command("AWSConsole", function(opts)
-  if opts.args == "" then
-    vim.ui.select(vim.fn.systemlist({ "aws", "configure", "list-profiles" }), {
-      prompt = "AWS Profiles",
-    }, function(profile)
-      local account_id = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_id", "--profile", profile }))
-      local role_name = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_role_name", "--profile", profile }))
-      local sso_start_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_start_url", "--profile", profile }))
-      local url = string.format("%s/console?account_id=%s&role_name=%s", sso_start_url, account_id, role_name)
-      vim.ui.open(url)
-      if opts.bang then
-        vim.cmd.quitall()
-      end
-    end)
-  else
-    local profile = opts.args
-    local account_id = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_id", "--profile", profile }))
-    local role_name = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_role_name", "--profile", profile }))
-    local sso_start_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_start_url", "--profile", profile }))
-    local url = string.format("%s/console?account_id=%s&role_name=%s", sso_start_url, account_id, role_name)
-    vim.ui.open(url)
-  end
+  require("snacks").picker({
+    source = "aws_console",
+    title = "AWS Console",
+    layout = { preset = "vscode", fullscreen = opts.bang },
+    finder = function()
+      local sso_start_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_start_url" }))
+      return vim
+        .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
+        :filter(function(profile)
+          return string.match(profile, "^%d+/.*/.*")
+        end)
+        :map(function(profile)
+          local profile_elems = vim.split(profile, "/")
+          local account_id = profile_elems[1]
+          local account_alias = profile_elems[2]
+          local role_name = profile_elems[3]
+          local url = string.format("%s/console?account_id=%s&role_name=%s", sso_start_url, account_id, role_name)
+          return {
+            item = profile,
+            text = profile,
+            url = url,
+            account_id = account_id,
+            account_alias = account_alias,
+          }
+        end)
+        :totable()
+    end,
+    format = function(item, _)
+      local ret = {}
+      ret[#ret + 1] = { item.account_id }
+      ret[#ret + 1] = { "  " }
+      ret[#ret + 1] = { item.account_alias }
+      return ret
+    end,
+    matcher = { fuzzy = true, frecency = true },
+    actions = {
+      yank_alias = { action = "yank", field = "account_alias", desc = "Yank Alias" },
+      yank_id = { action = "yank", field = "account_id", desc = "Yank ID" },
+      yank_url = { action = "yank", field = "url", desc = "Yank URL" },
+    },
+    win = {
+      input = {
+        keys = {
+          ["<m-n>"] = { "yank_alias", mode = { "n", "i" } },
+          ["<m-i>"] = { "yank_id", mode = { "n", "i" } },
+          ["<m-u>"] = { "yank_url", mode = { "n", "i" } },
+        },
+      },
+    },
+    confirm = function(picker, item)
+      picker:close()
+      vim.ui.open(item.url)
+    end,
+  })
 end, {
   nargs = "?",
   bang = true,
