@@ -11,7 +11,7 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
   require("snacks").picker({
     source = "aws_console",
     title = "AWS Console",
-    layout = { preset = "vscode", fullscreen = opts.bang },
+    layout = { preset = "vscode" },
     finder = function()
       local sso_start_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_start_url" }))
       return vim
@@ -59,7 +59,11 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
     },
     confirm = function(picker, item)
       picker:close()
-      vim.ui.open(item.url)
+      if opts.bang then
+        vim.fn.setreg("+", string.format("%s (%s)", item.account_id, item.account_alias))
+      else
+        vim.ui.open(item.url)
+      end
     end,
   })
 end, {
