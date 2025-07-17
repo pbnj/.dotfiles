@@ -11,7 +11,7 @@ if vim.g.neovide then
 
   -- options
   vim.g.neovide_input_macos_option_key_is_meta = "only_left"
-  vim.g.neovide_opacity = 1.0
+  vim.g.neovide_opacity = 0.8
   -- opacity/transparency
   vim.g.neovide_window_blurred = true
 

@@ -5,7 +5,9 @@ return {
     priority = 1000,
     opts = {},
     config = function()
-      require("tokyonight").setup({ transparent = true })
+      if string.match(vim.env["TERM"], "xterm") then
+        require("tokyonight").setup({ transparent = true })
+      end
       vim.cmd([[colorscheme tokyonight]])
     end,
   },
