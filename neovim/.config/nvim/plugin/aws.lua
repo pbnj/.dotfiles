@@ -13,7 +13,6 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
     title = "AWS Console",
     layout = { preset = "vscode" },
     finder = function()
-      local sso_start_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_start_url" }))
       return vim
         .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
         :filter(function(profile)
@@ -23,12 +22,9 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
           local profile_elems = vim.split(profile, "/")
           local account_id = profile_elems[1]
           local account_alias = profile_elems[2]
-          local role_name = profile_elems[3]
-          local url = string.format("%s/console?account_id=%s&role_name=%s", sso_start_url, account_id, role_name)
           return {
             item = profile,
             text = profile,
-            url = url,
             account_id = account_id,
             account_alias = account_alias,
           }
@@ -62,7 +58,8 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
       if opts.bang then
         vim.fn.setreg("+", string.format("%s (%s)", item.account_id, item.account_alias))
       else
-        vim.ui.open(item.url)
+        local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.text }))
+        vim.ui.open(sso_account_url)
       end
     end,
   })
