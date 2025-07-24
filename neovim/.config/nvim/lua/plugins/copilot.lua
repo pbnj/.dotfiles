@@ -11,11 +11,17 @@ return {
   },
   cmd = {
     "CopilotChat",
-    "CopilotChatOpen",
-    "CopilotChatToggle",
-    "CopilotChatPrompts",
-    "CopilotChatModels",
     "CopilotChatAgents",
+    "CopilotChatClose",
+    "CopilotChatFix",
+    "CopilotChatLoad",
+    "CopilotChatModels",
+    "CopilotChatOpen",
+    "CopilotChatPrompts",
+    "CopilotChatReset",
+    "CopilotChatSave",
+    "CopilotChatStop",
+    "CopilotChatToggle",
   },
   keys = {
     {
@@ -24,6 +30,7 @@ return {
         vim.cmd.CopilotChatToggle()
       end,
       desc = "Copilot Chat Toggle",
+      mode = { "n", "v" },
     },
   },
 }

@@ -42,5 +42,6 @@ vim.opt.ttyfast = true
 vim.opt.undofile = true
 vim.opt.wildignorecase = true
 vim.opt.wildmenu = true
+vim.opt.wildoptions = { "pum", "fuzzy" }
 vim.opt.wrap = false
 vim.opt.wrapscan = false

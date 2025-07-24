@@ -1,6 +1,6 @@
 return {
   "https://github.com/stevearc/conform.nvim",
-  -- event = { "BufWritePost" },
+  event = { "BufWritePre" },
   cmd = { "ConformInfo" },
   keys = {
     {
@@ -21,17 +21,17 @@ return {
     },
   },
   opts = {
-    -- format_after_save = {
-    --   lsp_format = "fallback",
-    --   async = true,
-    -- },
+    format_on_save = {
+      timeout_ms = 1500,
+      lsp_format = "fallback",
+    },
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
       json = { "jq" },
       lua = { "stylua" },
       markdown = { "markdownlint-cli2", "doctoc_update", "prettier", timeout_ms = 1500 },
-      python = { "ruff_fix" },
+      python = { "ruff_format" },
       rust = { "rustfmt" },
       sh = { "shellcheck", "shfmt" },
       terraform = { "terraform_fmt" },
