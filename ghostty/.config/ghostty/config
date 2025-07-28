@@ -25,7 +25,7 @@ keybind = alt+left=esc:b
 keybind = alt+right=esc:f
 keybind = ctrl+shift+tab=previous_tab
 keybind = ctrl+tab=next_tab
-keybind = global:super+grave_accent=toggle_quick_terminal
+# keybind = global:super+grave_accent=toggle_quick_terminal
 keybind = shift+down=adjust_selection:down
 keybind = shift+end=adjust_selection:end
 keybind = shift+home=adjust_selection:home

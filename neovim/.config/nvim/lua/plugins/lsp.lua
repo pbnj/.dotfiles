@@ -35,16 +35,6 @@ return {
             mode = mode or "n"
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = "LSP: " .. desc })
           end
-          -- map("gra", vim.lsp.buf.code_action, "Code Actions")
-          -- map("grD", vim.lsp.buf.declaration, "Goto Declaration")
-          -- map("grd", vim.lsp.buf.definition, "Goto Definition")
-          -- map("grf", vim.lsp.buf.format, "Format")
-          -- map("gri", vim.lsp.buf.implementation, "Goto Implemention")
-          -- map("grn", vim.lsp.buf.rename, "Rename")
-          -- map("grs", vim.lsp.buf.document_symbol, "Goto Document Symbol")
-          -- map("grS", vim.lsp.buf.workspace_symbol, "Goto Workspace Symbol")
-          -- map("grr", vim.lsp.buf.references, "Goto References")
-          -- map("grt", vim.lsp.buf.type_definition, "Goto Type Definition")
           map("<c-s>", vim.lsp.buf.signature_help, "Signature Help", "i")
           map("<c-space>", vim.lsp.completion.get, "Trigger completion suggestion", "i")
         end,
