@@ -77,27 +77,17 @@
 	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
 
 [commit]
-	gpgsign = true
+  gpgsign = true
 
 [gpg]
-	format = ssh
+  format = ssh
 
 [gpg "ssh"]
-	program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-	allowedSignersFile = ~/.ssh/allowed_signers
+  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+  allowedSignersFile = ~/.ssh/allowed_signers
 
 ; work config
-[includeIf "hasconfig:remote.*.url:https://github.com/pbnj-dragon/**"]
+[includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
 	path = ~/.config/git/work.config
-[includeIf "hasconfig:remote.*.url:https://github.com/komodohealth/**"]
+[includeIf "gitdir:~/Projects/github.com/komodohealth/"]
 	path = ~/.config/git/work.config
-[includeIf "hasconfig:remote.*.url:git@github.com:pbnj-dragon/**"]
-	path = ~/.config/git/work.config
-[includeIf "hasconfig:remote.*.url:git@github.com:komodohealth/**"]
-	path = ~/.config/git/work.config
-
-; personal config
-[includeIf "hasconfig:remote.*.url:https://github.com/pbnj/**"]
-	path = ~/.config/git/personal.config
-[includeIf "hasconfig:remote.*.url:git@github.com:pbnj/**"]
-	path = ~/.config/git/personal.config
