@@ -1,12 +1,3 @@
-local function aws_profile_completion(arglead)
-  return vim
-    .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
-    :filter(function(profile)
-      return string.match(profile, arglead)
-    end)
-    :totable()
-end
-
 vim.api.nvim_create_user_command("AWSConsole", function(opts)
   require("snacks").picker({
     source = "aws_console",
@@ -23,7 +14,7 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
           local account_id = profile_elems[1]
           local account_alias = profile_elems[2]
           return {
-            item = profile,
+            profile = profile,
             text = profile,
             account_id = account_id,
             account_alias = account_alias,
@@ -58,7 +49,7 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
       if opts.bang then
         vim.fn.setreg("+", string.format("%s (%s)", item.account_id, item.account_alias))
       else
-        local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.text }))
+        local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.profile }))
         vim.ui.open(sso_account_url)
       end
     end,
@@ -66,7 +57,17 @@ vim.api.nvim_create_user_command("AWSConsole", function(opts)
 end, {
   nargs = "?",
   bang = true,
-  complete = aws_profile_completion,
+  complete = function(arglead)
+    return vim
+      .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
+      :filter(function(profile)
+        return string.match(profile, "^%d+/.*/.*")
+      end)
+      :filter(function(profile)
+        return string.match(profile, arglead)
+      end)
+      :totable()
+  end,
 })
 vim.keymap.set({ "n" }, "<leader>ac", vim.cmd.AWSConsole, { desc = "[A]WS [C]onsole" })
 

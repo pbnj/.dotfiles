@@ -24,10 +24,10 @@ if vim.g.neovide then
       vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * delta
     end
   end
-  vim.keymap.set("n", "<D-=>", function()
+  vim.keymap.set({ "n", "i" }, "<D-=>", function()
     change_scale_factor(1.25)
   end)
-  vim.keymap.set("n", "<D-->", function()
+  vim.keymap.set({ "n", "i" }, "<D-->", function()
     change_scale_factor(1 / 1.25)
   end)
   vim.keymap.set("n", "<D-0>", function()
