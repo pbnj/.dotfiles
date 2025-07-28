@@ -28,9 +28,9 @@ return {
     formatters_by_ft = {
       bash = { "shellcheck", "shfmt" },
       go = { "goimports", "golangci-lint" },
-      json = { "jq" },
+      json = { "prettier" },
       lua = { "stylua" },
-      markdown = { "markdownlint-cli2", "doctoc_update", "prettier", timeout_ms = 1500 },
+      markdown = { "injected", "markdownlint-cli2", "doctoc_update", "prettier", timeout_ms = 1500 },
       python = { "ruff_format" },
       rust = { "rustfmt" },
       sh = { "shellcheck", "shfmt" },
