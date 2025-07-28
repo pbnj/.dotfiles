@@ -10,13 +10,14 @@ auto-update-channel = stable
 background-blur = true
 background-opacity = 0.9
 copy-on-select = clipboard
-custom-shader = shaders/cursor_blaze.glsl
-custom-shader = shaders/cursor_smear.glsl
+custom-shader = ~/.config/ghostty/shaders/cursor_blaze.glsl
+custom-shader = ~/.config/ghostty/shaders/cursor_smear.glsl
 font-family = "Iosevka Nerd Font Mono"
 font-size = 15
 macos-option-as-alt = true
 macos-titlebar-style = hidden
 quick-terminal-position = bottom
+quick-terminal-animation-duration = 0
 theme = "light:tokyonight-day,dark:tokyonight_moon"
 
 # Keybindings
