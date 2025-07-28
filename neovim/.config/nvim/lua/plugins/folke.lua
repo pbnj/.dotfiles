@@ -113,6 +113,14 @@ return {
         desc = "Grep",
       },
       {
+        "<leader>/",
+        function()
+          Snacks.picker.grep_word({ live = true, hidden = true })
+        end,
+        desc = "Visual selection or word",
+        mode = { "x" },
+      },
+      {
         "<leader>;",
         function()
           Snacks.picker.command_history()
@@ -247,14 +255,6 @@ return {
           Snacks.picker.grep_buffers()
         end,
         desc = "Grep Open Buffers",
-      },
-      {
-        "<leader>sw",
-        function()
-          Snacks.picker.grep_word({ live = true, hidden = true })
-        end,
-        desc = "Visual selection or word",
-        mode = { "n", "x" },
       },
       -- search
       {
