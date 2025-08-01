@@ -4,8 +4,6 @@ return {
     event = "VeryLazy",
     dependencies = {
       { "https://github.com/b0o/SchemaStore.nvim" },
-      { "https://github.com/williamboman/mason.nvim", opts = {}, keys = { { "<leader>lm", vim.cmd.Mason, desc = "[M]ason" } } },
-      { "https://github.com/williamboman/mason-lspconfig.nvim", opts = {} },
       {
         "https://github.com/folke/lazydev.nvim",
         ft = "lua",
@@ -29,7 +27,7 @@ return {
         callback = function(event)
           local client = assert(vim.lsp.get_client_by_id(event.data.client_id))
           if client:supports_method("textDocument/completion") then
-            vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = true }) -- :help lsp-completion
+            vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = false }) -- :help lsp-completion
           end
           local map = function(keys, func, desc, mode)
             mode = mode or "n"
@@ -43,7 +41,6 @@ return {
         severity_sort = true,
         float = { border = "rounded", source = true },
         underline = true,
-        -- virtual_lines = { current_line = true },
         virtual_text = true,
         signs = {
           text = {
@@ -53,18 +50,26 @@ return {
             [vim.diagnostic.severity.HINT] = "󰌶",
           },
         },
-        loclist = {
-          open = false,
-          severity = { min = vim.diagnostic.severity.INFO },
-        },
       })
       local capabilities = vim.tbl_deep_extend("force", {}, vim.lsp.protocol.make_client_capabilities())
       local servers = {
-        docker_compose_language_service = {},
-        dockerls = {},
+        -- misc
+        docker_language_server = {},
         gh_actions_ls = {},
+        -- go
         gopls = {},
         golangci_lint_ls = {},
+        -- lua
+        lua_ls = {},
+        -- python
+        pyright = {},
+        -- rust
+        rust_analyzer = {},
+        -- terraform
+        terraformls = {},
+        tflint = {},
+        -- config languages
+        regal = {},
         jsonls = {
           settings = {
             json = {
@@ -73,11 +78,6 @@ return {
             },
           },
         },
-        lua_ls = {},
-        pyright = {},
-        rust_analyzer = {},
-        terraformls = {},
-        tflint = {},
         yamlls = {
           settings = {
             yaml = {
@@ -93,6 +93,7 @@ return {
       for server_name, server_config in pairs(servers) do
         server_config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server_config.capabilities or {})
         vim.lsp.config(server_name, server_config)
+        vim.lsp.enable(server_name)
       end
     end,
   },
