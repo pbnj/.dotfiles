@@ -7,6 +7,7 @@ return {
       require("mini.misc").setup_auto_root()
       require("mini.icons").setup()
       require("mini.diff").setup()
+      require("mini.pairs").setup()
     end,
   },
 }
