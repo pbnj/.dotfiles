@@ -4,6 +4,7 @@ return {
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },
   { "https://github.com/tpope/vim-surround", event = "VeryLazy" },
   { "https://github.com/tpope/vim-eunuch", event = "VeryLazy" },
+  { "https://github.com/tpope/vim-dotenv", event = "VeryLazy" },
   {
     "https://github.com/tpope/vim-fugitive",
     dependencies = { "https://github.com/tpope/vim-rhubarb" },
