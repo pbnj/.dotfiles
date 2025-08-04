@@ -5,7 +5,7 @@ vim.api.nvim_create_user_command("Projects", function(opts)
     cwd = "~/Projects",
     dirs = { "~/Projects" },
     exclude = { ".env" },
-    layout = { preset = "vertical", fullscreen = opts.bang },
+    layout = { preset = "vertical", fullscreen = true },
     formatters = { file = { truncate = 100 } },
   })
 end, { nargs = "*", bang = true, desc = "Projects Snacks Picker" })
