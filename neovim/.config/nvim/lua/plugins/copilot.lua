@@ -1,4 +1,5 @@
 return {
+  enabled = false,
   "https://github.com/CopilotC-Nvim/CopilotChat.nvim",
   dependencies = {
     { "https://github.com/github/copilot.vim", cmd = { "Copilot" } },
