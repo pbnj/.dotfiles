@@ -8,7 +8,6 @@ return {
       require("mini.icons").setup()
       require("mini.diff").setup()
       require("mini.git").setup()
-      require("mini.pairs").setup()
       require("mini.statusline").setup()
     end,
   },
