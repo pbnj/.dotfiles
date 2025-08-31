@@ -1,7 +1,7 @@
 # https://alacritty.org/config-alacritty.html
 [general]
 live_config_reload = true
-import = [ "~/.local/share/nvim/plugged/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml" ]
+# import = [ "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml" ]
 
 [env]
 TERM = "xterm-256color"
@@ -14,7 +14,8 @@ opacity = 1.0
 blur = false
 
 [font]
-size = 15
+size = 14
+normal.family = "FiraCode Nerd Font"
 
 [selection]
 save_to_clipboard = true
