@@ -10,6 +10,8 @@ return {
       -- misc
       docker_language_server = {},
       gh_actions_ls = {},
+      bashls = {},
+      snyk_language_server = {},
       -- go
       gopls = {},
       golangci_lint_ls = {},

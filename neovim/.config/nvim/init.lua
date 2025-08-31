@@ -33,7 +33,6 @@ vim.opt.cursorline = false
 vim.opt.expandtab = true
 vim.opt.foldenable = false
 vim.opt.grepformat:append({ "%f:%l:%c:%m", "%f:%l:%m" })
-vim.opt.guifont = { "Iosevka Nerd Font Mono" }
 vim.opt.hidden = true
 vim.opt.hlsearch = true
 vim.opt.ignorecase = true
@@ -74,7 +73,6 @@ require("lazy").setup({
   spec = {
     { import = "plugins" },
   },
-  install = { colorscheme = { "tokyonight" } },
   checker = { enabled = true },
   change_detection = { enabled = false },
   performance = {
@@ -106,15 +104,6 @@ vim.api.nvim_create_autocmd("VimResized", {
   command = "wincmd =",
 })
 
-vim.api.nvim_create_autocmd("ColorScheme", {
-  group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
-  pattern = "*",
-  callback = function()
-    vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
-  end,
-})
-
 vim.api.nvim_create_autocmd("TextYankPost", {
   desc = "Highlight when yanking (copying) text",
   group = vim.api.nvim_create_augroup("highlight_yank", { clear = true }),
@@ -136,6 +125,29 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end
     map("<c-s>", vim.lsp.buf.signature_help, "Signature Help", "i")
     map("<c-space>", vim.lsp.completion.get, "Trigger completion suggestion", "i")
+  end,
+})
+
+-- Auto-toggle neovim background based on system theme
+vim.api.nvim_create_autocmd("ColorScheme", {
+  group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
+  pattern = "*",
+  callback = function()
+    vim.api.nvim_set_hl(0, "Normal", { bg = nil })
+    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+    if vim.system({ "uname" }):wait().stdout:match("Darwin") then
+      vim.system({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" }, nil, function(result)
+        if result.stdout:match("Dark") then
+          vim.schedule(function()
+            vim.o.background = "dark"
+          end)
+        else
+          vim.schedule(function()
+            vim.o.background = "light"
+          end)
+        end
+      end)
+    end
   end,
 })
 

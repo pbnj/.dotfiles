@@ -1,10 +1,7 @@
 return {
-  { "https://github.com/tpope/vim-vinegar" },
   { "https://github.com/tpope/vim-rsi", event = "VeryLazy" },
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },
-  { "https://github.com/tpope/vim-surround", event = "VeryLazy" },
   { "https://github.com/tpope/vim-eunuch", event = "VeryLazy" },
-  { "https://github.com/tpope/vim-dotenv", event = "VeryLazy" },
   {
     "https://github.com/tpope/vim-fugitive",
     dependencies = { "https://github.com/tpope/vim-rhubarb" },
@@ -13,7 +10,7 @@ return {
       {
         "<leader>gg",
         function()
-          vim.cmd("Git")
+          vim.cmd.G()
         end,
         desc = "Git (Fugitive)",
       },
@@ -48,9 +45,9 @@ return {
     },
   },
   {
-    "https://github.com/kristijanhusak/vim-dadbod-ui",
+    "https://github.com/tpope/vim-dadbod",
     dependencies = {
-      { "https://github.com/tpope/vim-dadbod", lazy = true },
+      { "https://github.com/kristijanhusak/vim-dadbod-ui", lazy = true },
       { "https://github.com/kristijanhusak/vim-dadbod-completion", ft = { "sql", "mysql", "plsql" }, lazy = true },
     },
     cmd = {
@@ -59,8 +56,5 @@ return {
       "DBUIAddConnection",
       "DBUIFindBuffer",
     },
-    init = function()
-      vim.g.db_ui_use_nerd_fonts = 1
-    end,
   },
 }

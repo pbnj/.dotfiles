@@ -65,7 +65,7 @@ return {
       },
       pinact = {
         command = "pinact",
-        args = { "run" },
+        args = { "run", "$RELATIVE_FILEPATH" },
         stdin = false,
       },
       pin_github_action = {

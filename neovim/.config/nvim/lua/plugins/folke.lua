@@ -1,17 +1,5 @@
 return {
   {
-    "https://github.com/folke/tokyonight.nvim",
-    lazy = false,
-    priority = 1000,
-    opts = {},
-    config = function()
-      if string.match(vim.env["TERM"], "xterm") then
-        require("tokyonight").setup({ transparent = true })
-      end
-      vim.cmd([[colorscheme tokyonight]])
-    end,
-  },
-  {
     "https://github.com/folke/trouble.nvim",
     opts = {},
     cmd = { "Trouble" },
@@ -53,6 +41,7 @@ return {
     lazy = false,
     priority = 1000,
     opts = {
+      image = {},
       bigfile = { enabled = true },
       indent = { enabled = true },
       input = { enabled = true },
@@ -443,13 +432,6 @@ return {
         desc = "Select Scratch Buffer",
       },
       {
-        "<leader>e",
-        function()
-          Snacks.explorer()
-        end,
-        desc = "File Explorer",
-      },
-      {
         "<leader>n",
         function()
           Snacks.notifier.show_history()
@@ -544,6 +526,12 @@ return {
           Snacks.toggle.inlay_hints():map("<leader>th")
           Snacks.toggle.indent():map("<leader>tg")
           Snacks.toggle.dim():map("<leader>tD")
+        end,
+      })
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "snacks_picker_input",
+        callback = function()
+          vim.b.minicompletion_disable = true
         end,
       })
     end,

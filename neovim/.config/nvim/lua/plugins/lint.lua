@@ -10,7 +10,7 @@ return {
       python = { "ruff" },
       rego = { "opa_check" },
       rust = { "clippy" },
-      shell = { "shellcheck" },
+      sh = { "shellcheck" },
       terraform = { "tflint" },
     }
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
@@ -19,5 +19,5 @@ return {
         lint.try_lint()
       end,
     })
-  end
+  end,
 }
