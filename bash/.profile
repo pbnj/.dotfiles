@@ -32,5 +32,5 @@ fi
 # ARGOCD
 [ -f "${HOME}/.config/argocd/completion" ] && . "${HOME}/.config/argocd/completion"
 
-# DIRENV
-hash direnv 2>/dev/null && eval "$(direnv hook bash)"
+# STARSHIP
+command -v starship &>/dev/null && eval "$(starship init bash)"

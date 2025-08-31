@@ -5,32 +5,16 @@
 [[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # General
-export FZF_DEFAULT_COMMAND="fd --type file --follow --hidden"
+export EDITOR=nvim
 export FZF_CTRL_T_COMMAND="${FZF_DEFAULT_COMMAND}"
+export FZF_DEFAULT_COMMAND="fd --type file --follow --hidden"
 export FZF_DEFAULT_OPTS_FILE="${HOME}/.config/fzf/config"
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
-
-if command -v rg &>/dev/null; then
-  export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
-fi
+export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
 
 [[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]] && PATH="${HOME}/.local/bin:${PATH}"
 [[ ":${PATH}:" != *":${HOME}/.aws:"* ]] && PATH="${HOME}/.aws:${PATH}"
-[[ ":${PATH}:" != *":${HOME}/.local/share/nvim/mason/bin:"* ]] && PATH="${HOME}/.local/share/nvim/mason/bin:${PATH}"
-
-# vim
-if command -v nvim &>/dev/null
-then
-  export EDITOR=nvim
-else
-  export EDITOR=vim
-fi
-
-# tfenv
-if [[ -d "${HOME}/.tfenv" ]]; then
-  [[ ":${PATH}:" != *":${HOME}/.tfenv/bin:"* ]] && PATH="${HOME}/.tfenv/bin:${PATH}"
-fi
 
 # Go
 export GODEBUG=x509ignoreCN=0

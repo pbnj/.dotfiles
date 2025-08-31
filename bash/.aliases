@@ -4,43 +4,23 @@
 # Hint: `complete -p` shows all completions in the form of commands you can run
 # to replicate the completion behavior for aliases.
 
-alias cp='cp -i'
+# general
+alias ll="ls -alFh --color"
 alias grep="grep --color=auto"
-alias ll="ls -alFh"
-alias mv='mv -i'
-alias rm='rm -i'
 
 # vim
-command -v nvim &>/dev/null && alias vim=nvim
+alias vim=nvim
 alias vi="vim --clean"
-alias vg="vim +0G"
 
 # tmux
 alias tm="tmux a || tmux"
 
-# kubectl
-# https://github.com/ahmetb/kubectl-aliases
-[ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
-
 # terraform
-alias tf=terraform
-alias tfa="terraform apply"
-alias tff="terraform fmt"
-alias tfp="terraform plan"
 alias tfsl="terraform state list"
-alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -I{} -L1 terraform state rm '{}'"
+alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -t -I{} -L1 terraform state rm '{}'"
 alias tfss="terraform state show"
-alias tfv="terraform validate"
 
-# osx
-if [[ $(uname) == "Darwin" ]]; then
-  # enable remote login
-  alias macos-remote-login="sudo systemsetup -getremotelogin && sudo systemsetup -setremotelogin on && sudo systemsetup -getremotelogin"
-  # delete .DS_Store recursively
-  alias macos-clean-dsstore="find ~ -type f -name .DS_Store -exec rm -rf {} \;"
-  # toggle system theme
-  alias macos-toggle-system-theme="osascript -e 'tell app \"System Events\" to tell appearance preferences to set dark mode to not dark mode'"
-fi
+alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
 
 # linux
 if hash apt &>/dev/null; then
