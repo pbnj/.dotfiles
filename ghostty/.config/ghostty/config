@@ -10,7 +10,6 @@ auto-update-channel = stable
 background-blur = true
 background-opacity = 0.90
 copy-on-select = clipboard
-font-size = 15
 macos-option-as-alt = true
 macos-titlebar-style = hidden
 quick-terminal-animation-duration = 0
