@@ -21,9 +21,3 @@ alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -t 
 alias tfss="terraform state show"
 
 alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
-
-# linux
-if hash apt &>/dev/null; then
-  SUDO=$(which sudo)
-  alias auau="${SUDO} apt update && ${SUDO} apt upgrade -y"
-fi
