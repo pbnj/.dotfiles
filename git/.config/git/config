@@ -77,14 +77,18 @@
 	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
 
 [commit]
-  gpgsign = true
+	gpgsign = true
 
 [gpg]
-  format = ssh
+	format = ssh
 
 [gpg "ssh"]
-  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-  allowedSignersFile = ~/.ssh/allowed_signers
+	program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+	allowedSignersFile = ~/.ssh/allowed_signers
+
+[url "personal:pbnj"]
+	insteadOf = "https://github.com/pbnj"
+	insteadOf = "git@github.com:pbnj"
 
 ; work config
 [includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
