@@ -20,4 +20,22 @@ alias tfsl="terraform state list"
 alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -t -I{} -L1 terraform state rm '{}'"
 alias tfss="terraform state show"
 
+# brew
 alias bubu="brew update && brew upgrade && brew cleanup --prune 0"
+
+# git
+alias g=git
+alias ga="git add"
+alias gc="git commit"
+alias gco="git checkout"
+alias gcob="git checkout -b"
+alias gpull="git pull"
+alias gpush="git push"
+alias gs="git status"
+alias gsync="git pull origin main"
+
+# gh
+alias ghas="gh auth switch"
+alias ghrv="gh run view"
+alias ghrw="gh run watch"
+alias ghwr="gh workflow run"
