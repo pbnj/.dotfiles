@@ -18,6 +18,7 @@ Code/
 configstore/
 gh/
 git/.config/git/work.config
+git/.config/git/personal.config
 glab-cli/
 helix/.config/helix/runtime/
 htop/

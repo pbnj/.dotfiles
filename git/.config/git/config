@@ -18,13 +18,6 @@
 	undo = !git reset HEAD~1 --mixed
 	unstage = reset
 
-[credential "https://github.com"]
-	helper =
-	helper = !gh auth git-credential
-[credential "https://gist.github.com"]
-	helper =
-	helper = !gh auth git-credential
-
 [apply]
 	whitespace = fix
 
@@ -70,12 +63,6 @@
 	showSignature = false
 	diffMerges = on
 
-[user]
-	name = Peter Benjamin
-	email = petermbenjamin@gmail.com
-	; https://developer.1password.com/docs/ssh/git-commit-signing
-	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
-
 [commit]
 	gpgsign = true
 
@@ -86,9 +73,14 @@
 	program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
 	allowedSignersFile = ~/.ssh/allowed_signers
 
-[url "personal:pbnj"]
-	insteadOf = "https://github.com/pbnj"
-	insteadOf = "git@github.com:pbnj"
+[filter "lfs"]
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+
+[include]
+	path = ~/.config/git/personal.config
 
 ; work config
 [includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
