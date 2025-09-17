@@ -22,6 +22,7 @@ fi
 # PROFILES & ALIASES
 [ -f "${HOME}/.aliases" ] && . "${HOME}/.aliases"
 [ -f "${HOME}/.profile.work" ] && . "${HOME}/.profile.work"
+[ -f "${HOME}/.env" ] && . "${HOME}/.env"
 
 # FZF
 [ -f ~/.fzf.bash ] && eval "$(fzf --bash)"
