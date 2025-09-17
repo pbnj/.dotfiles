@@ -44,7 +44,20 @@ github_repo_search() {
   fi
 }
 
-export -f github_repo_search github_topic_search
+github_repo_clone() {
+  INPUT="${1:-}"
+  GIT_CLONE_PATH_PREFIX="${HOME}/Projects/github.com"
+  # strip leading https://github.com
+  REPO="${INPUT/https:\/\/github.com\//}"
+  # strip trailing .git
+  REPO="${REPO%.git}"
+  # Set the clone path
+  GIT_CLONE_PATH="${GIT_CLONE_PATH_PREFIX}/${REPO}"
+  gh repo clone "${REPO}" "${GIT_CLONE_PATH}" || true
+  tmux new-window -c "${GIT_CLONE_PATH}"
+}
+
+export -f github_repo_search github_topic_search github_repo_clone
 
 fzf \
   --bind="change:reload:sleep 0.1; github_repo_search {q} || true" \
@@ -52,7 +65,8 @@ fzf \
   --bind="ctrl-r:unbind(ctrl-r)+change-prompt(GitHub Repo> )+rebind(ctrl-t)+enable-search+reload(github_repo_search {q})" \
   --bind="ctrl-t:unbind(ctrl-t)+change-prompt(GitHub Topic> )+rebind(ctrl-r)+disable-search+reload(github_topic_search {q})" \
   --bind="start:reload:github_repo_search {q} || true" \
-  --header='CTRL-R: Repo / CTRL-T: Topic / CTRL-O: Open in browser' \
+  --bind="enter:become:github_repo_clone {}" \
+  --header='<CTRL-R>: Search by Repo / <CTRL-T>: Search by Topic / <CTRL-O>: Open in browser / <ENTER>: Clone' \
   --preview="gh repo view {}" \
   --preview-window='bottom' \
   --prompt="GitHub Repo> " \

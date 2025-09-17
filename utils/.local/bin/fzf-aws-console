@@ -3,20 +3,18 @@
 set -euo pipefail
 [[ -n "${DEBUG:-}" ]] && set -x
 
-AWS_SSO_START_URL="$(grep 'sso_start_url' ~/.aws/config | awk -F'=' '{print $2}' | uniq)"
+AWS_SSO_START_URL="$(aws configure get sso_start_url)"
+AWS_SSO_ACCOUNT_ID="${1:-}"
 
 fzf \
   --bind "ctrl-a:become:pbcopy <<< {2}" \
   --bind "ctrl-i:become:pbcopy <<< {1}" \
   --bind "ctrl-u:become:pbcopy <<< '${AWS_SSO_START_URL}/console?account_id={1}&role_name={3}'" \
   --bind "ctrl-y:become:printf %s {} | pbcopy" \
-  --bind "enter:execute-silent:open ${AWS_SSO_START_URL}/console?account_id={1}&role_name={3}" \
+  --bind "enter:become:open ${AWS_SSO_START_URL}/console?account_id={1}\&role_name={3}" \
   --bind "start:reload:aws configure list-profiles | grep -E '^\\d{12}'" \
   --delimiter='/' \
-  --preview='aws organizations describe-account --account-id {1}' \
-  --preview-window='bottom' \
   --header "CTRL-I: copy id / CTRL-A: copy alias / CTRL-Y: copy profile name / CTRL-U: copy url / ENTER: open in browser" \
   --prompt "AWS Console> " \
-  --query "${1:-}" \
-  --reverse \
-  --tmux='center,80%' || true
+  --query "${AWS_SSO_ACCOUNT_ID:-}" \
+  --reverse || true
