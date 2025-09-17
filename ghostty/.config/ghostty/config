@@ -8,15 +8,20 @@
 auto-update = download
 auto-update-channel = stable
 background-blur = true
-background-opacity = 0.90
+background-opacity = 0.80
 copy-on-select = clipboard
 macos-option-as-alt = true
 macos-titlebar-style = hidden
 quick-terminal-animation-duration = 0
 quick-terminal-position = bottom
-theme = "light:nvimlight,dark:nvimdark"
+
+## ghostty +list-fonts
+font-family = "JetBrainsMono Nerd Font"
+## ghostty +list-themes
+theme = "light:Builtin Tango Light,dark:Builtin Tango Dark"
 
 # Keybindings
+## ghostty-specific
 keybind = alt+left=esc:b
 keybind = alt+right=esc:f
 keybind = ctrl+shift+tab=previous_tab
