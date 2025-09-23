@@ -28,7 +28,8 @@ vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
 vim.opt.complete = ".,w,b,u,t"
-vim.opt.completeopt = { "menu", "menuone", "popup", "fuzzy", "noselect" }
+vim.opt.completeopt = { "menu", "menuone", "popup", "fuzzy" }
+vim.opt.conceallevel = 0
 vim.opt.cursorline = false
 vim.opt.expandtab = true
 vim.opt.foldenable = false
@@ -40,7 +41,7 @@ vim.opt.inccommand = "split"
 vim.opt.incsearch = true
 vim.opt.infercase = true
 vim.opt.iskeyword = "@,48-57,_,192-255,-,#"
-vim.opt.laststatus = 2
+vim.opt.laststatus = 3
 vim.opt.list = true
 vim.opt.listchars = "tab:│⋅,trail:⋅,nbsp:␣"
 vim.opt.modeline = true
@@ -51,28 +52,29 @@ vim.opt.ruler = false
 vim.opt.scrolloff = 10
 vim.opt.shortmess = "FICcW"
 vim.opt.showmode = false
+vim.opt.sidescrolloff = 10
 vim.opt.signcolumn = "yes"
 vim.opt.smartcase = true
 vim.opt.smarttab = true
+vim.opt.splitkeep = "screen"
 vim.opt.swapfile = false
-vim.opt.title = true
-vim.opt.titlestring = "%F"
 vim.opt.ttimeout = true
 vim.opt.ttimeoutlen = 50
 vim.opt.ttyfast = true
 vim.opt.undofile = true
 vim.opt.wildignorecase = true
 vim.opt.wildmenu = true
-vim.opt.wildoptions = { "pum", "fuzzy" }
 vim.opt.winborder = "rounded"
 vim.opt.wrap = false
 vim.opt.wrapscan = false
 
 -- Load plugins
 require("lazy").setup({
+  rocks = { enabled = false, hererocks = false },
   spec = {
     { import = "plugins" },
   },
+  ui = { border = "rounded" },
   checker = { enabled = true },
   change_detection = { enabled = false },
   performance = {
@@ -134,7 +136,7 @@ vim.api.nvim_create_autocmd("ColorScheme", {
   pattern = "*",
   callback = function()
     vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+    -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
     if vim.system({ "uname" }):wait().stdout:match("Darwin") then
       vim.system({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" }, nil, function(result)
         if result.stdout:match("Dark") then
@@ -184,5 +186,4 @@ vim.filetype.add({
   -- },
 })
 
--- Colorscheme
 vim.cmd.colorscheme("default")
