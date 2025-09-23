@@ -7,7 +7,9 @@
 # general
 alias ll="ls -alFh --color"
 alias grep="grep --color=auto"
-alias rm="trash"
+alias rm="rm -i"
+alias cp="cp -i"
+alias mv="mv -i"
 
 # vim
 alias vim=nvim
@@ -22,7 +24,7 @@ alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -t 
 alias tfss="terraform state show"
 
 # package managers
-alias brew_up="brew update && brew upgrade && brew cleanup --prune 0"
+alias brew_up="brew update && brew upgrade && brew cleanup --prune all"
 alias npm_up="npm outdated -g --json | jq -rc 'keys[]' | xargs -t -L1 npm install -g"
 
 # git

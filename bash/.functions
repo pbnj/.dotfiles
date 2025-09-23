@@ -1,19 +1,5 @@
 #!/usr/bin/env bash
 
-pack_up() {
-        if command -v brew &>/dev/null; then
-                echo "[+] brew ..."
-                brew update
-                brew outdated
-                brew upgrade
-                brew cleanup --prune 0
-        fi
-        if command -v npm &>/dev/null; then
-                echo "[+] npm ..."
-                npm outdated -g --json | jq -rc 'keys[]' | xargs -t -L1 npm install -g
-        fi
-}
-
 dateiso() {
-        date +"%Y-%m-%dT%H:%M:%S"
+        date +"%Y%m%dT%H%M%S"
 }

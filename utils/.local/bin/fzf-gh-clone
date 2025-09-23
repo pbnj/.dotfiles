@@ -71,5 +71,4 @@ fzf \
   --preview-window='bottom' \
   --prompt="GitHub Repo> " \
   --query="${GH_REPO}" \
-  --reverse \
-  --tmux='center,80%' || true
+  --reverse || true

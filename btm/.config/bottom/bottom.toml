@@ -222,7 +222,7 @@ columns = ["PID", "Name", "CPU%", "Mem%", "User", "State"]
 #
 # This will have the lowest precedence if a custom colour palette is set,
 # or overridden if the command-line flag for a built-in theme is set.
-theme = "default-light"
+# theme = "default-light"
 
 #[styles.cpu]
 #all_entry_color = "green"

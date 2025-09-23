@@ -13,5 +13,4 @@ fzf \
   --header-border 'bottom' \
   --input-border \
   --prompt 'Projects> ' \
-  --reverse \
-  --tmux 'center,80%' || true
+  --reverse || true
