@@ -20,7 +20,7 @@ return {
       },
     },
   },
-  build = "make tiktoken",
+  build = { "make tiktoken", "npm install @github/copilot-language-server" },
   opts = {
     window = { layout = "horizontal" },
   },

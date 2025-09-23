@@ -11,7 +11,7 @@ return {
       rego = { "opa_check" },
       rust = { "clippy" },
       sh = { "shellcheck" },
-      terraform = { "tflint" },
+      terraform = { "tflint", "terraform_validate" },
     }
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
       pattern = "*",
