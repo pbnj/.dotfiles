@@ -1,46 +1,62 @@
 return {
+  { "https://github.com/tpope/vim-dispatch", event = "VeryLazy" },
+  {
+    "https://github.com/tpope/vim-dotenv",
+    event = "VeryLazy",
+    config = function()
+      vim.cmd([[silent Dotenv ~]])
+    end,
+  },
   { "https://github.com/tpope/vim-rsi", event = "VeryLazy" },
+  { "https://github.com/tpope/vim-vinegar", event = "VeryLazy" },
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },
   { "https://github.com/tpope/vim-eunuch", event = "VeryLazy" },
   {
     "https://github.com/tpope/vim-fugitive",
-    dependencies = { "https://github.com/tpope/vim-rhubarb" },
     event = "VeryLazy",
+    dependencies = { "https://github.com/tpope/vim-rhubarb" },
     keys = {
       {
         "<leader>gg",
         function()
           vim.cmd.G()
         end,
-        desc = "Git (Fugitive)",
+        desc = "[G]it (Fugitive)",
+      },
+      {
+        "<leader>gS",
+        function()
+          vim.cmd("Git show")
+        end,
+        desc = "[G]it [S]how (Fugitive)",
       },
       {
         "<leader>gc",
         function()
           vim.cmd("Git commit")
         end,
-        desc = "Git Commit (Fugitive)",
+        desc = "[G]it [C]ommit (Fugitive)",
       },
       {
         "<leader>gp",
         function()
           vim.cmd("Git push -u origin")
         end,
-        desc = "Git Push (Fugitive)",
+        desc = "[G]it [P]ush (Fugitive)",
       },
       {
         "<leader>gP",
         function()
           vim.cmd("Git pull")
         end,
-        desc = "Git Pull (Fugitive)",
+        desc = "[G]it [P]ull (Fugitive)",
       },
       {
         "<leader>gw",
         function()
           vim.cmd("Gwrite")
         end,
-        desc = "Gwrite (Fugitive)",
+        desc = "[Gw]rite (Fugitive)",
       },
     },
   },
