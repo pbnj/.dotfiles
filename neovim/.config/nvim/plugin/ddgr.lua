@@ -1,100 +1,108 @@
+local terminal = function(args, auto_close)
+  if pcall(require, "snacks") then
+    require("snacks").terminal(args, { auto_close = auto_close, win = { wo = { winbar = table.concat(args, " ") } } })
+    return
+  elseif pcall(require, "toggleterm") then
+    require("toggleterm.terminal").Terminal:new({ cmd = table.concat(args, " "), direction = "float", close_on_exit = auto_close }):toggle()
+    return
+  else
+    vim.cmd("terminal " .. table.concat(args, " "))
+  end
+end
+
+local ddgr_bang_list = {
+  "!ai",
+  "!amaps",
+  "!archiveis",
+  "!archiveweb",
+  "!aws",
+  "!azure",
+  "!bangs",
+  "!chat",
+  "!chtsh",
+  "!cloudformation",
+  "!crates",
+  "!d",
+  "!devdocs",
+  "!devto",
+  "!dhdocs",
+  "!dictionary",
+  "!dmw",
+  "!dockerhub",
+  "!docs.rs",
+  "!duckduckgo",
+  "!g",
+  "!gcp",
+  "!gdefine",
+  "!gdocs",
+  "!gh",
+  "!ghcode",
+  "!ghio",
+  "!ghrepo",
+  "!ght",
+  "!ghtopic",
+  "!ghuser",
+  "!gist",
+  "!gmail",
+  "!gmaps",
+  "!godoc",
+  "!google",
+  "!gopkg",
+  "!gsheets",
+  "!gslides",
+  "!i",
+  "!ker",
+  "!kubernetes",
+  "!man",
+  "!mdn",
+  "!mysql",
+  "!n",
+  "!node",
+  "!npm",
+  "!postgres",
+  "!py3",
+  "!python",
+  "!rce",
+  "!rclippy",
+  "!reddit",
+  "!rust",
+  "!rustdoc",
+  "!spotify",
+  "!stackoverflow",
+  "!tldr",
+  "!tmg",
+  "!translate",
+  "!twitch",
+  "!typescript",
+  "!v",
+  "!vimw",
+  "!yt",
+}
+
+local ddgr_bang_completion = function(arg_lead, _, _)
+  return vim
+    .iter(ddgr_bang_list)
+    :filter(function(cmd)
+      return string.match(cmd, arg_lead)
+    end)
+    :totable()
+end
+
 vim.api.nvim_create_user_command("DDGR", function(opts)
-  local ddgr_bang_list = {
-    { bang = "!ai", text = "Duck.ai" },
-    { bang = "!amaps", text = "Apple Maps" },
-    { bang = "!archiveis", text = "Archive.is" },
-    { bang = "!archiveweb", text = "Archive.org" },
-    { bang = "!aws", text = "AWS" },
-    { bang = "!azure", text = "Azure" },
-    { bang = "!bangs", text = "DuckDuckGo Bangs" },
-    { bang = "!chat", text = "Duck.ai" },
-    { bang = "!chtsh", text = "Cheatsheet" },
-    { bang = "!cloudformation", text = "AWS CloudFormation" },
-    { bang = "!crates", text = "Rust Crates" },
-    { bang = "!d", text = "The Free Dictionary" },
-    { bang = "!devdocs", text = "DevDocs" },
-    { bang = "!devto", text = "DevTo" },
-    { bang = "!dhdocs", text = "Dockerhub Docs" },
-    { bang = "!dictionary", text = "The Free Dictionary" },
-    { bang = "!dmw", text = "Meriam-Webster Dictionary" },
-    { bang = "!dockerhub", text = "DockerHub" },
-    { bang = "!docs.rs", text = "Rust Docs.rs" },
-    { bang = "!duckduckgo", text = "DuckDuckGo" },
-    { bang = "!g", text = "Google" },
-    { bang = "!gcp", text = "Google Cloud" },
-    { bang = "!gdefine", text = "Google Define" },
-    { bang = "!gdocs", text = "Google Docs" },
-    { bang = "!gh", text = "GitHub" },
-    { bang = "!ghcode", text = "GitHub (code search)" },
-    { bang = "!ghio", text = "GitHub User Pages" },
-    { bang = "!ghrepo", text = "GitHub Repo" },
-    { bang = "!ght", text = "GitHub Trending" },
-    { bang = "!ghtopic", text = "GitHub Topics" },
-    { bang = "!ghuser", text = "GitHub Users" },
-    { bang = "!gist", text = "GitHub Gists" },
-    { bang = "!gmail", text = "Google Mail" },
-    { bang = "!gmaps", text = "Google Maps" },
-    { bang = "!godoc", text = "Golang Docs" },
-    { bang = "!google", text = "Google" },
-    { bang = "!gopkg", text = "Golang Packages" },
-    { bang = "!gsheets", text = "Google Sheets" },
-    { bang = "!gslides", text = "Google Slides" },
-    { bang = "!i", text = "DuckDuckGo Images" },
-    { bang = "!ker", text = "Linux Kernel Archives" },
-    { bang = "!kubernetes", text = "Kubernetes" },
-    { bang = "!man", text = "Man Pages" },
-    { bang = "!mdn", text = "Mozilla Developer Network Docs" },
-    { bang = "!mysql", text = "MySQL" },
-    { bang = "!n", text = "DuckDuckGo News" },
-    { bang = "!node", text = "Node.js" },
-    { bang = "!npm", text = "Node Package Manager" },
-    { bang = "!postgres", text = "Postgres" },
-    { bang = "!py3", text = "Python3 Docs" },
-    { bang = "!python", text = "Python" },
-    { bang = "!rce", text = "Rust Compiler Error" },
-    { bang = "!rclippy", text = "Rust Clippy" },
-    { bang = "!reddit", text = "Reddit" },
-    { bang = "!rust", text = "Rust" },
-    { bang = "!rustdoc", text = "Rust Docs" },
-    { bang = "!spotify", text = "Spotify" },
-    { bang = "!stackoverflow", text = "StackOverflow" },
-    { bang = "!tldr", text = "TLDR (friendlier man-pages)" },
-    { bang = "!tmg", text = "Terraform Registry" },
-    { bang = "!translate", text = "Google Translate" },
-    { bang = "!twitch", text = "Twitch" },
-    { bang = "!typescript", text = "TypeScript Docs" },
-    { bang = "!v", text = "DuckDuckGo Videos" },
-    { bang = "!vimw", text = "Vim Docs" },
-    { bang = "!yt", text = "YouTube" },
-  }
-  require("snacks").picker({
-    source = "ddgr",
-    title = "DDGR",
-    layout = { preset = "vscode", fullscreen = opts.bang },
-    finder = function()
-      return vim
-        .iter(ddgr_bang_list)
-        :map(function(bang)
-          return { text = bang.text, bang = bang.bang }
-        end)
-        :totable()
-    end,
-    format = function(item, _)
-      local ret = {}
-      ret[#ret + 1] = { item.bang }
-      ret[#ret + 1] = { "  " }
-      ret[#ret + 1] = { item.text }
-      return ret
-    end,
-    matcher = { fuzzy = true, frecency = true },
-    confirm = function(picker, item)
-      picker:close()
-      vim.ui.input({ prompt = string.format("Search (%s): ", item.text), default = opts.args }, function(input)
-        local cmd = string.format("ddgr --noprompt --gui-browser --expand --num=5 '%s %s'", item.bang, input or "")
-        require("snacks").terminal(cmd)
-      end)
-    end,
-  })
-end, { nargs = "*", bang = true, desc = "DuckDuckGo (DDGR)" })
+  local cmd = { "ddgr", "--expand" }
+  if #opts.fargs == 0 then
+    terminal(cmd, false)
+  else
+    vim.ui.select(ddgr_bang_list, { prompt = "DDGR> " }, function(bang)
+      cmd = vim.tbl_extend("force", cmd, { "ddgr", "--noprompt", "--gui-browser", bang, unpack(opts.fargs) })
+      terminal(cmd, true)
+    end)
+  end
+end, {
+  nargs = "*",
+  bang = true,
+  desc = "DuckDuckGo (DDGR)",
+  complete = ddgr_bang_completion,
+})
 
 vim.keymap.set({ "n" }, "<leader>dd", vim.cmd.DDGR, { desc = "DuckDuckGo (DDGR)", silent = true, noremap = true })
