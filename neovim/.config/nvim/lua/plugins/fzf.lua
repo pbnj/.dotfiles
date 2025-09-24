@@ -89,7 +89,14 @@ return {
       function()
         require("fzf-lua").files({ cwd = "~/.config/nvim", hidden = true })
       end,
-      desc = "[F]ind [C]onfig Files",
+      desc = "[F]ind Neovim [C]onfig Files",
+    },
+    {
+      "<leader>fC",
+      function()
+        require("fzf-lua").files({ cwd = "~/.dotfiles", hidden = true })
+      end,
+      desc = "[F]ind [C]onfig Dotfiles",
     },
     {
       "<leader>ff",
