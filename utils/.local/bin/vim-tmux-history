@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -euo pipefail
-[[ "${DEBUG:-}" == "true" ]] && set -x
-
-tmux capture-pane -J -p -S- | vim -
