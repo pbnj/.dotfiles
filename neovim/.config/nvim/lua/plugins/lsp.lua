@@ -3,6 +3,7 @@ return {
   event = "VeryLazy",
   dependencies = {
     { "https://github.com/b0o/SchemaStore.nvim" },
+    { "https://github.com/saghen/blink.cmp" },
   },
   config = function()
     vim.lsp.set_log_level("OFF")
@@ -47,7 +48,7 @@ return {
       },
     }
     for server_name, server_config in pairs(servers) do
-      server_config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server_config.capabilities or {})
+      server_config.capabilities = require("blink.cmp").get_lsp_capabilities(server_config.capabilities)
       vim.lsp.config(server_name, server_config)
       vim.lsp.enable(server_name)
     end
