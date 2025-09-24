@@ -1,0 +1,159 @@
+# Config: https://pre-commit.com/#plugins
+# Hooks: https://pre-commit.com/#new-hooks
+---
+repos:
+  - repo: local
+    hooks:
+      # general
+      - id: gitleaks
+        name: gitleaks
+        description: Checks commits for secrets. `brew install gitleaks` required.
+        language: system
+        entry: gitleaks
+        args:
+          - protect
+
+      # markdown
+      - id: doctoc
+        name: doctoc
+        description: Updates Table of Contents in markdown files. `brew install node` required.
+        types:
+          - markdown
+        language: system
+        entry: npx
+        args:
+          - doctoc
+          - --notitle
+          - --update-only
+      - id: prettier
+        name: prettier
+        description: Formats supported file types. `brew install node` required.
+        language: system
+        entry: npx
+        args:
+          - prettier
+          - --write
+          - --check
+          - --ignore-unknown
+      - id: markdownlint
+        name: markdownlint
+        description: Lints markdown files. `brew install node` required.
+        language: system
+        types:
+          - markdown
+        entry: npx
+        args:
+          - markdownlint-cli
+
+      # yaml
+      - id: yamllint
+        name: yamllint
+        description: Lints YAML files. `brew install yamllint` required.
+        language: system
+        types:
+          - yaml
+        entry: yamllint
+
+      # go
+      - id: gofmt
+        name: gofmt
+        description: Formats Go files. `brew install go` required.
+        language: system
+        types:
+          - go
+        entry: gofmt
+        args:
+          - -w
+      - id: golangci-lint
+        name: golangci-lint
+        description: Lints Go files. `brew install golangci-lint` required.
+        language: golang
+        types:
+          - go
+        entry: golangci-lint
+        args:
+          - run
+          - --fix
+        pass_filenames: false
+
+      # rust
+      - id: cargo-check
+        name: cargo check
+        description: Formats Go files. `brew install go` required.
+        language: system
+        types:
+          - rust
+        entry: cargo
+        args:
+          - check
+        pass_filenames: false
+
+      # shell
+      - id: shellcheck
+        name: shellcheck
+        description: Checks shell files for common problems. `brew install shellcheck` required.
+        types:
+          - shell
+        language: system
+        entry: shellcheck
+
+      # docker
+      - id: hadolint
+        name: hadolint
+        description: Lints Dockerfiles. `brew install hadolint` required.
+        language: system
+        types:
+          - dockerfile
+        entry: hadolint
+
+      # terraform
+      - id: terraform-fmt
+        name: terraform fmt
+        description: Enforces Terraform styling and formatting. `brew install tfenv && tfenv use 1.5.6` required.
+        types:
+          - terraform
+        language: system
+        entry: env TF_CLI_ARGS="-no-color" terraform
+        args:
+          - fmt
+      - id: terraform-validate
+        name: terraform validate
+        description: Validates Terraform code. `brew install tfenv && tfenv use 1.5.6` required.
+        types:
+          - terraform
+        language: system
+        entry: env TF_CLI_ARGS="-no-color" terraform
+        args:
+          - validate
+        pass_filenames: false
+      - id: tflint
+        name: tflint
+        description: Lints Terraform code. `brew install tflint` required.
+        types:
+          - terraform
+        language: system
+        entry: tflint
+        pass_filenames: false
+      - id: snyk-iac
+        name: snyk iac test
+        description: Checks IaC files for security misconfiguration
+        types:
+          - terraform
+        language: system
+        entry: npx
+        args:
+          - snyk
+          - iac
+          - test
+        pass_filenames: false
+
+      # commit
+      - id: commitizen
+        name: commitizen
+        description: Lints commit messages. `brew install commitizen` required.
+        stages: [commit-msg] # run only in git commit-msg lifecycle event
+        language: system
+        entry: cz
+        args:
+          - check
+          - --commit-msg-file
