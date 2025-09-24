@@ -19,7 +19,6 @@ quick-terminal-position = bottom
 # font-family = "JetBrainsMono Nerd Font"
 ## ghostty +list-themes
 theme = "light:Builtin Tango Light,dark:Builtin Tango Dark"
-# theme = "light:Tokyonight Day,dark:Tokyonight"
 
 # Keybindings
 ## ghostty-specific
