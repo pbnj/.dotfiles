@@ -136,7 +136,7 @@ vim.api.nvim_create_autocmd("ColorScheme", {
   pattern = "*",
   callback = function()
     vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
     if vim.system({ "uname" }):wait().stdout:match("Darwin") then
       vim.system({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" }, nil, function(result)
         if result.stdout:match("Dark") then
@@ -176,6 +176,7 @@ vim.diagnostic.config({
 vim.filetype.add({
   extension = {
     json = "jsonc",
+    tofu = "terraform",
   },
   filename = {
     [".snyk"] = "yaml",
