@@ -1,15 +1,3 @@
-local terminal = function(args)
-  if pcall(require, "snacks") then
-    require("snacks").terminal(args, { auto_close = false, win = { wo = { winbar = table.concat(args, " ") } } })
-    return
-  elseif pcall(require, "toggleterm") then
-    require("toggleterm.terminal").Terminal:new({ cmd = table.concat(args, " "), direction = "float", close_on_exit = false }):toggle()
-    return
-  else
-    vim.cmd("terminal " .. table.concat(args, " "))
-  end
-end
-
 local aws_profile = function(arglead)
   return vim
     .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
@@ -20,98 +8,63 @@ local aws_profile = function(arglead)
 end
 
 vim.api.nvim_create_user_command("AWSConsole", function(opts)
-  require("fzf-lua").fzf_exec(function(fzf_cb)
-    vim
-      .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
-      :map(function(profile)
-        fzf_cb(profile)
-      end)
-      :totable()
-    fzf_cb()
-  end, {
-    prompt = "AWS Console> ",
+  require("snacks").picker({
+    source = "aws_console",
+    title = "AWS Console",
+    layout = { preset = "vscode" },
+    finder = function()
+      return vim
+        .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
+        :filter(function(profile)
+          return string.match(profile, "^[default|%d+/.*/.*]")
+        end)
+        :map(function(profile)
+          local profile_elems = vim.split(profile, "/")
+          local account_id = profile_elems[1]
+          local account_alias = profile_elems[2]
+          return {
+            profile = profile,
+            text = profile,
+            account_id = account_id,
+            account_alias = account_alias,
+          }
+        end)
+        :totable()
+    end,
+    format = function(item, _)
+      local ret = {}
+      ret[#ret + 1] = { item.account_id }
+      ret[#ret + 1] = { "  " }
+      ret[#ret + 1] = { item.account_alias }
+      return ret
+    end,
+    matcher = { fuzzy = true, frecency = true },
     actions = {
-      ["ctrl-a"] = function(selected)
-        local parts = vim.split(selected[1], "/")
-        local account_alias = parts[2]
-        vim.fn.setreg("+", string.format("%s", account_alias))
-        vim.notify(string.format("Yanked AWS Account Alias: %s", account_alias), vim.log.levels.INFO)
-      end,
-      ["ctrl-i"] = function(selected)
-        local parts = vim.split(selected[1], "/")
-        local account_id = parts[1]
-        vim.fn.setreg("+", string.format("%s", account_id))
-        vim.notify(string.format("Yanked AWS Account ID: %s", account_id), vim.log.levels.INFO)
-      end,
-      ["enter"] = function(selected)
-        local profile = selected[1]
-        local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", profile }))
+      yank_alias = { action = "yank", field = "account_alias", desc = "Yank Alias" },
+      yank_id = { action = "yank", field = "account_id", desc = "Yank ID" },
+      yank_url = { action = "yank", field = "url", desc = "Yank URL" },
+      yank_profile = { action = "yank", field = "profile", desc = "Yank Profile" },
+    },
+    win = {
+      input = {
+        keys = {
+          ["<m-n>"] = { "yank_alias", mode = { "n", "i" } },
+          ["<m-i>"] = { "yank_id", mode = { "n", "i" } },
+          ["<m-u>"] = { "yank_url", mode = { "n", "i" } },
+          ["<m-p>"] = { "yank_profile", mode = { "n", "i" } },
+        },
+      },
+    },
+    confirm = function(picker, item)
+      picker:close()
+      if opts.bang then
+        vim.fn.setreg("+", string.format("%s (%s)", item.account_id, item.account_alias))
+      else
+        local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.profile }))
         vim.ui.open(sso_account_url)
-        vim.notify(string.format("Opening AWS Console for profile: %s", profile), vim.log.levels.INFO)
-      end,
-    },
-    fzf_opts = {
-      ["--info"] = "inline",
-      ["--header"] = "<ctrl-a> yank alias, <ctrl-i> yank id, <enter> open console",
-    },
+      end
+    end,
   })
-  -- require("snacks").picker({
-  --   source = "aws_console",
-  --   title = "AWS Console",
-  --   layout = { preset = "vscode" },
-  --   finder = function()
-  --     return vim
-  --       .iter(vim.fn.systemlist({ "aws", "configure", "list-profiles" }))
-  --       :filter(function(profile)
-  --         return string.match(profile, "^%d+/.*/.*")
-  --       end)
-  --       :map(function(profile)
-  --         local profile_elems = vim.split(profile, "/")
-  --         local account_id = profile_elems[1]
-  --         local account_alias = profile_elems[2]
-  --         return {
-  --           profile = profile,
-  --           text = profile,
-  --           account_id = account_id,
-  --           account_alias = account_alias,
-  --         }
-  --       end)
-  --       :totable()
-  --   end,
-  --   format = function(item, _)
-  --     local ret = {}
-  --     ret[#ret + 1] = { item.account_id }
-  --     ret[#ret + 1] = { "  " }
-  --     ret[#ret + 1] = { item.account_alias }
-  --     return ret
-  --   end,
-  --   matcher = { fuzzy = true, frecency = true },
-  --   actions = {
-  --     yank_alias = { action = "yank", field = "account_alias", desc = "Yank Alias" },
-  --     yank_id = { action = "yank", field = "account_id", desc = "Yank ID" },
-  --     yank_url = { action = "yank", field = "url", desc = "Yank URL" },
-  --     yank_profile = { action = "yank", field = "profile", desc = "Yank Profile" },
-  --   },
-  --   win = {
-  --     input = {
-  --       keys = {
-  --         ["<m-n>"] = { "yank_alias", mode = { "n", "i" } },
-  --         ["<m-i>"] = { "yank_id", mode = { "n", "i" } },
-  --         ["<m-u>"] = { "yank_url", mode = { "n", "i" } },
-  --         ["<m-p>"] = { "yank_profile", mode = { "n", "i" } },
-  --       },
-  --     },
-  --   },
-  --   confirm = function(picker, item)
-  --     picker:close()
-  --     if opts.bang then
-  --       vim.fn.setreg("+", string.format("%s (%s)", item.account_id, item.account_alias))
-  --     else
-  --       local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.profile }))
-  --       vim.ui.open(sso_account_url)
-  --     end
-  --   end,
-  -- })
 end, {
   nargs = "?",
   bang = true,
@@ -289,17 +242,16 @@ end, {
 })
 
 vim.api.nvim_create_user_command("AWS", function(opts)
-  local cmd = vim.iter({ "awe", "--no-cli-pager", "--cli-auto-prompt", opts.fargs }):flatten():totable()
-  terminal(cmd)
+  local cmd = string.format("awe --no-cli-pager --cli-auto-prompt %s", opts.args)
+  require("snacks").terminal(cmd, { auto_close = false })
 end, {
   nargs = "*",
 })
 
 -- Register the AWSProfile command
 vim.api.nvim_create_user_command("AWSProfile", function(opts)
-  local Terminal = require("toggleterm.terminal").Terminal
-  local cmd = string.format("awe --no-cli-pager --cli-auto-prompt --profile=%s", opts.args)
-  Terminal:new({ cmd = cmd, close_on_exit = false }):toggle()
+  local cmd = { "awe", "--no-cli-pager", "--cli-auto-prompt", "--profile", unpack(opts.fargs) }
+  require("snacks").terminal(cmd, { auto_close = false })
 end, {
   nargs = "*",
 })

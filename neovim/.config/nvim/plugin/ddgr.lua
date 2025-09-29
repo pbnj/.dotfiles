@@ -1,15 +1,3 @@
-local terminal = function(args, auto_close)
-  if pcall(require, "snacks") then
-    require("snacks").terminal(args, { auto_close = auto_close, win = { wo = { winbar = table.concat(args, " ") } } })
-    return
-  elseif pcall(require, "toggleterm") then
-    require("toggleterm.terminal").Terminal:new({ cmd = table.concat(args, " "), direction = "float", close_on_exit = auto_close }):toggle()
-    return
-  else
-    vim.cmd("terminal " .. table.concat(args, " "))
-  end
-end
-
 local ddgr_bang_list = {
   "!ai",
   "!amaps",
@@ -91,11 +79,11 @@ end
 vim.api.nvim_create_user_command("DDGR", function(opts)
   local cmd = { "ddgr", "--expand" }
   if #opts.fargs == 0 then
-    terminal(cmd, false)
+    require("snacks").terminal(cmd)
   else
     vim.ui.select(ddgr_bang_list, { prompt = "DDGR> " }, function(bang)
       cmd = vim.tbl_extend("force", cmd, { "ddgr", "--noprompt", "--gui-browser", bang, unpack(opts.fargs) })
-      terminal(cmd, true)
+      require("snacks").terminal(cmd)
     end)
   end
 end, {
