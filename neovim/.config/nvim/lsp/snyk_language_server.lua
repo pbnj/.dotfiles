@@ -5,7 +5,7 @@
 --- LSP for Snyk Open Source, Snyk Infrastructure as Code, and Snyk Code.
 return {
   cmd = { "snyk", "language-server" },
-  root_markers = { ".git", ".snyk" },
+  root_markers = { ".snyk", ".git" },
   filetypes = {
     "go",
     "gomod",
@@ -33,4 +33,8 @@ return {
     enableTrustedFoldersFeature = "false", -- Whether or not LS will prompt to trust a folder (default: true)
     -- trustedFolders= ["/a/trusted/path", "/another/trusted/path"], -- An array of folder that should be trusted
   },
+  reuse_client = function(client, config)
+    config.cmd_cwd = config.root_dir
+    return client.config.cmd_cwd == config.cmd_cwd
+  end,
 }
