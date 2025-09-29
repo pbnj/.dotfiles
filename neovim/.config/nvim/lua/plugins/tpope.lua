@@ -2,6 +2,7 @@ return {
   { "https://github.com/tpope/vim-dispatch", event = "VeryLazy" },
   {
     "https://github.com/tpope/vim-dotenv",
+    enabled = false,
     event = "VeryLazy",
     config = function()
       vim.cmd([[silent Dotenv ~]])
@@ -57,6 +58,13 @@ return {
           vim.cmd("Gwrite")
         end,
         desc = "[Gw]rite (Fugitive)",
+      },
+      {
+        "<leader>gB",
+        function()
+          vim.cmd("Git blame")
+        end,
+        desc = "[G]it [B]lame (Fugitive)",
       },
     },
   },
