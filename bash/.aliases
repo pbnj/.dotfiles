@@ -23,6 +23,14 @@ alias tfsl="terraform state list"
 alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -t -I{} -L1 terraform state rm '{}'"
 alias tfss="terraform state show"
 
+# kubernetes
+alias kx=kubectx
+complete -F _kube_contexts kx
+alias kn=kubens
+complete -F _kube_namespaces kn
+alias k=kubectl
+complete -o default -F __start_kubectl k
+
 # package managers
 alias brew_up="brew update && brew upgrade && brew cleanup --prune all"
 alias npm_up="npm outdated -g --json | jq -rc 'keys[]' | xargs -t -L1 npm install -g"
