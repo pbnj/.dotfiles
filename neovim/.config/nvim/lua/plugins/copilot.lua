@@ -24,14 +24,4 @@ return {
   opts = {
     window = { layout = "horizontal" },
   },
-  keys = {
-    {
-      "<leader>ta",
-      function()
-        vim.cmd.CopilotChatToggle()
-      end,
-      desc = "Copilot Chat Toggle",
-      mode = { "n", "v" },
-    },
-  },
 }
