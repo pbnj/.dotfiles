@@ -1,10 +1,42 @@
 return {
   {
     "https://github.com/folke/snacks.nvim",
+    init = function()
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "VeryLazy",
+        callback = function()
+          -- Setup some globals for debugging (lazy-loaded)
+          _G.dd = function(...)
+            Snacks.debug.inspect(...)
+          end
+          _G.bt = function()
+            Snacks.debug.backtrace()
+          end
+          vim.print = _G.dd -- Override print to use snacks for `:=` command
+          -- Create some toggle mappings
+          Snacks.toggle.option("spell", { name = "Spelling" }):map("<leader>ts")
+          Snacks.toggle.option("wrap", { name = "Wrap" }):map("<leader>tw")
+          Snacks.toggle.option("relativenumber", { name = "Relative Number" }):map("<leader>tL")
+          Snacks.toggle.diagnostics():map("<leader>td")
+          Snacks.toggle.line_number():map("<leader>tl")
+          Snacks.toggle.option("conceallevel", { off = 0, on = vim.o.conceallevel > 0 and vim.o.conceallevel or 2 }):map("<leader>tc")
+          Snacks.toggle.treesitter():map("<leader>tT")
+          Snacks.toggle.option("background", { off = "light", on = "dark", name = "Dark Background" }):map("<leader>tb")
+          Snacks.toggle.inlay_hints():map("<leader>th")
+          Snacks.toggle.indent():map("<leader>tg")
+          Snacks.toggle.dim():map("<leader>tD")
+        end,
+      })
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "snacks_picker_input",
+        callback = function()
+          vim.b.minicompletion_disable = true
+        end,
+      })
+    end,
     lazy = false,
     priority = 1000,
     opts = {
-      image = {},
       bigfile = { enabled = true },
       indent = { enabled = true },
       input = { enabled = true },
@@ -14,6 +46,12 @@ return {
         ui_select = true,
         matcher = {
           frecency = true,
+        },
+        formatters = {
+          file = {
+            filename_first = true,
+            truncate = false,
+          },
         },
         sources = {
           files = {
@@ -64,6 +102,17 @@ return {
         desc = "Grep",
       },
       {
+        "<leader>\\",
+        function()
+          Snacks.picker.grep({
+            title = "Grep Projects",
+            dirs = { "~/Projects/" },
+            layout = { fullscreen = true },
+          })
+        end,
+        desc = "Grep Project Files",
+      },
+      {
         "<leader>/",
         function()
           Snacks.picker.grep_word({ live = true, hidden = true })
@@ -102,9 +151,22 @@ return {
       {
         "<leader>ff",
         function()
-          Snacks.picker.files({ hidden = true, formatters = { file = { truncate = 100 } } })
+          Snacks.picker.files({ hidden = true })
         end,
         desc = "[F]ind [F]iles",
+      },
+      {
+        "<leader>fp",
+        function()
+          Snacks.picker.files({
+            title = "Project Files",
+            cwd = "~/Projects/",
+            hidden = true,
+            exclude = { "tmp", "output" },
+            matcher = { frecency = true },
+          })
+        end,
+        desc = "[F]ind [P]roject Files",
       },
       {
         "<leader>fg",
@@ -128,60 +190,67 @@ return {
         desc = "[F]ind [R]ecent",
       },
       {
+        "<leader>fR",
+        function()
+          Snacks.picker.resume()
+        end,
+        desc = "[F]ind [R]esume",
+      },
+      {
         "<leader>fd",
         function()
           Snacks.picker.diagnostics_buffer()
         end,
-        desc = "[F]ind Buffer [D]iagnostics",
+        desc = "[F]ind [D]iagnostics (Buffer)",
       },
       {
         "<leader>fD",
         function()
           Snacks.picker.diagnostics()
         end,
-        desc = "[F]ind Global [D]iagnostics",
+        desc = "[F]ind [D]iagnostics (Global)",
       },
       {
         "<leader>gb",
         function()
           Snacks.picker.git_branches()
         end,
-        desc = "Find [G]it [B]ranches",
+        desc = "[G]it [B]ranches",
       },
       {
         "<leader>gl",
         function()
           Snacks.picker.git_log_file()
         end,
-        desc = "Find Buffer [G]it [L]ogs",
+        desc = "[G]it [L]ogs (Buffer)",
       },
       {
         "<leader>gL",
         function()
           Snacks.picker.git_log()
         end,
-        desc = "Find Global [G]it [L]ogs",
+        desc = "[G]it [L]ogs (Global)",
       },
       {
         "<leader>gs",
         function()
           Snacks.picker.git_status()
         end,
-        desc = "Find [G]it [S]tatus",
+        desc = "[G]it [S]tatus",
       },
       {
         "<leader>gS",
         function()
           Snacks.picker.git_stash()
         end,
-        desc = "Find [G]it [S]tash",
+        desc = "[G]it [S]tash",
       },
       {
         "<leader>gd",
         function()
           Snacks.picker.git_diff()
         end,
-        desc = "Find [G]it [D]iff",
+        desc = "[G]it [D]iff",
       },
       {
         "<leader>sb",
@@ -273,13 +342,6 @@ return {
           Snacks.picker.qflist()
         end,
         desc = "[S]earch [Q]uickfix List",
-      },
-      {
-        "<leader>sR",
-        function()
-          Snacks.picker.resume()
-        end,
-        desc = "[S]earch [R]esume",
       },
       {
         "<leader>su",
@@ -436,47 +498,78 @@ return {
           })
         end,
       },
-      {
-        "<leader>ta",
-        function()
-          Snacks.terminal({ "copilot" })
-        end,
-        desc = "Toggle Copilot CLI",
+    },
+  },
+  {
+    "https://github.com/folke/sidekick.nvim",
+    lazy = false,
+    opts = {
+      cli = {
+        mux = { backend = "tmux" },
+        enabled = true,
       },
     },
-    init = function()
-      vim.api.nvim_create_autocmd("User", {
-        pattern = "VeryLazy",
-        callback = function()
-          -- Setup some globals for debugging (lazy-loaded)
-          _G.dd = function(...)
-            Snacks.debug.inspect(...)
+    keys = {
+      {
+        "<tab>",
+        function()
+          -- if there is a next edit, jump to it, otherwise apply it if any
+          if not require("sidekick").nes_jump_or_apply() then
+            return "<Tab>" -- fallback to normal tab
           end
-          _G.bt = function()
-            Snacks.debug.backtrace()
-          end
-          vim.print = _G.dd -- Override print to use snacks for `:=` command
-          -- Create some toggle mappings
-          Snacks.toggle.option("spell", { name = "Spelling" }):map("<leader>ts")
-          Snacks.toggle.option("wrap", { name = "Wrap" }):map("<leader>tw")
-          Snacks.toggle.option("relativenumber", { name = "Relative Number" }):map("<leader>tL")
-          Snacks.toggle.diagnostics():map("<leader>td")
-          Snacks.toggle.line_number():map("<leader>tl")
-          Snacks.toggle.option("conceallevel", { off = 0, on = vim.o.conceallevel > 0 and vim.o.conceallevel or 2 }):map("<leader>tc")
-          Snacks.toggle.treesitter():map("<leader>tT")
-          Snacks.toggle.option("background", { off = "light", on = "dark", name = "Dark Background" }):map("<leader>tb")
-          Snacks.toggle.inlay_hints():map("<leader>th")
-          Snacks.toggle.indent():map("<leader>tg")
-          Snacks.toggle.dim():map("<leader>tD")
         end,
-      })
-      vim.api.nvim_create_autocmd("FileType", {
-        pattern = "snacks_picker_input",
-        callback = function()
-          vim.b.minicompletion_disable = true
+        expr = true,
+        desc = "Goto/Apply Next Edit Suggestion",
+      },
+      {
+        "<c-.>",
+        function()
+          require("sidekick.cli").focus()
         end,
-      })
-    end,
+        mode = { "n", "x", "i", "t" },
+        desc = "Sidekick Switch Focus",
+      },
+      {
+        "<leader>aa",
+        function()
+          require("sidekick.cli").toggle()
+        end,
+        desc = "Sidekick Toggle CLI",
+      },
+      {
+        "<leader>ap",
+        function()
+          require("sidekick.cli").prompt()
+        end,
+        desc = "Sidekick Ask Prompt",
+        mode = { "n", "v" },
+      },
+      {
+        "<leader>as",
+        function()
+          require("sidekick.cli").select()
+        end,
+        -- Or to select only installed tools:
+        -- require("sidekick.cli").select({ filter = { installed = true } })
+        desc = "Select CLI",
+      },
+      {
+        "<leader>at",
+        function()
+          require("sidekick.cli").send({ msg = "{this}" })
+        end,
+        mode = { "x", "n" },
+        desc = "Send This",
+      },
+      {
+        "<leader>av",
+        function()
+          require("sidekick.cli").send({ msg = "{selection}" })
+        end,
+        mode = { "x" },
+        desc = "Send Visual Selection",
+      },
+    },
   },
   {
     "https://github.com/folke/trouble.nvim",
@@ -555,5 +648,38 @@ return {
         },
       },
     },
+  },
+  {
+    "https://github.com/folke/tokyonight.nvim",
+    init = function()
+      -- Auto-toggle neovim background based on system theme
+      vim.api.nvim_create_autocmd("ColorScheme", {
+        group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
+        pattern = "*",
+        callback = function()
+          -- vim.api.nvim_set_hl(0, "Normal", { bg = nil })
+          -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+          if vim.loop.os_uname().sysname:match("Darwin") then
+            vim.system({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" }, nil, function(result)
+              if result.stdout:match("Dark") then
+                vim.schedule(function()
+                  vim.o.background = "dark"
+                end)
+              else
+                vim.schedule(function()
+                  vim.o.background = "light"
+                end)
+              end
+            end)
+          end
+        end,
+      })
+    end,
+    lazy = false,
+    priority = 1000,
+    config = function()
+      require("tokyonight").setup({ transparent = true })
+      vim.cmd.colorscheme("tokyonight-night")
+    end,
   },
 }
