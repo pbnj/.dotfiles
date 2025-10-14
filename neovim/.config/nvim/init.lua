@@ -28,7 +28,7 @@ vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
 vim.opt.complete = ".,w,b,u,t"
-vim.opt.completeopt = { "menu", "menuone", "popup", "fuzzy" }
+vim.opt.completeopt = { "menu", "menuone", "popup", "fuzzy", "noselect" }
 vim.opt.conceallevel = 0
 vim.opt.cursorline = false
 vim.opt.expandtab = true
@@ -40,8 +40,8 @@ vim.opt.ignorecase = true
 vim.opt.inccommand = "split"
 vim.opt.incsearch = true
 vim.opt.infercase = true
-vim.opt.iskeyword = "@,48-57,_,192-255,-,#"
-vim.opt.laststatus = 3
+vim.opt.iskeyword = "@,48-57,_,192-255,-"
+vim.opt.laststatus = 2
 vim.opt.list = true
 vim.opt.listchars = "tab:│⋅,trail:⋅,nbsp:␣"
 vim.opt.modeline = true
@@ -74,6 +74,7 @@ require("lazy").setup({
   spec = {
     { import = "plugins" },
   },
+  -- install = { colors = { "tokyonight" } },
   ui = { border = "rounded" },
   checker = { enabled = true },
   change_detection = { enabled = false },
@@ -114,54 +115,13 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   end,
 })
 
-vim.api.nvim_create_autocmd("LspAttach", {
-  group = vim.api.nvim_create_augroup("lsp-attach", { clear = true }),
-  callback = function(event)
-    local client = assert(vim.lsp.get_client_by_id(event.data.client_id))
-    if client:supports_method("textDocument/completion") then
-      vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = false }) -- :help lsp-completion
-    end
-    local map = function(keys, func, desc, mode)
-      mode = mode or "n"
-      vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = "LSP: " .. desc })
-    end
-    map("<c-s>", vim.lsp.buf.signature_help, "Signature Help", "i")
-    map("<c-space>", vim.lsp.completion.get, "Trigger completion suggestion", "i")
-  end,
-})
-
--- Auto-toggle neovim background based on system theme
-vim.api.nvim_create_autocmd("ColorScheme", {
-  group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
-  pattern = "*",
-  callback = function()
-    vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
-    if vim.system({ "uname" }):wait().stdout:match("Darwin") then
-      vim.system({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" }, nil, function(result)
-        if result.stdout:match("Dark") then
-          vim.schedule(function()
-            vim.o.background = "dark"
-          end)
-        else
-          vim.schedule(function()
-            vim.o.background = "light"
-          end)
-        end
-      end)
-    end
-  end,
-})
-
 -- Diagnostics configuration
 vim.diagnostic.config({
   severity_sort = true,
   float = { border = "rounded", source = true },
-  underline = true,
-  virtual_text = {
-    current_line = true,
-    source = true,
-  },
+  -- virtual_lines = { current_line = true },
+  -- virtual_text = { current_line = true, source = true },
+  -- underline = false,
   signs = {
     text = {
       [vim.diagnostic.severity.ERROR] = "󰅚",
@@ -177,6 +137,7 @@ vim.filetype.add({
   extension = {
     json = "jsonc",
     tofu = "terraform",
+    tf = "terraform",
   },
   filename = {
     [".snyk"] = "yaml",
@@ -186,5 +147,3 @@ vim.filetype.add({
   --   [".*/%.github[%w/]+workflows[%w/]+.*%.ya?ml"] = "yaml.github",
   -- },
 })
-
-vim.cmd.colorscheme("default")
