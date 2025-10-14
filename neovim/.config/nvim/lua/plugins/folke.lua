@@ -2,6 +2,23 @@ return {
   {
     "https://github.com/folke/snacks.nvim",
     init = function()
+      vim.api.nvim_create_user_command("Projects", function(opts)
+        Snacks.picker.files({
+          title = "Project Files",
+          cwd = "~/Projects/",
+          hidden = true,
+          exclude = { "tmp", "output" },
+          matcher = { frecency = true },
+          layout = { fullscreen = true },
+        })
+      end, { bang = true, desc = "Find Project Files" })
+      vim.api.nvim_create_user_command("ProjectsGrep", function(opts)
+        Snacks.picker.grep({
+          title = "Grep Projects",
+          dirs = { "~/Projects/" },
+          layout = { fullscreen = true },
+        })
+      end, { bang = true, desc = "Grep Project Files" })
       vim.api.nvim_create_autocmd("User", {
         pattern = "VeryLazy",
         callback = function()
@@ -103,13 +120,7 @@ return {
       },
       {
         "<leader>\\",
-        function()
-          Snacks.picker.grep({
-            title = "Grep Projects",
-            dirs = { "~/Projects/" },
-            layout = { fullscreen = true },
-          })
-        end,
+        vim.cmd.ProjectsGrep,
         desc = "Grep Project Files",
       },
       {
@@ -157,15 +168,7 @@ return {
       },
       {
         "<leader>fp",
-        function()
-          Snacks.picker.files({
-            title = "Project Files",
-            cwd = "~/Projects/",
-            hidden = true,
-            exclude = { "tmp", "output" },
-            matcher = { frecency = true },
-          })
-        end,
+        vim.cmd.Projects,
         desc = "[F]ind [P]roject Files",
       },
       {
