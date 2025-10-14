@@ -1,5 +1,5 @@
 [[ssh-keys]]
-item = "komodo/ssh"
+item = "ssh"
 vault = "Employee"
 account = "Komodo Health"
 
