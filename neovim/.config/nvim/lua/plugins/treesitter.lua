@@ -12,10 +12,6 @@ return {
         indent = { enable = true },
         modules = {},
         sync_install = false,
-        textobjects = { enable = true },
-        incremental_selection = {
-          enable = true,
-        },
         ensure_installed = {
           "awk",
           "bash",

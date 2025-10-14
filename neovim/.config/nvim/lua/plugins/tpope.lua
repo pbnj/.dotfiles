@@ -1,13 +1,5 @@
 return {
   { "https://github.com/tpope/vim-dispatch", event = "VeryLazy" },
-  {
-    "https://github.com/tpope/vim-dotenv",
-    enabled = false,
-    event = "VeryLazy",
-    config = function()
-      vim.cmd([[silent Dotenv ~]])
-    end,
-  },
   { "https://github.com/tpope/vim-rsi", event = "VeryLazy" },
   { "https://github.com/tpope/vim-vinegar", event = "VeryLazy" },
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },
