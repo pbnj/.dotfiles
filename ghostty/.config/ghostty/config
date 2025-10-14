@@ -8,7 +8,7 @@
 auto-update = download
 auto-update-channel = stable
 background-blur = true
-background-opacity = 0.9
+background-opacity = 1.0
 copy-on-select = clipboard
 macos-option-as-alt = true
 macos-titlebar-style = hidden
@@ -18,7 +18,7 @@ quick-terminal-position = bottom
 ## ghostty +list-fonts
 # font-family = "JetBrainsMono Nerd Font"
 ## ghostty +list-themes
-theme = "light:Builtin Tango Light,dark:Builtin Tango Dark"
+theme = "light:Tokyonight Day,dark:Tokyonight Night"
 
 # Keybindings
 ## ghostty-specific
