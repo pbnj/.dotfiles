@@ -30,7 +30,7 @@ return {
       go = { "goimports", "golangci-lint" },
       json = { "prettier" },
       lua = { "stylua" },
-      markdown = { "injected", "markdownlint-cli2", "doctoc_update", "prettier", timeout_ms = 1500 },
+      markdown = { "injected", "markdownlint-cli2", "markdown_toc", "prettier", timeout_ms = 1500 },
       python = { "ruff_format" },
       rust = { "rustfmt" },
       sh = { "shellcheck", "shfmt" },
@@ -76,6 +76,14 @@ return {
       doctoc_update = {
         command = "doctoc",
         args = { "--update-only", "$FILENAME" },
+        stdin = false,
+      },
+      markdown_toc = {
+        command = "markdown-toc",
+        args = function(_, ctx)
+          local indent = vim.bo[ctx.buf].expandtab and (" "):rep(ctx.shiftwidth) or "\t"
+          return { "--no-firsth1", "--bullets", "-", "--indent=" .. indent, "-i", "$FILENAME" }
+        end,
         stdin = false,
       },
     },
