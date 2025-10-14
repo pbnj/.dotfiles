@@ -1,7 +1,14 @@
 # vim:ft=bash:sts=2:ts=2:sw=2:et:
 # shellcheck shell=bash
 
-# EXPORTS
+# EXPORTS, ALIASES, & FUNCTIONS
+# shellcheck disable=SC2206
+files=(${HOME}/.*exports ${HOME}/.*aliases ${HOME}/.*functions)
+for file in "${files[@]}"; do
+  # shellcheck disable=SC1090
+  source "${file}"
+done
+
 [ -f "${HOME}/.exports" ] && . "${HOME}/.exports"
 
 # SHELL OPTIONS
@@ -19,19 +26,14 @@ fi
 # CARGO
 [ -f "${HOME}/.cargo/env" ] && . "${HOME}/.cargo/env"
 
-# PROFILES & ALIASES
-[ -f "${HOME}/.aliases" ] && . "${HOME}/.aliases"
-[ -f "${HOME}/.profile.work" ] && . "${HOME}/.profile.work"
-[ -f "${HOME}/.env" ] && . "${HOME}/.env"
+# NVM
+[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && . "/opt/homebrew/opt/nvm/nvm.sh"
 
 # FZF
 [ -f ~/.fzf.bash ] && eval "$(fzf --bash)"
 
 # FUNCTIONS
 [ -f "${HOME}/.functions" ] && . "${HOME}/.functions"
-
-# ARGOCD
-[ -f "${HOME}/.config/argocd/completion" ] && . "${HOME}/.config/argocd/completion"
 
 # STARSHIP
 command -v starship &>/dev/null && eval "$(starship init bash)"

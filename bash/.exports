@@ -11,6 +11,7 @@ export FZF_DEFAULT_COMMAND="fd --type file --follow --hidden"
 export FZF_DEFAULT_OPTS_FILE="${HOME}/.config/fzf/config"
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
+export MANPAGER="nvim +Man!"
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
 
 [[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]] && PATH="${HOME}/.local/bin:${PATH}"
@@ -20,6 +21,9 @@ export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
 export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
 [[ ":${PATH}:" != *":${GOPATH}/bin:"* ]] && PATH="${GOPATH}/bin:${PATH}"
+
+# NVM
+export NVM_DIR="$HOME/.nvm"
 
 # 1Password Agent
 if [[ "$(uname)" == "Darwin" ]]; then
