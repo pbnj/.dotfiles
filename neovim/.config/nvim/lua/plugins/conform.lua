@@ -30,7 +30,7 @@ return {
       go = { "goimports", "golangci-lint" },
       json = { "prettier" },
       lua = { "stylua" },
-      markdown = { "injected", "markdownlint-cli2", "markdown_toc", "prettier", timeout_ms = 1500 },
+      markdown = { "injected", "markdownlint-cli2", "markdown_toc", "prettier", timeout_ms = 5000 },
       python = { "ruff_format" },
       rust = { "rustfmt" },
       sh = { "shellcheck", "shfmt" },
