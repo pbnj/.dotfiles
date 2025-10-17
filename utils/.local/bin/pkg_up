@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+[[ -n "${DEBUG:-}" ]] && set -x
+
+echo "Checking brew..."
+brew update
+BREW_OUTDATED="$(brew outdated)"
+if [[ -n "${BREW_OUTDATED}" ]]; then
+  brew upgrade
+  brew cleanup --prune=all
+fi
+
+echo "Checking npm..."
+NPM_OUTDATED="$(npm outdated --global || true)"
+if [[ -n "${NPM_OUTDATED}" ]]; then
+  echo "${NPM_OUTDATED}"
+  npm upgrade --global
+fi
