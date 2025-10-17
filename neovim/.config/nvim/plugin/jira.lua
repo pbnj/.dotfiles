@@ -1,6 +1,10 @@
 -- " brew install ankitpokhrel/jira-cli/jira-cli
 vim.api.nvim_create_user_command("Jira", function(opts)
-  Snacks.terminal(vim.iter({ "jira", opts.fargs }):flatten():totable())
+  if not vim.env.JIRA_API_TOKEN then
+    vim.env.JIRA_API_TOKEN = vim.fn.systemlist({ "op", "read", "op://Employee/jira/credential" })[1]
+  end
+  local cmd = { "jira", unpack(opts.fargs) }
+  Snacks.terminal(cmd, { auto_close = false, interactive = true })
 end, {
   nargs = "*",
   complete = function(arg_lead, line)
