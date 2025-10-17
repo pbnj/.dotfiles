@@ -8,7 +8,7 @@ return {
         if client:supports_method(vim.lsp.protocol.Methods.textDocument_completion) then
           vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = false }) -- :help lsp-completion
         end
-        if client:supports_method(vim.lsp.protocol.Methods.textDocument_inlineCompletion) then
+        if vim.fn.has("nvim-0.12") == 1 and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlineCompletion) then
           vim.lsp.inline_completion.enable(true) -- :help lsp-completion
         end
         local map = function(keys, func, desc, mode)
@@ -33,12 +33,10 @@ return {
         keymap = {
           ["<Tab>"] = {
             "snippet_forward",
-            function() -- sidekick next edit suggestion
-              return require("sidekick").nes_jump_or_apply()
-            end,
-            function() -- if you are using Neovim's native inline completions
-              return vim.lsp.inline_completion.get()
-            end,
+            -- TODO: enable when nvim 0.12 is released
+            -- function() -- if you are using Neovim's native inline completions
+            --   return vim.lsp.inline_completion.get()
+            -- end,
             "fallback",
           },
         },
@@ -52,7 +50,6 @@ return {
   },
   config = function()
     vim.lsp.log.set_level("OFF")
-    -- vim.lsp.set_log_level("OFF")
     -- local capabilities = vim.tbl_deep_extend("force", {}, vim.lsp.protocol.make_client_capabilities())
     local servers = {
       -- misc
