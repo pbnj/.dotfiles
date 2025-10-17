@@ -74,7 +74,7 @@ require("lazy").setup({
   spec = {
     { import = "plugins" },
   },
-  -- install = { colors = { "tokyonight" } },
+  install = { colorscheme = { "tokyonight" } },
   ui = { border = "rounded" },
   checker = { enabled = true },
   change_detection = { enabled = false },
@@ -93,12 +93,19 @@ require("lazy").setup({
   },
 })
 
--- Keymaps
-vim.keymap.set("n", "<leader>ll", vim.cmd.Lazy, { desc = "[L]azy" })
+-- Keymaps > General
 vim.keymap.set("n", "j", "gj")
 vim.keymap.set("n", "k", "gk")
 vim.keymap.set("c", "<c-p>", "<up>")
 vim.keymap.set("c", "<c-n>", "<down>")
+-- Keymaps > Lazy
+vim.keymap.set("n", "<leader>ll", vim.cmd.Lazy, { desc = "[L]azy" })
+vim.keymap.set("n", "<leader>lu", function()
+  vim.cmd.Lazy("update")
+end, { desc = "[L]azy [U]pdate" })
+vim.keymap.set("n", "<leader>lp", function()
+  vim.cmd.Lazy("profile")
+end, { desc = "[L]azy [P]rofile" })
 
 -- Autocommands
 vim.api.nvim_create_autocmd("VimResized", {
