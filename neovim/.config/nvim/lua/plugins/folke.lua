@@ -53,27 +53,42 @@ return {
           actions = {
             yank_alias = { action = "yank", field = "account_alias", desc = "Yank Alias" },
             yank_id = { action = "yank", field = "account_id", desc = "Yank ID" },
-            yank_url = { action = "yank", field = "url", desc = "Yank URL" },
             yank_profile = { action = "yank", field = "profile", desc = "Yank Profile" },
+            open = function(picker, item)
+              local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.profile }))
+              vim.ui.open(sso_account_url)
+              picker:close()
+              if opts.bang then
+                vim.cmd.quitall()
+              end
+            end,
+            open_sso_account = function(picker, item)
+              local default_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url" }))
+              local default_instance = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_instance" }))
+              local sso_account_id = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_id", "--profile", item.profile }))
+              local base_url = default_account_url .. "&destination="
+              local destination_url = "https://us-west-2.console.aws.amazon.com/singlesignon/organization/home?region=us-west-2#/instances/" .. default_instance .. "/accounts/details/" .. sso_account_id .. "?section=users"
+              local destination_url_encoded = vim.fn.substitute(vim.fn.iconv(destination_url, "latin1", "utf-8"), "[^A-Za-z0-9_.~-]", '\\="%".printf("%02X",char2nr(submatch(0)))', "g")
+              local url = base_url .. destination_url_encoded
+              vim.notify(url)
+              vim.ui.open(url)
+              picker:close()
+              if opts.bang then
+                vim.cmd.quitall()
+              end
+            end,
           },
           win = {
             input = {
               keys = {
                 ["<m-n>"] = { "yank_alias", mode = { "n", "i" } },
                 ["<m-i>"] = { "yank_id", mode = { "n", "i" } },
-                ["<m-u>"] = { "yank_url", mode = { "n", "i" } },
                 ["<m-p>"] = { "yank_profile", mode = { "n", "i" } },
+                ["<cr>"] = { "open", mode = { "n", "i" } },
+                ["<m-o>"] = { "open_sso_account", mode = { "n", "i" } },
               },
             },
           },
-          confirm = function(picker, item)
-            local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.profile }))
-            vim.ui.open(sso_account_url)
-            picker:close()
-            if opts.bang then
-              vim.cmd.quitall()
-            end
-          end,
           layout = { preset = "vscode", fullscreen = opts.bang },
         })
       end, {
@@ -532,6 +547,45 @@ return {
         desc = "Dismiss All Notifications",
       },
       {
+        "<leader>ud",
+        function()
+          Snacks.picker({
+            source = "ddgr",
+            title = "DuckDuckGo",
+            layout = "vscode",
+            finder = function(opts, ctx)
+              return vim
+                .iter({ "!duckduckgo", "!ai", "!amaps", "!archiveis", "!archiveweb", "!aws", "!azure", "!bangs", "!chat", "!chtsh", "!cloudformation", "!crates", "!d", "!devdocs", "!devto", "!dhdocs", "!dictionary", "!dmw", "!dockerhub", "!docs.rs", "!g", "!gcp", "!gdefine", "!gdocs", "!gh", "!ghcode", "!ghio", "!ghrepo", "!ght", "!ghtopic", "!ghuser", "!gist", "!gmail", "!gmaps", "!godoc", "!google", "!gopkg", "!gsheets", "!gslides", "!i", "!ker", "!kubernetes", "!man", "!mdn", "!mysql", "!n", "!node", "!npm", "!postgres", "!py3", "!python", "!rce", "!rclippy", "!reddit", "!rust", "!rustdoc", "!spotify", "!stackoverflow", "!tldr", "!tmg", "!translate", "!twitch", "!typescript", "!v", "!vimw", "!yt" })
+                :map(function(bang)
+                  return { bang = bang }
+                end)
+                :totable()
+            end,
+            format = function(item, _)
+              local ret = {}
+              ret[#ret + 1] = { item.bang }
+              -- ret[#ret + 1] = { "  " }
+              -- ret[#ret + 1] = { item.account_alias }
+              return ret
+            end,
+            matcher = { fuzzy = true, frecency = true },
+            confirm = function(self, item, action)
+              self:close()
+              Snacks.input({ prompt = string.format("DDGR (%s)", item.bang) }, function(value)
+                local cmd = { "ddgr", "--expand", "--noprompt", "--gui-browser", item.bang, value }
+                local term_opts = { auto_close = true, interactive = false }
+                if item.bang == "!duckduckgo" then
+                  cmd = { "ddgr", "--expand", value }
+                  term_opts = { auto_close = false, interactive = true, start_insert = true }
+                end
+                Snacks.terminal(cmd, term_opts)
+              end)
+            end,
+          })
+        end,
+        desc = "DuckDuckGo (DDGR)",
+      },
+      {
         "<c-\\><c-\\>",
         function()
           Snacks.terminal()
@@ -582,7 +636,6 @@ return {
   },
   {
     "https://github.com/folke/sidekick.nvim",
-    lazy = false,
     opts = {
       cli = {
         mux = { backend = "tmux" },
@@ -690,7 +743,6 @@ return {
   },
   {
     "https://github.com/folke/todo-comments.nvim",
-    event = "VeryLazy",
     dependencies = {
       "https://github.com/nvim-lua/plenary.nvim",
       "https://github.com/folke/snacks.nvim",
@@ -698,14 +750,14 @@ return {
     opts = {},
     keys = {
       {
-        "]t",
+        "]n",
         function()
           require("todo-comments").jump_next()
         end,
         desc = "Next todo comment",
       },
       {
-        "[t",
+        "[n",
         function()
           require("todo-comments").jump_prev()
         end,
