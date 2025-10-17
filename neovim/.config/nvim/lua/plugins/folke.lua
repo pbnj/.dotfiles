@@ -743,6 +743,7 @@ return {
   },
   {
     "https://github.com/folke/todo-comments.nvim",
+    event = "VeryLazy",
     dependencies = {
       "https://github.com/nvim-lua/plenary.nvim",
       "https://github.com/folke/snacks.nvim",
