@@ -14,4 +14,13 @@ return {
     require("mini.statusline").setup()
     require("mini.surround").setup()
   end,
+  keys = {
+    {
+      "<leader>gh",
+      function()
+        MiniDiff.toggle_overlay(0)
+      end,
+      desc = "[G]it [H]unks (Diff Hunks)",
+    },
+  },
 }
