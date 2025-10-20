@@ -17,7 +17,7 @@ return {
         require("conform").format({ lsp_format = "fallback", async = true })
       end,
       mode = "n",
-      desc = "Format Buffer",
+      desc = "[C]ode [F]ormat (Buffer)",
     },
   },
   opts = {
