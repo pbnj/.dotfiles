@@ -7,14 +7,14 @@ return {
           title = "Project Files",
           cwd = "~/Projects/",
           hidden = true,
-          exclude = { "tmp", "output" },
+          exclude = { "output", ".env" },
           matcher = { frecency = true },
           layout = { fullscreen = true },
         })
       end, { bang = true, desc = "Find Project Files" })
       vim.api.nvim_create_user_command("ProjectsGrep", function(opts)
         Snacks.picker.grep({
-          title = "Grep Projects",
+          title = "Grep (all projects)",
           dirs = { "~/Projects/" },
           layout = { fullscreen = true },
         })
@@ -201,7 +201,7 @@ return {
       {
         "<leader>/",
         function()
-          Snacks.picker.grep({ hidden = true, live = true })
+          Snacks.picker.grep({ title = "Grep (local project)", hidden = true, live = true })
         end,
         desc = "Grep",
       },
@@ -564,20 +564,20 @@ return {
             format = function(item, _)
               local ret = {}
               ret[#ret + 1] = { item.bang }
-              -- ret[#ret + 1] = { "  " }
-              -- ret[#ret + 1] = { item.account_alias }
               return ret
             end,
             matcher = { fuzzy = true, frecency = true },
             confirm = function(self, item, action)
               self:close()
               Snacks.input({ prompt = string.format("DDGR (%s)", item.bang) }, function(value)
-                local cmd = { "ddgr", "--expand", "--noprompt", "--gui-browser", item.bang, value }
-                local term_opts = { auto_close = true, interactive = false }
-                if item.bang == "!duckduckgo" then
-                  cmd = { "ddgr", "--expand", value }
-                  term_opts = { auto_close = false, interactive = true, start_insert = true }
+                local cmd = { "ddgr", "--expand", "--noua" }
+                local term_opts = { auto_close = false, interactive = true, start_insert = true }
+                if item.bang ~= "!duckduckgo" then
+                  vim.list_extend(cmd, { "--noprompt", "--gui-browser", item.bang })
+                  term_opts = { auto_close = true, interactive = false }
                 end
+                vim.list_extend(cmd, { value })
+                vim.notify(vim.inspect(cmd))
                 Snacks.terminal(cmd, term_opts)
               end)
             end,
