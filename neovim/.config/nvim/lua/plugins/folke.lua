@@ -20,24 +20,28 @@ return {
         })
       end, { bang = true, desc = "Grep Project Files" })
       vim.api.nvim_create_user_command("AWSConsole", function(opts)
+        local aws_config = vim.json.decode(vim.system({ vim.o.shell, vim.o.shellcmdflag, string.format("cat %s | jc --ini", vim.fn.expand("~/.aws/config")) }, { text = true }):wait().stdout)
         require("snacks").picker({
           source = "aws_console",
           title = "AWS Console",
           finder = function()
             return vim
-              .iter(vim.fn.systemlist({ "rg", "\\[profile (.*)\\]", "-or", "$1", vim.fn.expand("~/.aws/config") }))
+              .iter(aws_config)
               :filter(function(profile)
-                return string.match(profile, "^%d+/.*/.*")
+                return string.match(profile, "%d/.*/.*")
               end)
               :map(function(profile)
-                local profile_elems = vim.split(profile, "/")
-                local account_id = profile_elems[1]
-                local account_alias = profile_elems[2]
+                local sso_account_id = aws_config[profile].sso_account_id
+                local sso_account_alias = aws_config[profile].sso_account_alias
+                local sso_role_name = aws_config[profile].sso_role_name
+                local sso_account_url = aws_config[profile].sso_account_url
+                local profile_name = string.format("%s/%s/%s", sso_account_id, sso_account_alias, sso_role_name)
                 return {
-                  profile = profile,
+                  profile = profile_name,
                   text = profile,
-                  account_id = account_id,
-                  account_alias = account_alias,
+                  account_id = sso_account_id,
+                  account_alias = sso_account_alias,
+                  account_url = sso_account_url,
                 }
               end)
               :totable()
@@ -55,19 +59,18 @@ return {
             yank_id = { action = "yank", field = "account_id", desc = "Yank ID" },
             yank_profile = { action = "yank", field = "profile", desc = "Yank Profile" },
             open = function(picker, item)
-              local sso_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url", "--profile", item.profile }))
-              vim.ui.open(sso_account_url)
+              vim.ui.open(item.account_url)
               picker:close()
               if opts.bang then
                 vim.cmd.quitall()
               end
             end,
             open_sso_account = function(picker, item)
-              local default_account_url = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_url" }))
-              local default_instance = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_instance" }))
-              local sso_account_id = vim.trim(vim.fn.system({ "aws", "configure", "get", "sso_account_id", "--profile", item.profile }))
+              local default_account_url = aws_config.default.sso_account_url
+              local default_sso_instance = aws_config.default.sso_instance
+              local sso_account_id = aws_config["profile " .. item.profile].sso_account_id
               local base_url = default_account_url .. "&destination="
-              local destination_url = "https://us-west-2.console.aws.amazon.com/singlesignon/organization/home?region=us-west-2#/instances/" .. default_instance .. "/accounts/details/" .. sso_account_id .. "?section=users"
+              local destination_url = "https://us-west-2.console.aws.amazon.com/singlesignon/organization/home?region=us-west-2#/instances/" .. default_sso_instance .. "/accounts/details/" .. sso_account_id .. "?section=users"
               local destination_url_encoded = vim.fn.substitute(vim.fn.iconv(destination_url, "latin1", "utf-8"), "[^A-Za-z0-9_.~-]", '\\="%".printf("%02X",char2nr(submatch(0)))', "g")
               local url = base_url .. destination_url_encoded
               vim.notify(url)
