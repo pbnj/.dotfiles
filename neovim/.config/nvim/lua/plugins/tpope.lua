@@ -1,5 +1,6 @@
 return {
   { "https://github.com/tpope/vim-dispatch", event = "VeryLazy" },
+  { "https://github.com/tpope/vim-vinegar", event = "VeryLazy" },
   { "https://github.com/tpope/vim-rsi", event = "VeryLazy" },
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },
   { "https://github.com/tpope/vim-eunuch", event = "VeryLazy" },
