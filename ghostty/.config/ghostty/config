@@ -5,9 +5,10 @@
 # Docs: https://ghostty.org/docs/config/reference
 
 # General
+adjust-cursor-thickness = 1
 auto-update = download
 auto-update-channel = stable
-background-blur = true
+background-blur = false
 background-opacity = 1.0
 copy-on-select = clipboard
 macos-option-as-alt = true
