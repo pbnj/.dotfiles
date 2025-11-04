@@ -67,6 +67,9 @@ return {
         command = "pinact",
         args = { "run", "$RELATIVE_FILEPATH" },
         stdin = false,
+        env = {
+          GITHUB_TOKEN = vim.fn.systemlist("gh auth token")[1],
+        },
       },
       pin_github_action = {
         command = "pin-github-action",
