@@ -20,7 +20,7 @@ return {
       function()
         MiniDiff.toggle_overlay(0)
       end,
-      desc = "[G]it [H]unks (Diff Hunks)",
+      desc = "Toggle [G]it [H]unks (Mini.Diff Hunks)",
     },
   },
 }
