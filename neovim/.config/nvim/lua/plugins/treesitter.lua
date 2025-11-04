@@ -34,6 +34,7 @@ return {
           "hcl",
           "http",
           "ini",
+          "jq",
           "lua",
           "make",
           "markdown",

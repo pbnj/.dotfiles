@@ -1,6 +1,6 @@
 return {
   { "https://github.com/tpope/vim-dispatch", event = "VeryLazy" },
-  { "https://github.com/tpope/vim-vinegar", event = "VeryLazy" },
+  { "https://github.com/tpope/vim-dotenv", event = "VeryLazy" },
   { "https://github.com/tpope/vim-rsi", event = "VeryLazy" },
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },
   { "https://github.com/tpope/vim-eunuch", event = "VeryLazy" },
@@ -30,20 +30,20 @@ return {
         end,
         desc = "[G]it [C]ommit (Fugitive)",
       },
-      {
-        "<leader>gp",
-        function()
-          vim.cmd("Git push -u origin")
-        end,
-        desc = "[G]it [P]ush (Fugitive)",
-      },
-      {
-        "<leader>gP",
-        function()
-          vim.cmd("Git pull")
-        end,
-        desc = "[G]it [P]ull (Fugitive)",
-      },
+      -- {
+      --   "<leader>gp",
+      --   function()
+      --     vim.cmd("Git push -u origin")
+      --   end,
+      --   desc = "[G]it [P]ush (Fugitive)",
+      -- },
+      -- {
+      --   "<leader>gP",
+      --   function()
+      --     vim.cmd("Git pull")
+      --   end,
+      --   desc = "[G]it [P]ull (Fugitive)",
+      -- },
       {
         "<leader>gw",
         function()
@@ -67,6 +67,7 @@ return {
       { "https://github.com/kristijanhusak/vim-dadbod-completion", ft = { "sql", "mysql", "plsql" }, lazy = true },
     },
     cmd = {
+      "DB",
       "DBUI",
       "DBUIToggle",
       "DBUIAddConnection",

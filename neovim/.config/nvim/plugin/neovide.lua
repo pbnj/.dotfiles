@@ -12,7 +12,19 @@ if vim.g.neovide then
   -- options
   vim.g.neovide_input_macos_option_key_is_meta = "only_left"
   vim.g.neovide_opacity = 1.0
-  vim.g.neovide_window_blurred = true
+  vim.g.neovide_window_blurred = false
+  local toggle_transparency = function(state)
+    if state.opacity == 0.9 then
+      vim.g.neovide_opacity = 1.0
+      vim.g.neovide_window_blurred = false
+    else
+      vim.g.neovide_opacity = 0.9
+      vim.g.neovide_window_blurred = true
+    end
+  end
+  vim.keymap.set({ "n" }, "<leader>tT", function()
+    toggle_transparency({ opacity = vim.g.neovide_opacity, blur = vim.g.neovide_window_blurred })
+  end, { desc = "Toggle Neovide Transparency" })
 
   -- font scale
   vim.g.neovide_scale_factor = 1.0
