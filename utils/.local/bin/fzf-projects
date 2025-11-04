@@ -11,6 +11,7 @@ fzf \
   --bind 'enter:become:tmux select-window -t $(basename {}) || tmux new-window -c {}' \
   --header 'ENTER: new/goto window / CTRL-X: horizontal split / CTRL-V: vertical split / CTRL-E: edit in vim' \
   --header-border 'bottom' \
+  --tmux='center,80%' \
   --input-border \
   --prompt 'Projects> ' \
   --reverse || true
