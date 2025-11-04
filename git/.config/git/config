@@ -81,9 +81,14 @@
 
 [include]
 	path = ~/.config/git/personal.config
+	; path = ~/.config/git/work.config
 
 ; work config
-[includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
+[includeIf "hasconfig:remote.*.url:https://github.com/komodohealth/**"]
 	path = ~/.config/git/work.config
 [includeIf "gitdir:~/Projects/github.com/komodohealth/"]
+	path = ~/.config/git/work.config
+[includeIf "hasconfig:remote.*.url:https://github.com/pbnj-dragon/**"]
+	path = ~/.config/git/work.config
+[includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
 	path = ~/.config/git/work.config
