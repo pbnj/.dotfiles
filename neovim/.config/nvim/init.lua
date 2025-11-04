@@ -50,7 +50,8 @@ vim.opt.mouse = "a"
 vim.opt.number = true
 vim.opt.ruler = false
 vim.opt.scrolloff = 10
-vim.opt.shortmess = "FICcW"
+vim.opt.shortmess = "FICcWl"
+vim.opt.showcmd = false
 vim.opt.showmode = false
 vim.opt.sidescrolloff = 10
 vim.opt.signcolumn = "yes"
@@ -126,9 +127,6 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 vim.diagnostic.config({
   severity_sort = true,
   float = { border = "rounded", source = true },
-  -- virtual_lines = { current_line = true },
-  -- virtual_text = { current_line = true, source = true },
-  -- underline = false,
   signs = {
     text = {
       [vim.diagnostic.severity.ERROR] = "󰅚",
@@ -148,7 +146,7 @@ vim.filetype.add({
   },
   filename = {
     [".snyk"] = "yaml",
-    [".aws/config"] = "dosini",
+    -- [".aws/config"] = "dosini",
   },
   -- pattern = {
   --   [".*/%.github[%w/]+workflows[%w/]+.*%.ya?ml"] = "yaml.github",
