@@ -1,5 +1,5 @@
 return {
-  { "https://github.com/tpope/vim-dispatch", event = "VeryLazy" },
+  { "https://github.com/tpope/vim-dispatch", cmd = { "Dispatch", "FocusDispatch", "Make", "Spawn", "Start" } },
   { "https://github.com/tpope/vim-dotenv", event = "VeryLazy" },
   { "https://github.com/tpope/vim-rsi", event = "VeryLazy" },
   { "https://github.com/tpope/vim-sleuth", event = "VeryLazy" },

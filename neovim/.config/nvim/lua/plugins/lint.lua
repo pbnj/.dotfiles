@@ -1,6 +1,6 @@
 return {
   "https://github.com/mfussenegger/nvim-lint",
-  event = "VeryLazy",
+  event = "BufWritePost",
   config = function()
     local lint = require("lint")
     lint.linters_by_ft = {

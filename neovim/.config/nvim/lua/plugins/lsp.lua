@@ -91,7 +91,16 @@ return {
               enable = false, -- disable built-in yamlls schemastore
               url = "", -- Avoid TypeError: Cannot read properties of undefined (reading 'length')
             },
-            schemas = require("schemastore").yaml.schemas(),
+            schemas = require("schemastore").yaml.schemas({
+              extra = {
+                -- {
+                --   description = "OpenTelemetry Collector Schema",
+                --   fileMatch = { "**/otel-collector*.yaml" },
+                --   name = "otel-collector",
+                --   url = "https://raw.githubusercontent.com/srikanthccv/otelcol-jsonschema/main/schema.json",
+                -- },
+              },
+            }),
             customTags = {
               "!And sequence",
               "!If sequence",
