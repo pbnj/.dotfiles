@@ -10,7 +10,7 @@ return {
       notifier = { enabled = true },
       notify = { enabled = true },
       scope = { enabled = true },
-      scroll = { enabled = true },
+      scroll = { enabled = false },
       explorer = { enabled = true },
       gh = {},
       picker = {
@@ -77,7 +77,7 @@ return {
             layout = "vscode",
             finder = function()
               return vim
-                .iter(vim.json.decode(vim.fn.join(vim.fn.readfile(vim.fn.expand("~/.okta/apps.json"))))[1]._embedded.items)
+                .iter(vim.json.decode(vim.fn.join(vim.fn.readfile(vim.fn.expand("~/.okta/apps.json"))))["0"]._embedded.items)
                 :map(function(app)
                   return {
                     text = app._embedded.resource.label,
@@ -253,7 +253,7 @@ return {
       { "<leader>;", function() Snacks.picker.command_history() end, desc = "Command History" },
       { "<leader>:", function() Snacks.picker.commands() end, desc = "Commands" },
       { "<leader>n", function() Snacks.notifier.show_history() end, desc = "[N]otification History" },
-      { "<leader>e", function() Snacks.picker.explorer({focus = false, hidden = true}) end, desc = "File [E]xplorer" },
+      { "<leader>e", function() Snacks.picker.explorer({hidden = true}) end, desc = "File [E]xplorer" },
       {
         "<leader>N",
         desc = "Neovim News",
@@ -320,7 +320,7 @@ return {
       { "gy", function() Snacks.picker.lsp_type_definitions() end, desc = "[G]oto T[y]pe Definition" },
       -- utilities
       { "<c-\\><c-\\>", function() Snacks.terminal() end, mode = { "t", "n", "i" }, desc = "Toggle Terminal" },
-      { "<c-\\>u", function() Snacks.terminal({ "pkg_up" }) end, mode = { "t", "n", "i" }, desc = "Terminal: Update system packages" },
+      { "<c-\\>u", function() Snacks.terminal({ "pkg_up" }, {auto_close = false}) end, mode = { "t", "n", "i" }, desc = "Terminal: Update system packages" },
       { "<leader>bd", function() Snacks.bufdelete() end, desc = "Delete Buffer" },
       { "<leader>cR", function() Snacks.rename.rename_file() end, desc = "Rename File" },
       { "<leader>un", function() Snacks.notifier.hide() end, desc = "Dismiss All Notifications" },
@@ -486,6 +486,7 @@ return {
   },
   {
     "https://github.com/folke/todo-comments.nvim",
+    event = "VeryLazy",
     dependencies = {
       "https://github.com/nvim-lua/plenary.nvim",
       "https://github.com/folke/snacks.nvim",
@@ -526,29 +527,29 @@ return {
   },
   {
     "https://github.com/folke/tokyonight.nvim",
+    enabled = false,
     init = function()
-      -- Auto-toggle neovim background based on system theme
-      vim.api.nvim_create_autocmd("ColorScheme", {
-        group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
-        pattern = "*",
-        callback = function()
-          -- vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-          -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
-          if vim.loop.os_uname().sysname:match("Darwin") then
-            if vim.fn.systemlist({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" })[1]:match("Dark") then
-              vim.schedule(function()
-                vim.o.background = "dark"
-              end)
-            else
-              vim.schedule(function()
-                vim.o.background = "light"
-              end)
-            end
-          end
-        end,
-      })
+      -- -- Auto-toggle neovim background based on system theme
+      -- vim.api.nvim_create_autocmd("ColorScheme", {
+      --   group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
+      --   pattern = "*",
+      --   callback = function()
+      --     -- vim.api.nvim_set_hl(0, "Normal", { bg = nil })
+      --     -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+      --     if vim.loop.os_uname().sysname:match("Darwin") then
+      --       if vim.fn.systemlist({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" })[1]:match("Dark") then
+      --         vim.schedule(function()
+      --           vim.o.background = "dark"
+      --         end)
+      --       else
+      --         vim.schedule(function()
+      --           vim.o.background = "light"
+      --         end)
+      --       end
+      --     end
+      --   end,
+      -- })
     end,
-    enabled = true,
     lazy = false,
     priority = 1000,
     config = function()
