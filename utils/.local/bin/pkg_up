@@ -4,11 +4,12 @@ set -euo pipefail
 [[ -n "${DEBUG:-}" ]] && set -x
 
 echo "Checking brew..."
-brew update
-BREW_OUTDATED="$(brew outdated)"
+BREW="arch -arm64 brew"
+${BREW} update
+BREW_OUTDATED="$(${BREW} outdated)"
 if [[ -n "${BREW_OUTDATED}" ]]; then
-  brew upgrade
-  brew cleanup --prune=all
+  ${BREW} upgrade
+  ${BREW} cleanup --prune=all
 fi
 
 echo "Checking npm..."
