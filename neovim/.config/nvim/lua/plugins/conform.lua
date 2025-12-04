@@ -34,6 +34,7 @@ return {
       python = { "ruff_format" },
       rust = { "rustfmt" },
       sh = { "shellcheck", "shfmt" },
+      sql = { "sqruff" },
       terraform = { "terraform_fmt" },
       yaml = function()
         local bufname = vim.api.nvim_buf_get_name(0)

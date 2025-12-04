@@ -6,14 +6,14 @@ return {
   opts = {},
   keys = {
     {
-      ">",
+      "+",
       function()
         require("quicker").expand()
       end,
       desc = "Expand quickfix content",
     },
     {
-      "<",
+      "-",
       function()
         require("quicker").collapse()
       end,

@@ -27,7 +27,9 @@ vim.opt.belloff = "all"
 vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
-vim.opt.complete = ".,w,b,u,t"
+-- enable in nvim-0.12
+-- vim.opt.autocomplete = true
+-- vim.opt.complete:append({ "o" })
 vim.opt.completeopt = { "menu", "menuone", "popup", "fuzzy", "noselect" }
 vim.opt.conceallevel = 0
 vim.opt.cursorline = false
@@ -57,7 +59,6 @@ vim.opt.sidescrolloff = 10
 vim.opt.signcolumn = "yes"
 vim.opt.smartcase = true
 vim.opt.smarttab = true
-vim.opt.splitkeep = "screen"
 vim.opt.swapfile = false
 vim.opt.ttimeout = true
 vim.opt.ttimeoutlen = 50
@@ -67,7 +68,7 @@ vim.opt.wildignorecase = true
 vim.opt.wildmenu = true
 vim.opt.winborder = "rounded"
 vim.opt.wrap = false
-vim.opt.wrapscan = false
+vim.opt.wrapscan = true
 
 -- Load plugins
 require("lazy").setup({
@@ -95,10 +96,23 @@ require("lazy").setup({
 })
 
 -- Keymaps > General
-vim.keymap.set("n", "j", "gj")
-vim.keymap.set("n", "k", "gk")
-vim.keymap.set("c", "<c-p>", "<up>")
-vim.keymap.set("c", "<c-n>", "<down>")
+vim.keymap.set("c", "<c-n>", "<down>", { noremap = true, silent = true })
+vim.keymap.set("c", "<c-p>", "<up>", { noremap = true, silent = true })
+vim.keymap.set("n", "j", "gj", { noremap = true, silent = true })
+vim.keymap.set("n", "k", "gk", { noremap = true, silent = true })
+vim.keymap.set("i", "<Tab>", function()
+  return vim.fn.pumvisible() == 1 and "<C-n>" or "<Tab>"
+end, { expr = true })
+vim.keymap.set("i", "<S-Tab>", function()
+  return vim.fn.pumvisible() == 1 and "<C-p>" or "<S-Tab>"
+end, { expr = true })
+vim.keymap.set("n", "n", function()
+  return (vim.v.searchforward == 1 and "n" or "N")
+end, { expr = true, silent = true, desc = "Search forward and center cursor" })
+vim.keymap.set("n", "N", function()
+  return (vim.v.searchforward == 1 and "N" or "n")
+end, { expr = true, silent = true, desc = "Search backward and center cursor" })
+
 -- Keymaps > Lazy
 vim.keymap.set("n", "<leader>ll", vim.cmd.Lazy, { desc = "[L]azy" })
 vim.keymap.set("n", "<leader>lu", function()
@@ -120,6 +134,27 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   group = vim.api.nvim_create_augroup("highlight_yank", { clear = true }),
   callback = function()
     vim.hl.on_yank({ higroup = "Visual", timeout = 300 })
+  end,
+})
+
+-- Auto-toggle neovim background based on system theme
+vim.api.nvim_create_autocmd("ColorScheme", {
+  group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
+  pattern = "*",
+  callback = function()
+    vim.api.nvim_set_hl(0, "Normal", { bg = nil })
+    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+    if vim.loop.os_uname().sysname:match("Darwin") then
+      if vim.fn.systemlist({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" })[1]:match("Dark") then
+        vim.schedule(function()
+          vim.o.background = "dark"
+        end)
+      else
+        vim.schedule(function()
+          vim.o.background = "light"
+        end)
+      end
+    end
   end,
 })
 
@@ -148,7 +183,23 @@ vim.filetype.add({
     [".snyk"] = "yaml",
     -- [".aws/config"] = "dosini",
   },
-  -- pattern = {
-  --   [".*/%.github[%w/]+workflows[%w/]+.*%.ya?ml"] = "yaml.github",
-  -- },
+  pattern = {
+    --   [".*/%.github[%w/]+workflows[%w/]+.*%.ya?ml"] = "yaml.github",
+    [".*"] = {
+      function(path, bufnr)
+        local contents = vim.api.nvim_buf_get_lines(bufnr, 0, 3, false) or {}
+        for _, v in ipairs(contents) do
+          if v:match("apiVersion:%s%S+") then
+            return "yaml"
+          end
+        end
+        -- if vim.regex([[^apiVersion:]]):match_str(content) ~= nil then
+        --   return "yaml"
+        -- end
+      end,
+      { priority = -math.huge },
+    },
+  },
 })
+
+vim.cmd.colorscheme("default")
