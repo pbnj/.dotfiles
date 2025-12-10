@@ -2,4 +2,6 @@
 
 set -euo pipefail
 
-tmux capture-pane -t:-1 -Jp -S- -E- | ${EDITOR} -
+tmpfile=$(mktemp)
+tmux capture-pane -Jp -S- -E- >"$tmpfile"
+tmux new-window -- "$EDITOR" "$tmpfile"
