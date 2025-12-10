@@ -3,3 +3,7 @@
 dateiso() {
         date +"%Y%m%dT%H%M%S"
 }
+
+brew() {
+        arch -arm64 brew $@
+}
