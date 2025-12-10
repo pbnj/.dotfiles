@@ -276,7 +276,7 @@ return {
       { "<leader>fb", function() Snacks.picker.buffers() end, desc = "[F]ind [B]uffers" },
       { "<leader>fc", function() Snacks.picker.files({ cwd = vim.fn.stdpath("config") }) end, desc = "[F]ind [C]onfig File" },
       { "<leader>ff", function() Snacks.picker.files() end, desc = "[F]ind [F]iles" },
-      { "<leader>fp", function() Snacks.picker.projects({ dev = { "~/Projects" }, max_depth = 4 }) end, desc = "[F]ind [P]roject Files" },
+      { "<leader>fp", function() Snacks.picker.files({ cwd = "~/Projects" }) end, desc = "[F]ind [P]roject Files" },
       { "<leader>fg", function() Snacks.picker.git_files() end, desc = "[F]ind [G]it Files" },
       { "<leader>fh", function() Snacks.picker.help() end, desc = "[F]ind [H]elp Pages" },
       { "<leader>fr", function() Snacks.picker.recent() end, desc = "[F]ind [R]ecent" },
@@ -320,7 +320,7 @@ return {
       { "gy", function() Snacks.picker.lsp_type_definitions() end, desc = "[G]oto T[y]pe Definition" },
       -- utilities
       { "<c-\\><c-\\>", function() Snacks.terminal() end, mode = { "t", "n", "i" }, desc = "Toggle Terminal" },
-      { "<c-\\>u", function() Snacks.terminal({ "pkg_up" }, {auto_close = false}) end, mode = { "t", "n", "i" }, desc = "Terminal: Update system packages" },
+      { "<c-\\><c-u>", function() Snacks.terminal({ "pkg_up" }, {auto_close = false}) end, mode = { "t", "n", "i" }, desc = "Terminal: Update system packages" },
       { "<leader>bd", function() Snacks.bufdelete() end, desc = "Delete Buffer" },
       { "<leader>cR", function() Snacks.rename.rename_file() end, desc = "Rename File" },
       { "<leader>un", function() Snacks.notifier.hide() end, desc = "Dismiss All Notifications" },

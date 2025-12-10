@@ -96,8 +96,8 @@ require("lazy").setup({
 })
 
 -- Keymaps > General
-vim.keymap.set("c", "<c-n>", "<down>", { noremap = true, silent = true })
-vim.keymap.set("c", "<c-p>", "<up>", { noremap = true, silent = true })
+vim.keymap.set("c", "<C-n>", "<Down>", { noremap = true })
+vim.keymap.set("c", "<C-p>", "<Up>", { noremap = true })
 vim.keymap.set("n", "j", "gj", { noremap = true, silent = true })
 vim.keymap.set("n", "k", "gk", { noremap = true, silent = true })
 vim.keymap.set("i", "<Tab>", function()
@@ -106,12 +106,12 @@ end, { expr = true })
 vim.keymap.set("i", "<S-Tab>", function()
   return vim.fn.pumvisible() == 1 and "<C-p>" or "<S-Tab>"
 end, { expr = true })
-vim.keymap.set("n", "n", function()
+vim.keymap.set({ "n", "v" }, "n", function()
   return (vim.v.searchforward == 1 and "n" or "N")
-end, { expr = true, silent = true, desc = "Search forward and center cursor" })
-vim.keymap.set("n", "N", function()
+end, { expr = true, silent = true, desc = "Search forward" })
+vim.keymap.set({ "n", "v" }, "N", function()
   return (vim.v.searchforward == 1 and "N" or "n")
-end, { expr = true, silent = true, desc = "Search backward and center cursor" })
+end, { expr = true, silent = true, desc = "Search backward" })
 
 -- Keymaps > Lazy
 vim.keymap.set("n", "<leader>ll", vim.cmd.Lazy, { desc = "[L]azy" })
@@ -175,7 +175,6 @@ vim.diagnostic.config({
 -- Filetypes
 vim.filetype.add({
   extension = {
-    json = "jsonc",
     tofu = "terraform",
     tf = "terraform",
   },
@@ -202,4 +201,8 @@ vim.filetype.add({
   },
 })
 
+-- Built-in packages
+vim.cmd.packadd("nohlsearch") -- auto-toggle hlsearch
+
+-- Colorscheme
 vim.cmd.colorscheme("default")
