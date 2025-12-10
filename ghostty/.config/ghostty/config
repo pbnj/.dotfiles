@@ -9,6 +9,7 @@ adjust-cursor-thickness = 1
 auto-update = download
 auto-update-channel = stable
 custom-shader = ~/.config/ghostty/ghostty-shaders/cursor_warp.glsl
+custom-shader = ~/.config/ghostty/ghostty-shaders/bettercrt.glsl
 background-blur = false
 background-opacity = 1.0
 copy-on-select = clipboard
