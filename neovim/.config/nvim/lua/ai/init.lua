@@ -53,7 +53,7 @@ M.config = {
     },
     {
       name = "cursor",
-      check = "cursor-agent",
+      check = "agent",
       cmd = function(p)
         return { "cursor-agent", "-p", p, "--output-format", "text", "--yolo" }
       end,
