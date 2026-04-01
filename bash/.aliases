@@ -28,8 +28,12 @@ alias kx=kubectx
 complete -F _kube_contexts kx
 alias kn=kubens
 complete -F _kube_namespaces kn
-alias k=kubectl
-complete -o default -F __start_kubectl k
+if [[ -f "$HOME/.kube/aliases" ]]; then
+        source "$HOME/.kube/aliases"
+else
+        alias k=kubectl
+        complete -o default -F __start_kubectl k
+fi
 
 # package managers
 alias brew_up="brew update && brew upgrade && brew cleanup --prune all"
