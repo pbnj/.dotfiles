@@ -65,6 +65,12 @@ return {
           if ft:match("^text") then
             return
           end -- skip plaintext buffers
+          if ft:match("^conf") then
+            return
+          end -- skip plaintext buffers
+          if ft:match("^config") then
+            return
+          end -- skip plaintext buffers
           if ft:match("^fugitive") then
             return
           end -- skip fugitive buffers

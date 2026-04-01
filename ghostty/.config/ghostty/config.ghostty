@@ -1,7 +1,5 @@
-# vim:ft=toml:
-
 # Generate show default configs with documentation:
-#    $ ghostty +show-config --default --docs
+#   $ ghostty +show-config --default --docs
 # Docs: https://ghostty.org/docs/config/reference
 
 # General
@@ -9,22 +7,26 @@ adjust-cursor-thickness = 1
 auto-update = download
 auto-update-channel = stable
 custom-shader = ~/.config/ghostty/ghostty-shaders/cursor_warp.glsl
-custom-shader = ~/.config/ghostty/ghostty-shaders/bettercrt.glsl
-background-blur = false
+background-blur = true
 background-opacity = 1.0
 copy-on-select = clipboard
 macos-option-as-alt = true
 macos-titlebar-style = hidden
+# macos-titlebar-style = tabs
 quick-terminal-animation-duration = 0
 quick-terminal-position = bottom
+window-new-tab-position = current
+window-show-tab-bar = auto
 
-## ghostty +list-fonts
-# font-family = "JetBrainsMono Nerd Font"
-## ghostty +list-themes
-theme = "light:Nvim Light,dark:Nvim Dark"
+# ghostty +list-fonts
+font-family = "Iosevka NFM"
+font-size = 14
+# ghostty +list-themes
+theme = "light:TokyoNight Day,dark:TokyoNight Night"
+# theme = "light:Nvim Light,dark:Nvim Dark"
 
 # Keybindings
-## ghostty-specific
+# ghostty-specific
 keybind = alt+left=esc:b
 keybind = alt+right=esc:f
 keybind = ctrl+shift+tab=previous_tab

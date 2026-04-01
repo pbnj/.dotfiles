@@ -177,6 +177,7 @@ vim.filetype.add({
   filename = {
     [".snyk"] = "yaml",
     ["CODEOWNERS"] = "gitignore",
+    ["config.ghostty"] = "config",
   },
   pattern = {
     --   [".*/%.github[%w/]+workflows[%w/]+.*%.ya?ml"] = "yaml.github",
