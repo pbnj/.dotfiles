@@ -1,4 +1,6 @@
 if vim.g.neovide then
+  vim.opt.title = true
+
   -- map cmd+c/v to copy/paste & cmd+s to write/save file
   vim.keymap.set("n", "<D-s>", "<cmd>write<CR>") -- Save
   vim.keymap.set("i", "<D-s>", "<esc><cmd>write<CR>") -- Save

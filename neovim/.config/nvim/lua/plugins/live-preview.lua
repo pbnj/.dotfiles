@@ -1,11 +1,11 @@
 return {
-  {
-    "https://github.com/brianhuster/live-preview.nvim",
-    dependencies = { "https://github.com/folke/snacks.nvim" },
-    opts = {},
-    ft = { "markdown" },
-    cmd = { "LivePreview" },
-  },
+  -- {
+  --   "https://github.com/brianhuster/live-preview.nvim",
+  --   dependencies = { "https://github.com/folke/snacks.nvim" },
+  --   opts = {},
+  --   ft = { "markdown" },
+  --   cmd = { "LivePreview" },
+  -- },
   {
     "https://github.com/selimacerbas/mermaid-playground.nvim",
     dependencies = { "https://github.com/selimacerbas/live-server.nvim" },

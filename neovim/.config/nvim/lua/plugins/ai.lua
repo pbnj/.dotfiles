@@ -1,0 +1,19 @@
+return {
+  dir = "~/.config/nvim/lua/ai", -- or a GitHub path if you publish it
+  name = "ai",
+  config = function()
+    require("ai").setup({
+      insert_position = "below", -- "below" | "above" | "inline"
+      strip_ansi = true,
+
+      -- Add/override agents:
+      -- agents = { ... }  -- replaces the whole list
+      -- To merge, extend inside config:
+    })
+
+    local map = vim.keymap.set
+    map("n", "<leader>ai", "<cmd>AiInsert<cr>", { desc = "AI: prompt → insert" })
+    map("n", "<leader>al", "<cmd>AiInsertLine<cr>", { desc = "AI: line → insert" })
+    map("x", "<leader>av", "<cmd>AiInsertVisual<cr>", { desc = "AI: selection → insert" })
+  end,
+}

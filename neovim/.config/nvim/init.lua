@@ -100,12 +100,6 @@ vim.keymap.set("c", "<C-n>", "<Down>", { noremap = true })
 vim.keymap.set("c", "<C-p>", "<Up>", { noremap = true })
 vim.keymap.set("n", "j", "gj", { noremap = true, silent = true })
 vim.keymap.set("n", "k", "gk", { noremap = true, silent = true })
-vim.keymap.set("i", "<Tab>", function()
-  return vim.fn.pumvisible() == 1 and "<C-n>" or "<Tab>"
-end, { expr = true })
-vim.keymap.set("i", "<S-Tab>", function()
-  return vim.fn.pumvisible() == 1 and "<C-p>" or "<S-Tab>"
-end, { expr = true })
 vim.keymap.set({ "n", "v" }, "n", function()
   return (vim.v.searchforward == 1 and "n" or "N")
 end, { expr = true, silent = true, desc = "Search forward" })
@@ -138,25 +132,27 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 })
 
 -- Auto-toggle neovim background based on system theme
-vim.api.nvim_create_autocmd("ColorScheme", {
-  group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
-  pattern = "*",
-  callback = function()
-    vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
-    if vim.loop.os_uname().sysname:match("Darwin") then
-      if vim.fn.systemlist({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" })[1]:match("Dark") then
-        vim.schedule(function()
-          vim.o.background = "dark"
-        end)
-      else
-        vim.schedule(function()
-          vim.o.background = "light"
-        end)
-      end
-    end
-  end,
-})
+-- vim.api.nvim_create_autocmd("ColorScheme", {
+--   group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
+--   pattern = "*",
+--   callback = function()
+--     -- vim.api.nvim_set_hl(0, "Normal", { bg = nil })
+--     -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+--     if vim.loop.os_uname().sysname:match("Darwin") then
+--       if vim.fn.systemlist({ "defaults", "read", "-g", "AppleInterfaceStyle", "2>/dev/null" })[1]:match("Dark") then
+--         vim.schedule(function()
+--           vim.o.background = "dark"
+--         end)
+--       else
+--         vim.schedule(function()
+--           vim.o.background = "light"
+--         end)
+--       end
+--     end
+--   end,
+-- })
+-- Colorscheme
+-- vim.cmd.colorscheme("default")
 
 -- Diagnostics configuration
 vim.diagnostic.config({
@@ -180,12 +176,12 @@ vim.filetype.add({
   },
   filename = {
     [".snyk"] = "yaml",
-    -- [".aws/config"] = "dosini",
+    ["CODEOWNERS"] = "gitignore",
   },
   pattern = {
     --   [".*/%.github[%w/]+workflows[%w/]+.*%.ya?ml"] = "yaml.github",
     [".*"] = {
-      function(path, bufnr)
+      function(_, bufnr)
         local contents = vim.api.nvim_buf_get_lines(bufnr, 0, 3, false) or {}
         for _, v in ipairs(contents) do
           if v:match("apiVersion:%s%S+") then
@@ -203,6 +199,3 @@ vim.filetype.add({
 
 -- Built-in packages
 vim.cmd.packadd("nohlsearch") -- auto-toggle hlsearch
-
--- Colorscheme
-vim.cmd.colorscheme("default")

@@ -8,7 +8,7 @@ return {
         if client:supports_method(vim.lsp.protocol.Methods.textDocument_completion) then
           vim.lsp.completion.enable(true, client.id, event.buf, { autotrigger = false }) -- :help lsp-completion
         end
-        if vim.fn.has("nvim-0.12") == 1 and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlineCompletion) then
+        if client:supports_method(vim.lsp.protocol.Methods.textDocument_inlineCompletion) then
           vim.lsp.inline_completion.enable(true) -- :help lsp-completion
         end
         local map = function(keys, func, desc, mode)

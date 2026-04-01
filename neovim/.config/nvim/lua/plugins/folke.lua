@@ -1,5 +1,14 @@
 return {
   {
+    "https://github.com/folke/tokyonight.nvim",
+    lazy = false,
+    priority = 1000,
+    config = function()
+      require("tokyonight").setup({ transparent = true })
+      vim.cmd.colorscheme("tokyonight")
+    end,
+  },
+  {
     "https://github.com/folke/snacks.nvim",
     lazy = false,
     priority = 1000,
@@ -27,7 +36,7 @@ return {
         sources = {
           grep = { hidden = true, live = true },
           grep_word = { hidden = true, live = true },
-          explorer = { layout = { layout = { position = "right" } } },
+          explorer = { layout = { layout = { position = "right" } }, hidden = true, ignored = true },
           files = {
             hidden = true,
             actions = {
@@ -172,6 +181,44 @@ return {
               end
             end,
           },
+          treesitter_languages = {
+            name = "Treesitter Languages",
+            format = "text",
+            layout = { preset = "vscode" },
+            finder = function()
+              local ok, ts = pcall(require, "nvim-treesitter")
+              if not ok then
+                return {}
+              end
+              local installed = {}
+              for _, lang in ipairs(ts.get_installed()) do
+                installed[lang] = true
+              end
+              return vim
+                .iter(ts.get_available())
+                :map(function(lang)
+                  local is_installed = installed[lang] == true
+                  return {
+                    text = lang,
+                    label = (is_installed and "  " or "  ") .. lang,
+                    installed = is_installed,
+                  }
+                end)
+                :totable()
+            end,
+            confirm = function(picker, item)
+              picker:close()
+              if item then
+                vim.schedule(function()
+                  if item.installed then
+                    vim.cmd("TSUninstall " .. item.text)
+                  else
+                    vim.cmd("TSInstall " .. item.text)
+                  end
+                end)
+              end
+            end,
+          },
           aws_console = {
             source = "aws_console",
             title = "AWS Console",
@@ -182,7 +229,7 @@ return {
               return vim
                 .iter(aws_config)
                 :filter(function(profile)
-                  return string.match(profile, "%d/.*/.*")
+                  return string.match(profile, "%d")
                 end)
                 :map(function(profile)
                   local sso_account_id = aws_config[profile].sso_account_id
@@ -253,7 +300,7 @@ return {
       { "<leader>;", function() Snacks.picker.command_history() end, desc = "Command History" },
       { "<leader>:", function() Snacks.picker.commands() end, desc = "Commands" },
       { "<leader>n", function() Snacks.notifier.show_history() end, desc = "[N]otification History" },
-      { "<leader>e", function() Snacks.picker.explorer({hidden = true}) end, desc = "File [E]xplorer" },
+      { "<leader>e", function() Snacks.picker.explorer() end, desc = "File [E]xplorer" },
       {
         "<leader>N",
         desc = "Neovim News",
@@ -273,7 +320,7 @@ return {
         end,
       },
       -- fuzzy finders
-      { "<leader>fb", function() Snacks.picker.buffers() end, desc = "[F]ind [B]uffers" },
+      { "<leader>fb", function() Snacks.picker.buffers({current = false}) end, desc = "[F]ind [B]uffers" },
       { "<leader>fc", function() Snacks.picker.files({ cwd = vim.fn.stdpath("config") }) end, desc = "[F]ind [C]onfig File" },
       { "<leader>ff", function() Snacks.picker.files() end, desc = "[F]ind [F]iles" },
       { "<leader>fp", function() Snacks.picker.files({ cwd = "~/Projects" }) end, desc = "[F]ind [P]roject Files" },
@@ -310,6 +357,7 @@ return {
       { "<leader>sp", function() Snacks.picker.lazy() end, desc = "[S]earch [P]lugin Spec" },
       { "<leader>sq", function() Snacks.picker.qflist() end, desc = "[S]earch [Q]uickfix List" },
       { "<leader>su", function() Snacks.picker.undo() end, desc = "[S]earch [U]ndo History" },
+      { "<leader>st", function() Snacks.picker.treesitter_languages() end, desc = "[S]earch [T]reesitter Languages" },
       -- lsp
       { "gd", function() Snacks.picker.lsp_definitions() end, desc = "[G]oto [D]efinition" },
       { "gD", function() Snacks.picker.lsp_declarations() end, desc = "[G]oto [D]eclaration" },
@@ -386,20 +434,27 @@ return {
         "<tab>",
         function()
           -- if there is a next edit, jump to it, otherwise apply it if any
-          if not require("sidekick").nes_jump_or_apply() then
-            return "<Tab>" -- fallback to normal tab
+          if require("sidekick").nes_jump_or_apply() then
+            return -- jumped or applied
           end
+          -- if there is an inline completion, let it handle the tab
+          if vim.lsp.inline_completion.get() then
+            return -- inline completion applied
+          end
+          -- fall back to normal tab
+          return "<tab>"
         end,
+        mode = { "i", "n" },
         expr = true,
         desc = "Goto/Apply Next Edit Suggestion",
       },
       {
         "<c-.>",
         function()
-          require("sidekick.cli").focus()
+          require("sidekick.cli").toggle()
         end,
-        mode = { "n", "x", "i", "t" },
-        desc = "Sidekick Switch Focus",
+        desc = "Sidekick Toggle",
+        mode = { "n", "t", "i", "x" },
       },
       {
         "<leader>aa",
