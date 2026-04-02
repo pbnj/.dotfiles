@@ -30,6 +30,8 @@ return {
         "http",
         "ini",
         "jq",
+        "json",
+        "json5",
         "lua",
         "make",
         "markdown",
