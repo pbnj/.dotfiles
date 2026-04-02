@@ -199,8 +199,8 @@ return {
                 :map(function(lang)
                   local is_installed = installed[lang] == true
                   return {
-                    text = lang,
-                    label = (is_installed and "  " or "  ") .. lang,
+                    text = lang .. (is_installed and " (installed)" or ""),
+                    language = lang,
                     installed = is_installed,
                   }
                 end)
@@ -211,9 +211,9 @@ return {
               if item then
                 vim.schedule(function()
                   if item.installed then
-                    vim.cmd("TSUninstall " .. item.text)
+                    vim.cmd("TSUninstall " .. item.language)
                   else
-                    vim.cmd("TSInstall " .. item.text)
+                    vim.cmd("TSInstall " .. item.language)
                   end
                 end)
               end
@@ -277,6 +277,173 @@ return {
                   ["<m-p>"] = { "yank_profile", mode = { "n", "i" } },
                   ["<cr>"] = { "open", mode = { "n", "i" } },
                   ["<m-o>"] = { "open_sso_account", mode = { "n", "i" } },
+                },
+              },
+            },
+          },
+          scalr_workspaces = {
+            name = "Scalr Workspaces",
+            format = "text",
+            layout = { preset = "vscode" },
+            finder = function()
+              local cache_file = vim.fn.expand("~/.cache/scalr/workspaces.json")
+              local slim_workspaces
+              if vim.fn.filereadable(cache_file) == 1 then
+                slim_workspaces = vim
+                  .iter(vim.fn.readfile(cache_file))
+                  :filter(function(line)
+                    return line ~= ""
+                  end)
+                  :map(function(line)
+                    local ok, ws = pcall(vim.json.decode, line)
+                    return ok and ws or nil
+                  end)
+                  :totable()
+              else
+                local result = vim.system({ "scalr", "get-workspaces" }, { text = true }):wait()
+                local ok, all = pcall(vim.json.decode, result.stdout)
+                if not ok or not all then
+                  return {}
+                end
+                slim_workspaces = vim
+                  .iter(all)
+                  :map(function(ws)
+                    return { name = ws.name, id = ws.id, environment = ws.environment }
+                  end)
+                  :totable()
+                vim.fn.writefile(vim.iter(slim_workspaces):map(vim.json.encode):totable(), cache_file)
+              end
+              return vim
+                .iter(slim_workspaces)
+                :map(function(ws)
+                  return { text = ws.name, name = ws.name, id = ws.id, environment = ws.environment }
+                end)
+                :totable()
+            end,
+            confirm = function(picker, item)
+              picker:close()
+              vim.schedule(function()
+                Snacks.picker.scalr_runs({
+                  workspace_id = item.id,
+                  workspace_name = item.name,
+                  environment_id = item.environment.id,
+                  title = string.format("Scalr Runs (%s)", item.name),
+                })
+              end)
+            end,
+            actions = {
+              open_browser = function(picker, item)
+                picker:close()
+                local api_url = vim.env.SCALR_API_URL or ""
+                vim.ui.open(string.format("%s/v2/e/%s/workspaces/%s/", api_url, item.environment.id, item.id))
+              end,
+              refresh = function(picker, _)
+                vim.fn.delete("/tmp/scalr-workspaces.json")
+                picker:find({ refresh = true })
+              end,
+            },
+            win = {
+              input = {
+                keys = {
+                  ["<c-o>"] = { "open_browser", mode = { "n", "i" }, desc = "Open workspace in browser" },
+                  ["<c-r>"] = { "refresh", mode = { "n", "i" }, desc = "Refresh workspaces" },
+                },
+              },
+            },
+          },
+          scalr_runs = {
+            name = "Scalr Runs",
+            format = "text",
+            preview_window = "bottom",
+            finder = function(opts)
+              if not opts or not opts.workspace_id then
+                return {}
+              end
+              local result = vim.system({ "scalr", "get-runs", string.format("-filter-workspace=%s", opts.workspace_id) }, { text = true }):wait()
+              local ok, runs = pcall(vim.json.decode, result.stdout)
+              if not ok or not runs then
+                return {}
+              end
+              return vim
+                .iter(runs)
+                :map(function(run)
+                  return {
+                    text = run.id,
+                    id = run.id,
+                    apply = run.apply,
+                    plan = run.plan,
+                    workspace_id = opts.workspace_id,
+                    workspace_name = opts.workspace_name,
+                    environment_id = opts.environment_id,
+                  }
+                end)
+                :totable()
+            end,
+            preview = function(ctx)
+              ctx.preview:reset()
+              if not ctx.item then
+                return true
+              end
+              local item = ctx.item
+              local lines = {}
+              if item.apply and item.apply.id then
+                local result = vim.system({ "scalr", "get-apply-log", string.format("-apply=%s", item.apply.id) }, { text = true }):wait()
+                if result.stdout and result.stdout ~= "" then
+                  vim.list_extend(lines, vim.split(result.stdout, "\n"))
+                end
+              end
+              if item.plan and item.plan.id then
+                local result = vim.system({ "scalr", "get-plan-log", string.format("-plan=%s", item.plan.id) }, { text = true }):wait()
+                if result.stdout and result.stdout ~= "" then
+                  vim.list_extend(lines, vim.split(result.stdout, "\n"))
+                end
+              end
+              ctx.preview:set_lines(#lines > 0 and lines or { "(no logs available)" })
+            end,
+            confirm = function(picker, item)
+              picker:close()
+              local conf = vim.json.decode(vim.fn.join(vim.fn.readfile(vim.fn.expand("~/.scalr/scalr.conf")), "\n"))
+              vim.ui.open(string.format("https://%s/v2/e/%s/workspaces/%s/runs/%s", conf.hostname, item.environment_id, item.workspace_id, item.id))
+            end,
+            actions = {
+              approve = function(_, item)
+                vim.system({ "scalr", "confirm-run", string.format("-run=%s", item.id) })
+                Snacks.notify.info("Approved run: " .. item.id)
+              end,
+              cancel = function(_, item)
+                vim.system({ "scalr", "cancel-run", string.format("-run=%s", item.id) })
+                Snacks.notify.info("Cancelled run: " .. item.id)
+              end,
+              open_logs = function(picker, item)
+                picker:close()
+                local lines = {}
+                if item.apply and item.apply.id then
+                  local result = vim.system({ "scalr", "get-apply-log", string.format("-apply=%s", item.apply.id) }, { text = true }):wait()
+                  if result.stdout then
+                    vim.list_extend(lines, vim.split(result.stdout, "\n"))
+                  end
+                end
+                if item.plan and item.plan.id then
+                  local result = vim.system({ "scalr", "get-plan-log", string.format("-plan=%s", item.plan.id) }, { text = true }):wait()
+                  if result.stdout then
+                    vim.list_extend(lines, vim.split(result.stdout, "\n"))
+                  end
+                end
+                local log_file = vim.fn.tempname()
+                vim.fn.writefile(lines, log_file)
+                vim.cmd("edit " .. log_file)
+              end,
+              refresh = function(picker, _)
+                picker:find({ refresh = true })
+              end,
+            },
+            win = {
+              input = {
+                keys = {
+                  ["<m-a>"] = { "approve", mode = { "n", "i" }, desc = "Approve run" },
+                  ["<m-c>"] = { "cancel", mode = { "n", "i" }, desc = "Cancel run" },
+                  ["<c-o>"] = { "open_logs", mode = { "n", "i" }, desc = "Open logs in editor" },
+                  ["<c-r>"] = { "refresh", mode = { "n", "i" }, desc = "Refresh runs" },
                 },
               },
             },
@@ -418,6 +585,7 @@ return {
       -- work
       { "<leader>wa", function() Snacks.picker.aws_console() end, desc = "[W]ork [A]WS Console" },
       { "<leader>wo", function() Snacks.picker.okta_apps() end, desc = "[W]ork [O]kta Apps" },
+      { "<leader>ws", function() Snacks.picker.scalr_workspaces() end, desc = "[W]ork [S]calr Workspaces" },
     },
     -- stylua: ignore end
   },
