@@ -7,76 +7,29 @@ return {
     dependencies = { "https://github.com/nvim-treesitter/nvim-treesitter-textobjects" },
     opts = {},
     config = function()
-      require("nvim-treesitter").install({
-        "awk",
-        "bash",
-        "c",
-        "css",
-        "csv",
-        "diff",
-        "dockerfile",
-        "editorconfig",
-        "git_config",
-        "git_rebase",
-        "gitattributes",
-        "gitcommit",
-        "gitignore",
-        "go",
-        "gomod",
-        "gosum",
-        "gotmpl",
-        "graphql",
-        "hcl",
-        "http",
-        "ini",
-        "jq",
-        "json",
-        "json5",
-        "lua",
-        "make",
-        "markdown",
-        "markdown_inline",
-        "mermaid",
-        "python",
-        "query",
-        "regex",
-        "requirements",
-        "rust",
-        "scss",
-        "svelte",
-        "terraform",
-        "toml",
-        "tsv",
-        "tsx",
-        "typst",
-        "vim",
-        "vimdoc",
-        "vue",
-        "yaml",
-      })
-
       vim.api.nvim_create_autocmd("FileType", {
+        pattern = { "*" },
         callback = function(args)
           local ft = vim.bo[args.buf].filetype
-          if ft:match("^snacks_") then
-            return
-          end -- skip snacks UI buffers
-          if ft:match("^sidekick_terminal") then
-            return
-          end -- skip sidekick terminal buffers
-          if ft:match("^text") then
-            return
-          end -- skip plaintext buffers
-          if ft:match("^conf") then
-            return
-          end -- skip plaintext buffers
-          if ft:match("^config") then
-            return
-          end -- skip plaintext buffers
-          if ft:match("^fugitive") then
-            return
-          end -- skip fugitive buffers
-          vim.treesitter.start(args.buf)
+          local lang = vim.treesitter.language.get_lang(ft) or ""
+
+          local installed = require("nvim-treesitter").get_installed()
+          if vim.tbl_contains(installed, lang) then
+            if vim.treesitter.language.add(lang) then
+              vim.treesitter.start(args.buf, lang)
+              vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+              vim.wo[0][0].foldexpr = "v:lua.vim.treesitter.foldexpr()"
+              vim.wo[0][0].foldmethod = "expr"
+            end
+          else
+            local available = vim.g.ts_available or require("nvim-treesitter").get_available()
+            if not vim.g.ts_available then
+              vim.g.ts_available = available
+            end
+            if vim.tbl_contains(available, lang) then
+              require("nvim-treesitter").install(lang)
+            end
+          end
         end,
       })
     end,
