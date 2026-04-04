@@ -1,5 +1,6 @@
-return {
-  "https://github.com/benomahony/uv.nvim",
-  opts = {},
-  event = "VeryLazy",
-}
+-- Moved to after/ftplugin/python.lua
+-- return {
+--   "https://github.com/benomahony/uv.nvim",
+--   opts = {},
+--   event = "VeryLazy",
+-- }
