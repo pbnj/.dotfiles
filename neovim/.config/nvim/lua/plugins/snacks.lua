@@ -489,10 +489,9 @@ vim.keymap.set("n", "<leader>fs", function() Snacks.picker.lsp_symbols() end, { 
 vim.keymap.set("n", "<leader>fS", function() Snacks.picker.lsp_workspace_symbols() end, { desc = "[F]ind [S]ymbols (Global)" })
 -- git
 vim.keymap.set("n", "<leader>gi", function() Snacks.picker.gh_issue() end, { desc = "GitHub Issues (open)" })
-vim.keymap.set("n", "<leader>gI", function() Snacks.picker.gh_issue({ state = "all" }) end, { desc = "GitHub Issues (all)" })
 vim.keymap.set("n", "<leader>gp", function() Snacks.picker.gh_pr() end, { desc = "GitHub Pull Requests (open)" })
-vim.keymap.set("n", "<leader>gP", function() Snacks.picker.gh_pr({ state = "all" }) end, { desc = "GitHub Pull Requests (all)" })
 vim.keymap.set("n", "<leader>gb", function() Snacks.picker.git_branches() end, { desc = "[G]it [B]ranches" })
+vim.keymap.set("n", "<leader>gB", function() Snacks.gitbrowse() end, { desc = "[G]it [B]rowse" })
 vim.keymap.set("n", "<leader>gl", function() Snacks.picker.git_log_file() end, { desc = "[G]it [L]ogs (Buffer)" })
 vim.keymap.set("n", "<leader>gL", function() Snacks.picker.git_log() end, { desc = "[G]it [L]ogs (Global)" })
 vim.keymap.set("n", "<leader>gs", function() Snacks.picker.git_status() end, { desc = "[G]it [S]tatus" })
