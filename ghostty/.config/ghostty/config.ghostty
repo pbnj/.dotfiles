@@ -11,8 +11,8 @@ background-blur = true
 background-opacity = 1.0
 copy-on-select = clipboard
 macos-option-as-alt = true
-macos-titlebar-style = hidden
-# macos-titlebar-style = tabs
+# macos-titlebar-style = hidden
+macos-titlebar-style = tabs
 quick-terminal-animation-duration = 0
 quick-terminal-position = bottom
 window-new-tab-position = current
@@ -22,8 +22,8 @@ window-show-tab-bar = auto
 font-family = "Iosevka NFM"
 font-size = 14
 # ghostty +list-themes
-theme = "light:TokyoNight Day,dark:TokyoNight Night"
-# theme = "light:Nvim Light,dark:Nvim Dark"
+# theme = "light:TokyoNight Day,dark:TokyoNight Night"
+theme = "light:Nvim Light,dark:Nvim Dark"
 
 # Keybindings
 # ghostty-specific
