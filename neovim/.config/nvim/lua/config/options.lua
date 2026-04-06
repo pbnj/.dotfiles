@@ -26,6 +26,7 @@ vim.opt.modeline = true
 vim.opt.modelines = 5
 vim.opt.mouse = "a"
 vim.opt.number = true
+vim.opt.pumborder = "rounded"
 vim.opt.ruler = true
 vim.opt.scrolloff = 10
 vim.opt.shortmess = "FCcWl"
