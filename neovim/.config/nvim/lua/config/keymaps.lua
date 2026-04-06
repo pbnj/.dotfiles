@@ -15,6 +15,9 @@ vim.keymap.set({ "n", "v" }, "N", function()
 end, { expr = true, silent = true, desc = "Search backward" })
 
 -- Plugin Manager
+vim.keymap.set("n", "<leader>pp", function()
+  vim.pack.update(nil, { offline = true })
+end, { noremap = true, silent = true, desc = "[P]ack [P]lugins" })
 vim.keymap.set("n", "<leader>pu", function()
   vim.pack.update()
 end, { noremap = true, silent = true, desc = "[P]ack [U]pdate" })

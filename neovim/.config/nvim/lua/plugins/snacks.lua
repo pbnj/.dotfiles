@@ -1,11 +1,3 @@
--- {
---   "https://github.com/folke/snacks.nvim",
---   lazy = false,
---   priority = 1000,
---   opts = { ... }, -- see folke.lua for original lazy spec
---   keys = { ... },
--- }
-
 vim.pack.add({ "https://github.com/folke/snacks.nvim" })
 
 require("snacks").setup({
@@ -50,29 +42,6 @@ require("snacks").setup({
           input = {
             keys = {
               ["dd"] = { "delete_file", mode = { "n" }, desc = "delete file" },
-            },
-          },
-        },
-      },
-      projects = {
-        format = "text",
-        finder = function()
-          return vim
-            .iter(vim.fn.systemlist({ "fd", ".", vim.fn.expand("~/Projects"), "--type", "d", "--max-depth", "3" }))
-            :map(function(dir)
-              local dir_split = vim.split(dir, "/")
-              local name = dir_split[#dir_split - 1]
-              return {
-                text = name,
-                file = dir,
-              }
-            end)
-            :totable()
-        end,
-        win = {
-          input = {
-            keys = {
-              ["<C-w>"] = { "<c-s-w>", mode = { "i" }, expr = true, desc = "delete word" },
             },
           },
         },
@@ -512,13 +481,13 @@ vim.keymap.set("n", "<leader>sp", function() Snacks.picker.lazy() end, { desc = 
 vim.keymap.set("n", "<leader>sq", function() Snacks.picker.qflist() end, { desc = "[S]earch [Q]uickfix List" })
 vim.keymap.set("n", "<leader>su", function() Snacks.picker.undo() end, { desc = "[S]earch [U]ndo History" })
 -- lsp
-vim.keymap.set("n", "gd", function() Snacks.picker.lsp_definitions() end, { desc = "[G]oto [D]efinition" })
-vim.keymap.set("n", "gD", function() Snacks.picker.lsp_declarations() end, { desc = "[G]oto [D]eclaration" })
-vim.keymap.set("n", "gr", function() Snacks.picker.lsp_references() end, { nowait = true, desc = "[G]oto [R]eferences" })
-vim.keymap.set("n", "gI", function() Snacks.picker.lsp_implementations() end, { desc = "[G]oto [I]mplementation" })
-vim.keymap.set("n", "go", function() Snacks.picker.lsp_symbols() end, { desc = "[G]oto Symb[o]ls (Buffer)" })
-vim.keymap.set("n", "gO", function() Snacks.picker.lsp_workspace_symbols() end, { desc = "[G]oto Symb[o]ls (Global)" })
-vim.keymap.set("n", "gy", function() Snacks.picker.lsp_type_definitions() end, { desc = "[G]oto T[y]pe Definition" })
+vim.keymap.set("n", "<leader>lgd", function() Snacks.picker.lsp_definitions() end, { desc = "[L]SP [G]oto [D]efinition" })
+vim.keymap.set("n", "<leader>lgD", function() Snacks.picker.lsp_declarations() end, { desc = "[L]SP [G]oto [D]eclaration" })
+vim.keymap.set("n", "<leader>lgr", function() Snacks.picker.lsp_references() end, { nowait = true, desc = "[L]SP [G]oto [R]eferences" })
+vim.keymap.set("n", "<leader>lgI", function() Snacks.picker.lsp_implementations() end, { desc = "[L]SP [G]oto [I]mplementation" })
+vim.keymap.set("n", "<leader>lgo", function() Snacks.picker.lsp_symbols() end, { desc = "[L]SP [G]oto Symb[o]ls (Buffer)" })
+vim.keymap.set("n", "<leader>lgO", function() Snacks.picker.lsp_workspace_symbols() end, { desc = "[L]SP [G]oto Symb[o]ls (Global)" })
+vim.keymap.set("n", "<leader>lgy", function() Snacks.picker.lsp_type_definitions() end, { desc = "[L]SP [G]oto T[y]pe Definition" })
 -- utilities
 vim.keymap.set({ "t", "n", "i" }, "<c-\\><c-\\>", function() Snacks.terminal() end, { desc = "Toggle Terminal" })
 vim.keymap.set({ "t", "n", "i" }, "<c-\\><c-u>", function() Snacks.terminal({ "pkg_up" }, { auto_close = false }) end, { desc = "Terminal: Update system packages" })

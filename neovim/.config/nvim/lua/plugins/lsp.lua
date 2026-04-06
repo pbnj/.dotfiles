@@ -14,6 +14,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end
     map("<c-s>", vim.lsp.buf.signature_help, "Signature Help", "i")
     map("<c-space>", vim.lsp.completion.get, "Trigger completion suggestion", "i")
+    map("gd", vim.lsp.buf.definition, "Go to definition")
+    map("gD", vim.lsp.buf.declaration, "Go to declaration")
+    map("gi", vim.lsp.buf.implementation, "Go to implementation")
   end,
 })
 
@@ -113,7 +116,3 @@ end
 vim.keymap.set("n", "<leader>li", function()
   vim.cmd.checkhealth("vim.lsp")
 end, { desc = "[L]SP [I]nfo" })
-
-vim.keymap.set("n", "<leader>lc", function()
-  vim.lsp.buf.code_action()
-end, { desc = "[L]SP [C]ode Action" })

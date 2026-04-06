@@ -1,10 +1,10 @@
 -- Options & settings
+vim.opt.autocomplete = true
 vim.opt.backspace = "indent,eol,start"
 vim.opt.belloff = "all"
 vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
-vim.opt.autocomplete = true
 vim.opt.complete:append({ "o" })
 vim.opt.completeopt = { "menu", "menuone", "popup", "fuzzy", "noselect" }
 vim.opt.conceallevel = 0
@@ -36,6 +36,7 @@ vim.opt.signcolumn = "yes"
 vim.opt.smartcase = true
 vim.opt.smarttab = true
 vim.opt.swapfile = false
+vim.opt.termguicolors = true
 vim.opt.ttimeout = true
 vim.opt.ttimeoutlen = 50
 vim.opt.ttyfast = true
