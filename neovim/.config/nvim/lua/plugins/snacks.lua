@@ -342,20 +342,19 @@ require("snacks").setup({
             :totable()
         end,
         preview = function(ctx)
-          ctx.preview:reset()
           if not ctx.item then
             return true
           end
           local item = ctx.item
           local lines = {}
           if item.apply and item.apply.id then
-            local result = vim.system({ "scalr", "get-apply-log", string.format("-apply=%s", item.apply.id) }, { text = true }):wait()
+            local result = vim.system({ "scalr", "get-apply-log", string.format("-apply=%s", item.apply.id), "-clean=true" }, { text = true }):wait()
             if result.stdout and result.stdout ~= "" then
               vim.list_extend(lines, vim.split(result.stdout, "\n"))
             end
           end
           if item.plan and item.plan.id then
-            local result = vim.system({ "scalr", "get-plan-log", string.format("-plan=%s", item.plan.id) }, { text = true }):wait()
+            local result = vim.system({ "scalr", "get-plan-log", string.format("-plan=%s", item.plan.id), "-clean=true" }, { text = true }):wait()
             if result.stdout and result.stdout ~= "" then
               vim.list_extend(lines, vim.split(result.stdout, "\n"))
             end
@@ -364,35 +363,36 @@ require("snacks").setup({
         end,
         confirm = function(picker, item)
           picker:close()
-          vim.ui.open(string.format("https://%s/v2/e/%s/workspaces/%s/runs/%s", vim.env.SCALR_HOSTNAME, item.environment_id, item.workspace_id, item.id))
+          local lines = {}
+          if item.apply and item.apply.id then
+            local result = vim.system({ "scalr", "get-apply-log", string.format("-apply=%s", item.apply.id) }, { text = true }):wait()
+            if result.stdout then
+              vim.list_extend(lines, vim.split(result.stdout, "\n"))
+            end
+          end
+          if item.plan and item.plan.id then
+            local result = vim.system({ "scalr", "get-plan-log", string.format("-plan=%s", item.plan.id) }, { text = true }):wait()
+            if result.stdout then
+              vim.list_extend(lines, vim.split(result.stdout, "\n"))
+            end
+          end
+          local log_file = vim.fn.tempname()
+          vim.fn.writefile(lines, log_file)
+          vim.cmd("edit " .. log_file)
+          vim.api.nvim_open_term(0, {})
         end,
         actions = {
-          approve = function(_, item)
+          approve_run = function(_, item)
             vim.system({ "scalr", "confirm-run", string.format("-run=%s", item.id) })
             Snacks.notify.info("Approved run: " .. item.id)
           end,
-          cancel = function(_, item)
+          cancel_run = function(_, item)
             vim.system({ "scalr", "cancel-run", string.format("-run=%s", item.id) })
             Snacks.notify.info("Cancelled run: " .. item.id)
           end,
-          open_logs = function(picker, item)
+          browse_run = function(picker, item)
             picker:close()
-            local lines = {}
-            if item.apply and item.apply.id then
-              local result = vim.system({ "scalr", "get-apply-log", string.format("-apply=%s", item.apply.id) }, { text = true }):wait()
-              if result.stdout then
-                vim.list_extend(lines, vim.split(result.stdout, "\n"))
-              end
-            end
-            if item.plan and item.plan.id then
-              local result = vim.system({ "scalr", "get-plan-log", string.format("-plan=%s", item.plan.id) }, { text = true }):wait()
-              if result.stdout then
-                vim.list_extend(lines, vim.split(result.stdout, "\n"))
-              end
-            end
-            local log_file = vim.fn.tempname()
-            vim.fn.writefile(lines, log_file)
-            vim.cmd("edit " .. log_file)
+            vim.ui.open(string.format("https://%s/v2/e/%s/workspaces/%s/runs/%s", vim.env.SCALR_HOSTNAME, item.environment_id, item.workspace_id, item.id))
           end,
           refresh = function(picker, _)
             picker:find({ refresh = true })
@@ -401,9 +401,9 @@ require("snacks").setup({
         win = {
           input = {
             keys = {
-              ["<m-a>"] = { "approve", mode = { "n", "i" }, desc = "Approve run" },
-              ["<m-c>"] = { "cancel", mode = { "n", "i" }, desc = "Cancel run" },
-              ["<c-o>"] = { "open_logs", mode = { "n", "i" }, desc = "Open logs in editor" },
+              ["<a-a>"] = { "approve_run", mode = { "n", "i" }, desc = "Approve run" },
+              ["<a-c>"] = { "cancel_run", mode = { "n", "i" }, desc = "Cancel run" },
+              ["<c-o>"] = { "browse_run", mode = { "n", "i" }, desc = "Open run in web browser" },
               ["<c-r>"] = { "refresh", mode = { "n", "i" }, desc = "Refresh runs" },
             },
           },
@@ -495,37 +495,6 @@ vim.keymap.set("n", "<leader>st", function() Snacks.picker.treesitter_languages(
 vim.keymap.set("n", "<leader>bd", function() Snacks.bufdelete() end, { desc = "Delete Buffer" })
 vim.keymap.set("n", "<leader>cR", function() Snacks.rename.rename_file() end, { desc = "Rename File" })
 vim.keymap.set("n", "<leader>un", function() Snacks.notifier.hide() end, { desc = "Dismiss All Notifications" })
--- vim.keymap.set({ "n", "x" }, "<leader>ud", function()
---   Snacks.picker({
---     source = "ddgr",
---     title = "DuckDuckGo",
---     format = "text",
---     layout = "vscode",
---     finder = function()
---       return vim
---         .iter({ "!duckduckgo", "!ai", "!amaps", "!archiveis", "!archiveweb", "!aws", "!azure", "!bangs", "!chat", "!chtsh", "!cloudformation", "!crates", "!d", "!devdocs", "!devto", "!dhdocs", "!dictionary", "!dmw", "!dockerhub", "!docs.rs", "!g", "!gcp", "!gdefine", "!gdocs", "!gh", "!ghcode", "!ghio", "!ghrepo", "!ght", "!ghtopic", "!ghuser", "!gist", "!gmail", "!gmaps", "!godoc", "!google", "!gopkg", "!gsheets", "!gslides", "!i", "!ker", "!kubernetes", "!man", "!mdn", "!mysql", "!n", "!node", "!npm", "!postgres", "!py3", "!python", "!rce", "!rclippy", "!reddit", "!rust", "!rustdoc", "!spotify", "!stackoverflow", "!tldr", "!tmg", "!translate", "!twitch", "!typescript", "!v", "!vimw", "!yt" })
---         :map(function(bang)
---           return { text = bang, bang = bang }
---         end)
---         :totable()
---     end,
---     matcher = { fuzzy = true, frecency = true },
---     confirm = function(self, item, _)
---       self:close()
---       Snacks.input({ prompt = string.format("DDGR (%s)", item.bang), default = self:word() }, function(value)
---         local cmd = { "ddgr", "--expand", "--noua" }
---         local term_opts = { auto_close = false, interactive = true, start_insert = true }
---         if item.bang ~= "!duckduckgo" then
---           vim.list_extend(cmd, { "--noprompt", "--gui-browser", item.bang })
---           term_opts = { auto_close = true, interactive = false }
---         end
---         vim.list_extend(cmd, { value })
---         vim.notify(vim.inspect(cmd))
---         Snacks.terminal(cmd, term_opts)
---       end)
---     end,
---   })
--- end, { desc = "DuckDuckGo (DDGR)" })
 vim.keymap.set("n", "<leader>\\", function()
   Snacks.picker.grep({ title = "Grep (all projects)", dirs = { "~/Projects/" }, layout = { fullscreen = true } })
 end, { desc = "Grep Project Files" })
