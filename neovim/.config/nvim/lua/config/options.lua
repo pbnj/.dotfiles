@@ -47,3 +47,11 @@ vim.opt.wildmenu = true
 vim.opt.winborder = "rounded"
 vim.opt.wrap = false
 vim.opt.wrapscan = true
+
+-- Append git branch (from mini.git) to Neovim's default statusline.
+_G.StatuslineBranch = function()
+  local s = vim.b.minigit_summary
+  return (s and s.head_name) and ("(" .. s.head_name .. ") ") or ""
+end
+vim.opt.statusline = vim.opt.statusline._info.default
+vim.opt.statusline:prepend("%{%v:lua.StatuslineBranch()%}")
