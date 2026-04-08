@@ -25,7 +25,7 @@ require("snacks").setup({
     sources = {
       grep = { hidden = true, live = true },
       grep_word = { hidden = true, live = true },
-      explorer = { layout = { layout = { position = "right" } }, hidden = true, ignored = true },
+      explorer = { layout = { layout = { position = "right" } }, hidden = true, ignored = true, follow_file = true },
       files = {
         hidden = true,
         actions = {
@@ -428,7 +428,7 @@ vim.keymap.set("x", "<leader>/", function() Snacks.picker.grep_word() end, { des
 vim.keymap.set("n", "<leader>;", function() Snacks.picker.command_history() end, { desc = "Command History" })
 vim.keymap.set("n", "<leader>:", function() Snacks.picker.commands() end, { desc = "Commands" })
 vim.keymap.set("n", "<leader>n", function() Snacks.notifier.show_history() end, { desc = "[N]otification History" })
-vim.keymap.set("n", "<leader>e", function() Snacks.picker.explorer() end, { desc = "File [E]xplorer" })
+vim.keymap.set("n", "<c-e>", function() Snacks.picker.explorer() end, { desc = "File [E]xplorer" })
 vim.keymap.set("n", "<leader>N", function()
   Snacks.win({
     file = vim.api.nvim_get_runtime_file("doc/news.txt", false)[1],

@@ -1,11 +1,5 @@
--- configs
-require("config.globals")
-require("config.options")
-require("config.keymaps")
-require("config.autocmds")
-require("config.colorscheme")
-require("config.diagnostics")
-require("config.filetypes")
+-- config
+require("config")
 
 -- plugins
 require("plugins")

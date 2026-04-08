@@ -51,6 +51,7 @@ local servers = {
   gopls = {},
   golangci_lint_ls = {},
   -- python
+  ruff = {},
   pyright = {},
   -- lua
   lua_ls = {},

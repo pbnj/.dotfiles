@@ -1,5 +1,4 @@
 -- Built-in plugins
-require("vim._core.ui2").enable({}) -- experimental UI features
 vim.cmd.packadd("nohlsearch") -- auto-toggle hlsearch
 
 -- high priority plugins
