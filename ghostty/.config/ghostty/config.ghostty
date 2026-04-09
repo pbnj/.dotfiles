@@ -3,15 +3,15 @@
 # Docs: https://ghostty.org/docs/config/reference
 
 # General
-adjust-cursor-thickness = 1
 auto-update = download
 auto-update-channel = stable
-custom-shader = ~/.config/ghostty/shaders/cursor_warp.glsl
 background-blur = true
-background-opacity = 1.0
+background-opacity = 0.9
 copy-on-select = clipboard
+cursor-color = #ff00ff
+custom-shader = ~/.config/ghostty/shaders/cursor_warp.glsl
 macos-option-as-alt = true
-macos-titlebar-style = tabs
+macos-titlebar-style = hidden
 quick-terminal-animation-duration = 0
 quick-terminal-position = bottom
 window-new-tab-position = current
