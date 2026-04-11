@@ -1,5 +1,4 @@
 -- Options & settings
-vim.opt.autocomplete = true
 vim.opt.backspace = "indent,eol,start"
 vim.opt.belloff = "all"
 vim.opt.breakindent = true

@@ -12,7 +12,7 @@ vim.api.nvim_create_autocmd("BufEnter", {
   group = vim.api.nvim_create_augroup("disable_autocomplete", { clear = true }),
   pattern = "*",
   callback = function()
-    vim.opt.autocomplete = vim.bo.buftype == ""
+    vim.bo.autocomplete = vim.bo.buftype == ""
   end,
 })
 
