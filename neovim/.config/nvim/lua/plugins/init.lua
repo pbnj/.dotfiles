@@ -22,6 +22,7 @@ require("plugins.sidekick")
 require("plugins.trouble")
 require("plugins.todo-comments")
 require("plugins.which-key")
+require("plugins.tokyonight")
 
 -- tpope plugins
 require("plugins.vim-dispatch")

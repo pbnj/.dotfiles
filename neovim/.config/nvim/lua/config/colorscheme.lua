@@ -15,12 +15,12 @@ vim.api.nvim_create_autocmd("ColorScheme", {
   group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
   pattern = "*",
   callback = function()
-    vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+    -- vim.api.nvim_set_hl(0, "Normal", { bg = nil })
+    -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
     vim.schedule(function()
       vim.o.background = get_system_theme()
     end)
   end,
 })
 
-vim.cmd.colorscheme("default")
+-- vim.cmd.colorscheme("default")

@@ -21,7 +21,8 @@ window-show-tab-bar = auto
 font-family = "Iosevka NFM"
 font-size = 14
 # ghostty +list-themes
-theme = "light:Nvim Light,dark:Nvim Dark"
+# theme = "light:Nvim Light,dark:Nvim Dark"
+theme = "light:TokyoNight Day,dark:TokyoNight Moon"
 
 # Keybindings
 # ghostty-specific
