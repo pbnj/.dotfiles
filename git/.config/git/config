@@ -63,11 +63,17 @@
 	showSignature = false
 	diffMerges = on
 
+; commit signing
+[gpg]
+	format = x509
+[gpg "x509"]
+	program = gitsign
 [commit]
 	gpgsign = true
-
-[gpg]
-	format = ssh
+[tag]
+	gpgsign = true
+[gitsign]
+	connectorID = https://github.com/login/oauth
 
 [gpg "ssh"]
 	program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
