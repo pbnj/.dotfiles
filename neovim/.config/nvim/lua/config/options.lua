@@ -52,5 +52,7 @@ _G.StatuslineBranch = function()
   local s = vim.b.minigit_summary
   return (s and s.head_name) and ("(" .. s.head_name .. ") ") or ""
 end
-vim.opt.statusline = vim.opt.statusline._info.default
-vim.opt.statusline:prepend("%{%v:lua.StatuslineBranch()%}")
+
+local default_statusline_split = vim.fn.split(vim.opt.statusline:get(), "%=")
+default_statusline_split[1] = default_statusline_split[1] .. "%{%v:lua.StatuslineBranch()%}"
+vim.opt.statusline = table.concat(default_statusline_split, "%=")
