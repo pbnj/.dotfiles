@@ -47,6 +47,7 @@ local servers = {
   docker_language_server = {},
   bashls = {},
   copilot = {},
+  marksman = {},
   -- go
   gopls = {},
   golangci_lint_ls = {},
