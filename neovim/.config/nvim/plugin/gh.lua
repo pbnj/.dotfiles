@@ -1,3 +1,9 @@
+-- Build a gh CLI command prefixed with `op run --` so that 1Password secret
+-- references in the environment are injected in one place.
+local function gh(args)
+  return vim.iter({ "op", "run", "--", "gh", args }):flatten():totable()
+end
+
 -- top level command for GH CLI, with autocompletion for subcommands
 vim.api.nvim_create_user_command("GH", function(opts)
   -- intercept: GH repo clone with no URL → prompt then clone into ~/Projects/github.com/<org>/<repo>
@@ -16,13 +22,12 @@ vim.api.nvim_create_user_command("GH", function(opts)
       end
       local target = vim.fn.expand("~/Projects/github.com/") .. org .. "/" .. repo
       local clone_url = "https://github.com/" .. org .. "/" .. repo
-      require("snacks").terminal({ "gh", "repo", "clone", clone_url, target }, { auto_close = false })
+      require("snacks").terminal(gh({ "repo", "clone", clone_url, target }), { auto_close = false })
     end)
     return
   end
 
-  local cmd = { "gh", unpack(opts.fargs) }
-  require("snacks").terminal(cmd, { auto_close = false })
+  require("snacks").terminal(gh(opts.fargs), { auto_close = false })
 end, {
   desc = "GitHub CLI (GH)",
   nargs = "*",
@@ -154,7 +159,7 @@ end, {
 -- <leader>gWe = enable a workflow (interactive)
 -- <leader>gWx = disable a workflow (interactive)
 local function gh_workflow(args)
-  require("snacks").terminal(vim.iter({ "gh", "workflow", args }):flatten():totable(), { auto_close = false, interactive = true })
+  require("snacks").terminal(gh({ "workflow", args }), { auto_close = false, interactive = true })
 end
 
 vim.keymap.set("n", "<leader>gW", function()
@@ -185,7 +190,7 @@ end, { desc = "[G]H [W]orkflow disable (x)", noremap = true, silent = true })
 -- <leader>gRd = delete a run (interactive)
 -- <leader>gRD = download artifacts from a run (interactive)
 local function gh_run(args)
-  require("snacks").terminal(vim.iter({ "gh", "run", args }):flatten():totable(), { auto_close = false, interactive = true })
+  require("snacks").terminal(gh({ "run", args }), { auto_close = false, interactive = true })
 end
 
 vim.keymap.set("n", "<leader>gR", function()
