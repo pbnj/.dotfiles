@@ -4,26 +4,43 @@ local function gh(args)
   return vim.iter({ "op", "run", "--", "gh", args }):flatten():totable()
 end
 
+-- Parse an org/repo pair from a GitHub URL or "org/repo" shorthand.
+-- Returns org, repo (both strings) or nil, nil on failure.
+local function parse_org_repo(input)
+  local org, repo = input:match("github%.com[:/]([^/]+)/([^/%.]+)")
+  if not org then
+    org, repo = input:match("^([^/]+)/([^/%.]+)$")
+  end
+  return org, repo
+end
+
 -- top level command for GH CLI, with autocompletion for subcommands
 vim.api.nvim_create_user_command("GH", function(opts)
-  -- intercept: GH repo clone with no URL → prompt then clone into ~/Projects/github.com/<org>/<repo>
-  if opts.fargs[1] == "repo" and opts.fargs[2] == "clone" and not opts.fargs[3] then
-    Snacks.input({ prompt = "GitHub repo (url or org/repo): " }, function(input)
-      if not input or input == "" then
-        return
-      end
-      local org, repo = input:match("github%.com[:/]([^/]+)/([^/%.]+)")
-      if not org then
-        org, repo = input:match("^([^/]+)/([^/%.]+)$")
-      end
+  -- intercept: GH repo clone → always clone into ~/Projects/github.com/<org>/<repo>
+  if opts.fargs[1] == "repo" and opts.fargs[2] == "clone" then
+    local function do_clone(input)
+      local org, repo = parse_org_repo(input)
       if not org or not repo then
         vim.notify("Could not parse org/repo from: " .. input, vim.log.levels.ERROR)
         return
       end
-      local target = vim.fn.expand("~/Projects/github.com/") .. org .. "/" .. repo
+      local target = vim.fs.joinpath(vim.fn.expand("~/Projects/github.com"), org, repo)
       local clone_url = "https://github.com/" .. org .. "/" .. repo
       require("snacks").terminal(gh({ "repo", "clone", clone_url, target }), { auto_close = false })
-    end)
+    end
+
+    if opts.fargs[3] then
+      -- repo supplied directly, e.g. :GH repo clone org/repo
+      do_clone(opts.fargs[3])
+    else
+      -- no repo supplied → prompt the user
+      Snacks.input({ prompt = "GitHub repo (url or org/repo): " }, function(input)
+        if not input or input == "" then
+          return
+        end
+        do_clone(input)
+      end)
+    end
     return
   end
 
