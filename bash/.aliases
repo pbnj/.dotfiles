@@ -16,7 +16,7 @@ alias vim=nvim
 alias vi="vim --clean"
 
 # tmux
-alias tm="tmux a || tmux"
+alias tm="tmux -u a || tmux -u"
 
 # terraform
 alias tfsl="terraform state list"
