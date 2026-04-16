@@ -1,5 +1,6 @@
 -- Built-in plugins
 vim.cmd.packadd("nohlsearch") -- auto-toggle hlsearch
+vim.cmd.packadd("nvim.difftool")
 
 -- high priority plugins
 require("plugins.mini")
@@ -9,7 +10,6 @@ require("plugins.snacks")
 require("plugins.cloak")
 require("plugins.treesitter")
 require("plugins.conform")
-require("plugins.diffview")
 require("plugins.faster")
 require("plugins.lint")
 require("plugins.quicker")

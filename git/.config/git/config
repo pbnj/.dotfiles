@@ -31,9 +31,15 @@
 	defaultToUpstream = true
 	tool = vimdiff
 
+[difftool "nvim_difftool"]
+  cmd = nvim -d "$LOCAL" "$REMOTE"
+
 [diff]
-	tool = vimdiff
-	colorMoved = default
+  tool = nvim_difftool
+
+; [diff]
+; 	tool = vimdiff
+; 	colorMoved = default
 
 [branch]
 	autoSetupMerge = always
