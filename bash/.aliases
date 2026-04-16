@@ -14,6 +14,8 @@ alias mv="mv -i"
 # vim
 alias vim=nvim
 alias vi="vim --clean"
+alias vfp='nvim -c "lua Snacks.picker.files({ cwd = \"~/Projects\", layout = { fullscreen = true } })"'
+alias vga='nvim -c "lua Snacks.picker.grep({ title = \"Grep (all projects)\", dirs = { \"~/Projects/\" }, layout = { fullscreen = true } })"'
 
 # tmux
 alias tm="tmux -u a || tmux -u"
