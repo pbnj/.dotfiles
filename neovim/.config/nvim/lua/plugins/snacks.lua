@@ -49,18 +49,19 @@ require("snacks").setup({
       okta_apps = {
         name = "Okta Apps",
         format = "text",
-        layout = "vscode",
+        layout = { preset = "vscode" },
         finder = function()
           return vim
-            .iter(vim.json.decode(vim.fn.join(vim.fn.readfile(vim.fn.expand("~/.okta/apps.json"))))["0"]._embedded.items)
-            :map(function(app)
-              return {
-                text = app._embedded.resource.label,
-                label = app._embedded.resource.label,
-                url = app._embedded.resource.linkUrl,
-              }
-            end)
-            :totable()
+              .iter(vim.json.decode(vim.fn.join(vim.fn.readfile(vim.fn.expand("~/.okta/apps.json"))))["0"]._embedded
+              .items)
+              :map(function(app)
+                return {
+                  text = app._embedded.resource.label,
+                  label = app._embedded.resource.label,
+                  url = app._embedded.resource.linkUrl,
+                }
+              end)
+              :totable()
         end,
         confirm = function(picker, item)
           picker:close()
