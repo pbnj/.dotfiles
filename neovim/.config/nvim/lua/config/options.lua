@@ -37,6 +37,8 @@ vim.opt.smartcase = true
 vim.opt.smarttab = true
 vim.opt.swapfile = false
 vim.opt.termguicolors = true
+vim.opt.title = true
+vim.opt.titlestring = "%{expand(\"%:~\")} %{%v:lua.StatuslineBranch()%}"
 vim.opt.ttimeout = true
 vim.opt.ttimeoutlen = 50
 vim.opt.ttyfast = true
@@ -53,6 +55,6 @@ _G.StatuslineBranch = function()
   return (s and s.head_name) and ("(" .. s.head_name .. ") ") or ""
 end
 
-local default_statusline_split = vim.fn.split(vim.opt.statusline:get(), "%=")
+local default_statusline_split = vim.fn.split(vim.opt.statusline._info.default, "%=")
 default_statusline_split[1] = default_statusline_split[1] .. "%{%v:lua.StatuslineBranch()%}"
 vim.opt.statusline = table.concat(default_statusline_split, "%=")
