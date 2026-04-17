@@ -1,7 +1,7 @@
 -- Build a gh CLI command prefixed with `op run --` so that 1Password secret
 -- references in the environment are injected in one place.
 local function gh(args)
-  return vim.iter({ "op", "run", "--", "gh", args }):flatten():totable()
+  return vim.iter({ "op", "run", "--env-file", vim.fn.expand("~/.config/gh/.env"), "--", "gh", args }):flatten():totable()
 end
 
 -- Parse an org/repo pair from a GitHub URL or "org/repo" shorthand.
