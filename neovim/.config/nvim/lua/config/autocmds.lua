@@ -7,14 +7,14 @@ vim.api.nvim_create_autocmd("VimResized", {
   command = "wincmd =",
 })
 
--- diable autocomplete in non-file buffers (e.g., terminal, help, etc.)
-vim.api.nvim_create_autocmd("BufEnter", {
-  group = vim.api.nvim_create_augroup("disable_autocomplete", { clear = true }),
-  pattern = "*",
-  callback = function()
-    vim.bo.autocomplete = vim.bo.buftype == ""
-  end,
-})
+-- -- diable autocomplete in non-file buffers (e.g., terminal, help, etc.)
+-- vim.api.nvim_create_autocmd("BufEnter", {
+--   group = vim.api.nvim_create_augroup("disable_autocomplete", { clear = true }),
+--   pattern = "*",
+--   callback = function()
+--     vim.bo.autocomplete = vim.bo.buftype == ""
+--   end,
+-- })
 
 -- highlight yanked text for 300ms
 vim.api.nvim_create_autocmd("TextYankPost", {

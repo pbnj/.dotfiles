@@ -9,7 +9,3 @@ require("mini.misc").setup_auto_root()
 require("mini.move").setup()
 require("mini.splitjoin").setup()
 require("mini.surround").setup()
-
-vim.keymap.set("n", "<leader>gh", function()
-  MiniDiff.toggle_overlay(0)
-end, { desc = "Toggle [G]it [H]unks (Mini.Diff Hunks)" })
