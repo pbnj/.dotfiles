@@ -2,17 +2,6 @@ As a **Security Engineer**
 I want to **action or feature**
 So that **benefit/value**
 
-## Description
-
-[Provide a detailed description of the feature or requirement]
-
-## Acceptance Criteria
-
-- [Criterion 1]
-- [Criterion 2]
-- [Criterion 3]
-- [Criterion n]
-
 ## Additional Information
 
 - **Epic Link**: [Link to parent epic if applicable]
@@ -22,3 +11,10 @@ So that **benefit/value**
 ## Technical Notes
 
 [Any technical considerations, implementation details, or architecture decisions]
+
+## Acceptance Criteria
+
+- [Criterion 1]
+- [Criterion 2]
+- [Criterion 3]
+- [Criterion n]

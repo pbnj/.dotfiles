@@ -4,12 +4,18 @@
 
 ---
 
-## Fix
+## Solution
 
-<!-- provide actionable fix steps -->
+1.
+2.
+3.
 
 ---
 
-## Validation
+## Verification
 
-<!-- provide validation steps if applicable -->
+Steps to verify the solution has resolved the problem:
+
+1.
+2.
+3.
