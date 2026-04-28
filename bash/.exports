@@ -9,6 +9,7 @@ export EDITOR=nvim
 export GIT_TERMINAL_PROMPT=1
 export HISTCONTROL=ignoreboth
 # export MANPAGER="nvim +Man!"
+export GH_TELEMETRY=false
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
 
 [[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]] && PATH="${HOME}/.local/bin:${PATH}"
