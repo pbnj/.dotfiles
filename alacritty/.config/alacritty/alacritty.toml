@@ -1,21 +1,21 @@
 # https://alacritty.org/config-alacritty.html
 [general]
 live_config_reload = true
-# import = [ "~/.local/share/nvim/lazy/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml" ]
+import = [ "~/.local/share/nvim/site/pack/core/opt/tokyonight.nvim/extras/alacritty/tokyonight_moon.toml" ]
 
 [env]
-TERM = "xterm-256color"
+# TERM = "xterm-256color"
 
 [window]
 decorations = "Buttonless"
 dynamic_padding = true
 option_as_alt = "OnlyLeft"
-opacity = 1.0
-blur = false
+opacity = 0.9
+blur = true
 
 [font]
-size = 14
-normal.family = "FiraCode Nerd Font"
+size = 15
+normal.family = "Terminess Nerd Font"
 
 [selection]
 save_to_clipboard = true
