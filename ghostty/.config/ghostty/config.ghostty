@@ -20,8 +20,9 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "Iosevka NFM"
-font-size = 14
+font-family = "Hack Nerd Font"
+font-family = "Iosevka Nerd Font"
+font-size = 15
 # ghostty +list-themes
 # theme = "light:Nvim Light,dark:Nvim Dark"
 theme = "light:TokyoNight Day,dark:TokyoNight Moon"
