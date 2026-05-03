@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SKILL_SCRIPT="$HOME/.pi/agent/skills/search-web/scripts/search.py"
+
+usage() {
+  cat >&2 <<EOF
+Usage: search [options] KEYWORDS...
+
+Search the web via SearXNG (primary) with DuckDuckGo fallback.
+
+Options:
+  -n, --num N           number of results (default: 10, max: 50)
+  -r, --reg REG         region, e.g. us-en, en-gb (default: wt-wt)
+  -w, --site SITE       restrict results to a domain (e.g. github.com)
+      --unsafe          disable safe search
+      --json            output results in JSON
+      --searxng-url URL override SearXNG base URL (also: \$SEARXNG_URL)
+  -h, --help            show this help
+
+ddgr-compatible flags accepted but ignored: --np, --noprompt, -j, --ducky,
+  -x, --expand, -C, --nocolor, --rev, --reverse
+EOF
+  exit "${1:-0}"
+}
+
+num_results=10
+region="wt-wt"
+site=""
+safesearch="moderate"
+json_output=""
+keywords=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -n | --num)
+      num_results="$2"
+      shift 2
+      ;;
+    -r | --reg)
+      region="$2"
+      shift 2
+      ;;
+    -w | --site)
+      site="$2"
+      shift 2
+      ;;
+    --unsafe)
+      safesearch="off"
+      shift
+      ;;
+    --json)
+      json_output=true
+      shift
+      ;;
+    --searxng-url)
+      export SEARXNG_URL="$2"
+      shift 2
+      ;;
+    -h | --help)
+      usage 0
+      ;;
+    --np | --noprompt | -j | --ducky | -x | --expand | -C | --nocolor | --rev | --reverse)
+      shift
+      ;;
+    -*)
+      echo "search: unknown option: $1" >&2
+      usage 1
+      ;;
+    *)
+      keywords+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#keywords[@]} -eq 0 ]]; then
+  echo "search: no keywords provided" >&2
+  usage 1
+fi
+
+args=(
+  "${keywords[*]}"
+  --num-results "$num_results"
+  --region "$region"
+  --safesearch "$safesearch"
+)
+[[ -n "$site" ]] && args+=(--site "$site")
+[[ -n "${json_output:-}" ]] && args+=(--json)
+
+exec uv run --no-project "$SKILL_SCRIPT" "${args[@]}"
