@@ -11,6 +11,7 @@ vim.opt.cursorline = false
 vim.opt.expandtab = true
 vim.opt.foldenable = false
 vim.opt.grepformat:append({ "%f:%l:%c:%m", "%f:%l:%m" })
+vim.opt.guifont = "JetBrainsMono Nerd Font"
 vim.opt.hidden = true
 vim.opt.hlsearch = true
 vim.opt.ignorecase = true
@@ -38,7 +39,7 @@ vim.opt.smarttab = true
 vim.opt.swapfile = false
 vim.opt.termguicolors = true
 vim.opt.title = true
-vim.opt.titlestring = "%{expand(\"%:~\")} %{%v:lua.StatuslineBranch()%}"
+vim.opt.titlestring = "%F %{%v:lua.StatuslineBranch()%}"
 vim.opt.ttimeout = true
 vim.opt.ttimeoutlen = 50
 vim.opt.ttyfast = true
@@ -52,7 +53,7 @@ vim.opt.wrapscan = true
 -- Append git branch (from mini.git) to Neovim's default statusline.
 _G.StatuslineBranch = function()
   local s = vim.b.minigit_summary
-  return (s and s.head_name) and ("(" .. s.head_name .. ") ") or ""
+  return (s and s.head_name) and string.format("(%s)", s.head_name) or ""
 end
 
 local default_statusline_split = vim.fn.split(vim.opt.statusline._info.default, "%=")

@@ -1,6 +1,8 @@
 vim.pack.add({ "https://github.com/folke/sidekick.nvim" })
 
-require("sidekick").setup()
+require("sidekick").setup({
+  nes = { enabled = false },
+})
 
 vim.keymap.set({ "i", "n" }, "<tab>", function()
   if require("sidekick").nes_jump_or_apply() then

@@ -23,7 +23,6 @@ require("plugins.sidekick")
 require("plugins.trouble")
 require("plugins.todo-comments")
 require("plugins.which-key")
-require("plugins.tokyonight")
 
 -- tpope plugins
 require("plugins.vim-dispatch")
@@ -31,5 +30,4 @@ require("plugins.vim-dotenv")
 require("plugins.vim-rsi")
 require("plugins.vim-sleuth")
 require("plugins.vim-eunuch")
--- require("plugins.vim-fugitive")
 require("plugins.vim-dadbod")

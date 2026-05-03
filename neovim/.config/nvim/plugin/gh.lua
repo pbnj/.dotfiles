@@ -7,9 +7,9 @@ end
 -- Parse an org/repo pair from a GitHub URL or "org/repo" shorthand.
 -- Returns org, repo (both strings) or nil, nil on failure.
 local function parse_org_repo(input)
-  local org, repo = input:match("github%.com[:/]([^/]+)/([^/%.]+)")
+  local org, repo = input:match("github%.com[:/]([^/]+)/([^/?#]+)")
   if not org then
-    org, repo = input:match("^([^/]+)/([^/%.]+)$")
+    org, repo = input:match("^([^/]+)/([^/?#]+)$")
   end
   return org, repo
 end

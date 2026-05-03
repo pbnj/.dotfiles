@@ -43,25 +43,18 @@ vim.pack.add({
 vim.lsp.log.set_level("OFF")
 
 local servers = {
-  -- misc
-  docker_language_server = {},
+  -- copilot = {},
+  -- pyright = {},
   bashls = {},
-  copilot = {},
-  marksman = {},
-  -- go
-  gopls = {},
+  docker_language_server = {},
   golangci_lint_ls = {},
-  -- python
-  ruff = {},
-  pyright = {},
-  -- lua
+  gopls = {},
   lua_ls = {},
-  -- rust
+  marksman = {},
+  ruff = {},
   rust_analyzer = {},
-  -- terraform
   terraformls = {},
   tflint = {},
-  -- config languages
   jsonls = {
     settings = {
       json = {
@@ -80,30 +73,6 @@ local servers = {
         schemas = require("schemastore").yaml.schemas({
           extra = {},
         }),
-        -- customTags = {
-        --   "!And sequence",
-        --   "!If sequence",
-        --   "!Not sequence",
-        --   "!Equals sequence",
-        --   "!Or sequence",
-        --   "!FindInMap sequence",
-        --   "!Base64 scalar",
-        --   "!Cidr sequence",
-        --   "!Ref scalar",
-        --   "!Ref sequence",
-        --   "!Sub scalar",
-        --   "!Sub sequence",
-        --   "!GetAtt scalar",
-        --   "!GetAtt sequence",
-        --   "!GetAZs scalar",
-        --   "!ImportValue scalar",
-        --   "!ImportValue sequence",
-        --   "!Join sequence",
-        --   "!Select sequence",
-        --   "!Split sequence",
-        --   "!Transform mapping",
-        --   "!Condition scalar",
-        -- },
       },
     },
   },
