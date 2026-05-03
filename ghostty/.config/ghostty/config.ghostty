@@ -8,7 +8,7 @@
 auto-update = download
 auto-update-channel = stable
 background-blur = true
-background-opacity = 0.9
+background-opacity = 1.0
 copy-on-select = clipboard
 cursor-color = #ff00ff
 custom-shader = ~/.config/ghostty/shaders/cursor_warp.glsl
@@ -20,12 +20,11 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "Hack Nerd Font"
-font-family = "Iosevka Nerd Font"
-font-size = 15
+font-family = "JetBrainsMono Nerd Font"
+font-size = 18
 # ghostty +list-themes
-# theme = "light:Nvim Light,dark:Nvim Dark"
-theme = "light:TokyoNight Day,dark:TokyoNight Moon"
+theme = "light:Nvim Light,dark:Nvim Dark"
+# theme = "light:TokyoNight Day,dark:TokyoNight Moon"
 
 # Keybindings
 # https://ghostty.org/docs/config/keybind/reference
