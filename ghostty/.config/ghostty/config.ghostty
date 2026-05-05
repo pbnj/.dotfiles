@@ -20,8 +20,8 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "JetBrainsMono Nerd Font"
-font-size = 18
+font-family = "InputMonoCondensed"
+font-size = 15
 # ghostty +list-themes
 theme = "light:Nvim Light,dark:Nvim Dark"
 # theme = "light:TokyoNight Day,dark:TokyoNight Moon"
