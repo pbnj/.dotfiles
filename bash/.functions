@@ -7,3 +7,12 @@ dateiso() {
 brew() {
         arch -arm64 brew $@
 }
+
+paws() {
+        TMP_DIR="$(mktemp -d)"
+        AWS_CONFIG_FILE="${TMP_DIR}/config"
+        op read -o "${AWS_CONFIG_FILE}" "op://Employee/aws/config" &>/dev/null
+        AWS_CONFIG_FILE="${TMP_DIR}/config" command aws $@
+        rm -rf "${TMP_DIR}"
+}
+complete -C 'aws_completer' paws
