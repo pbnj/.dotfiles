@@ -16,7 +16,7 @@ vim.api.nvim_create_autocmd("ColorScheme", {
   pattern = "*",
   callback = function()
     -- vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    -- vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
     vim.schedule(function()
       vim.o.background = get_system_theme()
     end)
