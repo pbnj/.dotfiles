@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.peterbenjamin.searxng</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-c</string>
+        <string>cd "$HOME/Projects/github.com/searxng/searxng" &amp;&amp; "$HOME/Projects/github.com/searxng/searxng/.venv/bin/python" searx/webapp.py</string>
+    </array>
+
+
+
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- random 64-hex secret; regenerate if you like -->
+        <key>SEARXNG_SECRET</key>
+        <string>$(openssl rand -hex 32)</string>
+        <!-- optional: override port/bind address -->
+        <key>SEARXNG_PORT</key>
+        <string>8888</string>
+        <key>SEARXNG_BIND_ADDRESS</key>
+        <string>127.0.0.1</string>
+        <!-- optional: explicit settings path if you’re using /etc/searxng/settings.yml -->
+        <!--
+        <key>SEARXNG_SETTINGS_PATH</key>
+        <string>/etc/searxng/settings.yml</string>
+        -->
+    </dict>
+
+    <!-- Restart if it crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Start at login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Where to log stdout/stderr -->
+    <key>StandardOutPath</key>
+    <string>/tmp/searxng.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/searxng.err.log</string>
+</dict>
+</plist>

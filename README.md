@@ -72,3 +72,10 @@ My vim configuration is in [pbnj/.vim](https://github.com/pbnj/.vim)
 - gopls
 - rust-analyzer
 - terraform-ls
+
+## Platform Specific
+
+### macOS
+
+Configurations for macOS are located in [`/macos`](./macos). See
+[macos documentation](/docs/macos.md) for setup instructions.
