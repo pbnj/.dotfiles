@@ -222,7 +222,22 @@ require("snacks").setup({
           yank_profile = { action = "yank", field = "profile", desc = "Yank Profile" },
           open = function(picker, item)
             picker:close()
-            vim.ui.open(item.account_url)
+            vim.ui.select(
+              { "ReadOnlyAccess", "AdministratorAccess" },
+              { prompt = "Select Role:" },
+              function(role)
+                if not role then
+                  return
+                end
+                local url = item.account_url
+                if url:find("role_name=") then
+                  url = url:gsub("role_name=[^&]*", "role_name=" .. role)
+                else
+                  url = url .. (url:find("?") and "&" or "?") .. "role_name=" .. role
+                end
+                vim.ui.open(url)
+              end
+            )
           end,
           open_sso_account = function(picker, item)
             local default_account_url = item.default.sso_account_url
