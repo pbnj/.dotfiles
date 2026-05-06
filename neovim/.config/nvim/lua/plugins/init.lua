@@ -8,24 +8,22 @@ require("plugins.snacks")
 
 -- general plugins
 require("plugins.cloak")
-require("plugins.treesitter")
-require("plugins.conform")
 require("plugins.faster")
 require("plugins.lint")
-require("plugins.quicker")
 require("plugins.lsp")
-require("plugins.showkeys")
-require("plugins.vim-startuptime")
 require("plugins.neogit")
+require("plugins.quicker")
+require("plugins.showkeys")
+require("plugins.treesitter")
+require("plugins.vim-startuptime")
 
 -- folke plugins
 require("plugins.sidekick")
-require("plugins.trouble")
 require("plugins.todo-comments")
+require("plugins.trouble")
 require("plugins.which-key")
 
 -- tpope plugins
-require("plugins.vim-dispatch")
 require("plugins.vim-dotenv")
 require("plugins.vim-rsi")
 require("plugins.vim-sleuth")
