@@ -16,3 +16,7 @@ paws() {
         rm -rf "${TMP_DIR}"
 }
 complete -C 'aws_completer' paws
+
+__git_branch() {
+  git branch --show-current 2>/dev/null | sed 's/^/ (/' | sed 's/$/)/'
+}

@@ -31,7 +31,7 @@ fi
 [[ "$(uname)" == "Linux" ]] && export DOCKER_HOST=unix:///run/user/1000/docker.sock
 
 # # PROMPT
-export PS1='\e]133;A\a\n\w\n\$ '
+export PS1='\e]133;A\a\n\w$(__git_branch)\n\$ '
 
 # PATH (must be last)
 export PATH
