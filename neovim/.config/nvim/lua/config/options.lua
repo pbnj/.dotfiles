@@ -39,7 +39,7 @@ vim.opt.smarttab = true
 vim.opt.swapfile = false
 vim.opt.termguicolors = true
 vim.opt.title = true
-vim.opt.titlestring = "%F %{%v:lua.StatuslineBranch()%}"
+vim.opt.titlestring = "%f %{%v:lua.StatuslineBranch()%}"
 vim.opt.ttimeout = true
 vim.opt.ttimeoutlen = 50
 vim.opt.ttyfast = true
@@ -57,5 +57,6 @@ _G.StatuslineBranch = function()
 end
 
 local default_statusline_split = vim.fn.split(vim.opt.statusline._info.default, "%=")
-default_statusline_split[1] = default_statusline_split[1] .. "%{%v:lua.StatuslineBranch()%}"
+default_statusline_split[1] = string.format("%s %s", default_statusline_split[1], "%{% v:lua.StatuslineBranch() %}")
+-- default_statusline_split[2] = string.format("%s %s", default_statusline_split[2], "(%{ wordcount().bytes / 4 })")
 vim.opt.statusline = table.concat(default_statusline_split, "%=")
