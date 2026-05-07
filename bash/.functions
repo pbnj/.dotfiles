@@ -15,7 +15,7 @@ paws() {
         AWS_CONFIG_FILE="${TMP_DIR}/config" command aws $@
         rm -rf "${TMP_DIR}"
 }
-complete -C 'aws_completer' paws
+complete -C 'aws_completer' paws # for shell tab-completion
 
 __git_branch() {
   git branch --show-current 2>/dev/null | sed 's/^/ (/' | sed 's/$/)/'
