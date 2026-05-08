@@ -92,3 +92,19 @@ end, {
   nargs = "*",
   complete = complete,
 })
+
+vim.keymap.set("n", "<leader>rs", function()
+  local choices = {
+    "test",
+    "code test",
+    "iac test",
+    "container test",
+    "secrets test",
+  }
+  vim.ui.select(choices, { prompt = "Snyk subcommand:" }, function(choice)
+    if not choice then
+      return
+    end
+    vim.cmd("Snyk " .. choice)
+  end)
+end, { desc = "[R]un [S]nyk" })
