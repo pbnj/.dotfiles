@@ -13,32 +13,34 @@ end
 
 -- Subcommand completion tables
 local top_level = {
-  "auth",
-  "test",
-  "monitor",
-  "container",
-  "iac",
-  "code",
-  "sbom",
-  "aibom",
-  "redteam",
-  "log4shell",
-  "config",
-  "policy",
-  "ignore",
   "--help",
   "--version",
   "-d",
+  "aibom",
+  "auth",
+  "code",
+  "config",
+  "container",
+  "iac",
+  "ignore",
+  "log4shell",
+  "monitor",
+  "policy",
+  "redteam",
+  "sbom",
+  "secrets",
+  "test",
 }
 
 local subcommands = {
+  aibom = { "test", "--help" },
+  code = { "test", "--help" },
+  config = { "get", "set", "unset", "clear", "--help" },
   container = { "test", "monitor", "sbom", "--help" },
   iac = { "test", "describe", "update-exclude-policy", "--help" },
-  code = { "test", "--help" },
-  sbom = { "--format", "--org", "--file", "--all-projects", "--json-file-output", "--help" },
-  aibom = { "test", "--help" },
-  config = { "get", "set", "unset", "clear", "--help" },
   redteam = { "--help" },
+  sbom = { "--format", "--org", "--file", "--all-projects", "--json-file-output", "--help" },
+  secrets = { "test" },
 }
 
 local function complete(arg_lead, cmd_line)
