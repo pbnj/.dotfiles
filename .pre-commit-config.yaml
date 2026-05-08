@@ -6,66 +6,61 @@ repos:
     hooks:
       - id: doctoc
         name: doctoc
-        description: This hook updates Table of Contents in markdown files. `brew install node` required.
-        types:
-          - markdown
+        description: Generate or update Table of Contents in markdown files
+        types: [markdown]
         language: system
-        entry: npx
-        args:
-          - doctoc
-          - --notitle
-          - --update-only
+        entry: npx doctoc --notitle --update-only
       - id: prettier
         name: prettier
-        description: This hook formats supported file types. `brew install node` required.
+        description: Format markdown files
+        types: [markdown]
+        entry: npx prettier --write --check --prose-wrap always
         language: system
-        entry: npx
-        args:
-          - prettier
-          - --write
-          - --check
-          - --ignore-unknown
-      - id: markdownlint
-        name: markdownlint
-        description: This hook lints markdown files. `brew install node` required.
+      - id: markdownlint-cli2
+        name: markdownlint-cli2
+        description: Lint markdown files
         language: system
-        types:
-          - markdown
-        entry: npx
-        args:
-          - markdownlint-cli
-          - --ignore
-          - ./templates
-      - id: gitleaks
-        name: gitleaks
-        description: This hook checks commits for secrets. `brew install gitleaks` required.
+        types: [markdown]
+        entry: npx markdownlint-cli2 --ignore ./templates
+      - id: prettier
+        name: prettier
+        description: Format markdown files
+        types: [json, yaml]
+        entry: npx prettier --write --check
         language: system
-        entry: gitleaks
-        args:
-          - protect
-          - --verbose
-          - --staged
+      - id: betterleaks
+        name: betterleaks
+        description: Detect hardcoded secrets using Betterleaks
+        entry: betterleaks git --pre-commit --redact --staged --verbose
+        language: system
+        pass_filenames: false
       - id: shellcheck
         name: shellcheck
-        description: This hook checks shell files for common problems. `brew install shellcheck` required.
-        types:
-          - shell
+        description: Lint shell scripts
+        types: [shell]
         language: system
         entry: shellcheck
       - id: hadolint
         name: hadolint
-        description: This hook lints Dockerfiles. `brew install hadolint` required.
+        description: Lint Dockerfiles
         language: system
-        types:
-          - dockerfile
+        types: [dockerfile]
         entry: hadolint
+      - id: stylua
+        name: stylua
+        description: Format lua
+        language: system
+        types: [lua]
+        entry: stylua
+      - id: luacheck
+        name: luacheck
+        description: Lint Lua
+        language: system
+        types: [file, lua]
+        entry: luacheck --
       - id: commitizen
         name: commitizen
-        description: This hook lints commit messages. `brew install commitizen` required.
-        stages:
-          - commit-msg # run only in git commit-msg lifecycle event
+        description: This hook lints commit messages
+        stages: [commit-msg] # run only in git commit-msg lifecycle event
         language: system
-        entry: cz
-        args:
-          - check
-          - --commit-msg-file
+        entry: cz check --commit-msg-file

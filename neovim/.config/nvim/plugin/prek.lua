@@ -1,124 +1,139 @@
-local function split_shell_args(args)
-  local result = {}
-  local current = ""
-  local in_quotes = false
-  local quote_char = ""
+-- prek Git hook manager wrapper — runs prek commands in the built-in terminal.
+-- Usage: :Prek <command> [subcommand] [flags...]
+-- Example: :Prek run
+--          :Prek run --all-files
+--          :Prek run --stage pre-push
+--          :Prek cache gc
+--          :Prek util yaml-to-toml
 
-  for i = 1, #args do
-    local char = args:sub(i, i)
-    if not in_quotes and (char == '"' or char == "'") then
-      in_quotes = true
-      quote_char = char
-    elseif in_quotes and char == quote_char then
-      in_quotes = false
-    elseif not in_quotes and char == " " then
-      if current ~= "" then
-        table.insert(result, current)
-        current = ""
-      end
-    else
-      current = current .. char
+local function prek(args)
+  return vim.iter({ "prek", args }):flatten():totable()
+end
+
+local top_level = {
+  "auto-update",
+  "cache",
+  "install",
+  "list",
+  "prepare-hooks",
+  "run",
+  "sample-config",
+  "self",
+  "try-repo",
+  "uninstall",
+  "util",
+  "validate-config",
+  "validate-manifest",
+}
+
+local subcommands = {
+  cache = { "clean", "dir", "gc", "size", "--help" },
+  self = { "update", "--help" },
+  util = { "identify", "init-template-dir", "list-builtins", "yaml-to-toml", "--help" },
+}
+
+-- Flags accepted by `prek` and `prek run` (hook execution context).
+local run_flags = {
+  "-a",
+  "--all-files",
+  "-d",
+  "--directory",
+  "-o",
+  "--to-ref",
+  "-s",
+  "--from-ref",
+  "--dry-run",
+  "--fail-fast",
+  "--files",
+  "--last-commit",
+  "--show-diff-on-failure",
+  "--skip",
+  "--stage",
+}
+
+-- Flags accepted by every subcommand.
+local global_flags = {
+  "-C",
+  "--cd",
+  "-V",
+  "--version",
+  "-c",
+  "--config",
+  "-h",
+  "--help",
+  "-q",
+  "--quiet",
+  "-v",
+  "--verbose",
+  "--color",
+  "--log-file",
+  "--no-progress",
+  "--refresh",
+}
+
+-- `prek` and `prek run` accept run_flags; all other subcommands do not.
+local function flags_for(first_arg)
+  if not first_arg or first_arg == "run" then
+    return vim.list_extend(vim.deepcopy(global_flags), run_flags)
+  end
+  return global_flags
+end
+
+local function complete(arg_lead, cmd_line)
+  local tokens = {}
+  for token in cmd_line:gmatch("%S+") do
+    table.insert(tokens, token)
+  end
+  -- tokens[1] == "Prek", tokens[2..] == arguments
+
+  local completing_new = cmd_line:sub(-1) == " "
+  local arg_count = #tokens - 1
+  if completing_new then
+    arg_count = arg_count + 1
+  end
+
+  local first_arg = tokens[2]
+  local is_flag = arg_lead:sub(1, 1) == "-"
+
+  local function filter_list(list)
+    return vim
+      .iter(list)
+      :filter(function(c)
+        return c:find(arg_lead, 1, true) == 1
+      end)
+      :totable()
+  end
+
+  -- position 1: subcommands or flags (no subcommand = run context)
+  if arg_count <= 1 then
+    if is_flag then
+      return filter_list(flags_for(nil))
     end
+    return filter_list(top_level)
   end
-  if current ~= "" then
-    table.insert(result, current)
+
+  -- position 2 under a parent with nested subcommands: offer children or flags
+  if arg_count == 2 and first_arg and subcommands[first_arg] then
+    if is_flag then
+      return filter_list(global_flags)
+    end
+    return filter_list(subcommands[first_arg])
   end
-  return result
+
+  -- remaining positions: flags only
+  if is_flag then
+    return filter_list(flags_for(first_arg))
+  end
+
+  return {}
 end
 
 vim.api.nvim_create_user_command("Prek", function(opts)
-  local Snacks = require("snacks")
-  local cmd = { "prek" }
-
-  if opts.args ~= "" then
-    local split_args = split_shell_args(opts.args)
-    for _, arg in ipairs(split_args) do
-      table.insert(cmd, arg)
-    end
-
-    Snacks.terminal(cmd, {
-      auto_close = false,
-      win = {
-        wo = {
-          winbar = " prek " .. opts.args,
-        },
-      },
-    })
-  else
-    Snacks.terminal(cmd, {
-      auto_close = false,
-      win = {
-        wo = {
-          winbar = " prek",
-        },
-      },
-    })
-  end
+  local args = vim.tbl_map(vim.fn.expand, opts.fargs)
+  vim.cmd("botright new")
+  vim.fn.jobstart(prek(args), { term = true })
 end, {
+  desc = "prek Git hook manager",
   nargs = "*",
-  desc = "Run prek hooks",
-  complete = function(arg_lead)
-    local commands = {
-      "install",
-      "prepare-hooks",
-      "run",
-      "list",
-      "uninstall",
-      "validate-config",
-      "validate-manifest",
-      "sample-config",
-      "auto-update",
-      "cache",
-      "try-repo",
-      "util",
-      "self",
-    }
-    local options = {
-      "--skip",
-      "-a",
-      "--all-files",
-      "--files",
-      "-d",
-      "--directory",
-      "-s",
-      "--from-ref",
-      "-o",
-      "--to-ref",
-      "--last-commit",
-      "--stage",
-      "--show-diff-on-failure",
-      "--fail-fast",
-      "--dry-run",
-      "-c",
-      "--config",
-      "-C",
-      "--cd",
-      "--color",
-      "--refresh",
-      "-h",
-      "--help",
-      "--no-progress",
-      "-q",
-      "--quiet",
-      "-v",
-      "--verbose",
-      "--log-file",
-      "-V",
-      "--version",
-    }
-
-    local all = {}
-    for _, v in ipairs(commands) do
-      table.insert(all, v)
-    end
-    for _, v in ipairs(options) do
-      table.insert(all, v)
-    end
-
-    return vim.iter(all)
-      :filter(function(cmd)
-        return string.match(cmd, "^" .. arg_lead)
-      end)
-      :totable()
-  end,
+  complete = complete,
 })
