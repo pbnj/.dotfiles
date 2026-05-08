@@ -507,7 +507,6 @@ vim.keymap.set("n", "<leader>lgy", function() Snacks.picker.lsp_type_definitions
 -- utilities
 vim.keymap.set({ "t", "n", "i" }, "<c-\\><c-\\>", function() Snacks.terminal() end, { desc = "Toggle Terminal" })
 vim.keymap.set({ "t", "n", "i" }, "<c-\\><c-u>", function() Snacks.terminal({ "pkg_up" }, { auto_close = false }) end, { desc = "Terminal: Update system packages" })
-vim.keymap.set({ "t", "n", "i" }, "<c-\\><c-s>", function() Snacks.terminal({ "slides", vim.fn.expand("%") }, { auto_close = false }) end, { desc = "Terminal: Slides" })
 vim.keymap.set("n", "<leader>st", function() Snacks.picker.treesitter_languages() end, { desc = "[S]earch [T]reesitter Languages" })
 vim.keymap.set("n", "<leader>bd", function() Snacks.bufdelete() end, { desc = "Delete Buffer" })
 vim.keymap.set("n", "<leader>cR", function() Snacks.rename.rename_file() end, { desc = "Rename File" })
