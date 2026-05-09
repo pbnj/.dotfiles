@@ -9,7 +9,6 @@ require("plugins.snacks")
 -- general plugins
 require("plugins.cloak")
 require("plugins.faster")
--- require("plugins.lint")
 require("plugins.lsp")
 require("plugins.quicker")
 require("plugins.showkeys")
