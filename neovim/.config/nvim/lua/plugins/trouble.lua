@@ -1,19 +1,3 @@
--- -- {
--- --   "https://github.com/folke/trouble.nvim",
--- --   event = "VeryLazy",
--- --   opts = {},
--- --   cmd = { "Trouble" },
--- --   keys = {
--- --     {
--- --       "<leader>ft",
--- --       function()
--- --         vim.cmd.Trouble()
--- --       end,
--- --       desc = "[F]ind [T]rouble",
--- --     },
--- --   },
--- -- }
-
 vim.pack.add({ "https://github.com/folke/trouble.nvim" })
 
 require("trouble").setup()
