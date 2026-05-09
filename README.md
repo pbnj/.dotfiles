@@ -11,6 +11,8 @@
   - [Languages](#languages)
   - [Linters and Formatters](#linters-and-formatters)
   - [Language Servers](#language-servers)
+- [Platform Specific](#platform-specific)
+  - [macOS](#macos)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 

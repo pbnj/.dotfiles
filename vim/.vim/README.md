@@ -26,7 +26,8 @@ git clone https://github.com/pbnj/.vim ~/.vim
 
 ## Plugins
 
-See the plugins in [`vimrc`](vimrc) file between `call plug#begin()` and `call plug#end()`.
+See the plugins in [`vimrc`](vimrc) file between `call plug#begin()` and
+`call plug#end()`.
 
 ## Custom Plugins
 
