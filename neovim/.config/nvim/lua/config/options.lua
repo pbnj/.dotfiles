@@ -1,4 +1,5 @@
 -- Options & settings
+vim.opt.autocomplete = true
 vim.opt.autoindent = true
 vim.opt.backspace = "indent,eol,start"
 vim.opt.belloff = "all"
@@ -6,7 +7,7 @@ vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
 vim.opt.complete:append({ "o" })
-vim.opt.completeopt = { "menu", "menuone", "popup", "fuzzy", "noselect" }
+vim.opt.completeopt = { "menu", "menuone", "fuzzy", "noinsert" }
 vim.opt.conceallevel = 0
 vim.opt.cursorline = false
 vim.opt.expandtab = true
