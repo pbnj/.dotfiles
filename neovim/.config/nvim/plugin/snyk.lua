@@ -8,103 +8,108 @@
 -- Build a snyk command prefixed with `op run --` so that 1Password secret
 -- references in the environment are injected in one place.
 local function snyk(args)
-  return vim.iter({ "snyk", args }):flatten():totable()
+	return vim.iter({ "snyk", args }):flatten():totable()
 end
 
 -- Subcommand completion tables
 local top_level = {
-  "--help",
-  "--version",
-  "-d",
-  "aibom",
-  "auth",
-  "code",
-  "config",
-  "container",
-  "iac",
-  "ignore",
-  "log4shell",
-  "monitor",
-  "policy",
-  "redteam",
-  "sbom",
-  "secrets",
-  "test",
+	"--help",
+	"--version",
+	"-d",
+	"aibom",
+	"auth",
+	"code",
+	"config",
+	"container",
+	"iac",
+	"ignore",
+	"log4shell",
+	"monitor",
+	"policy",
+	"redteam",
+	"sbom",
+	"secrets",
+	"test",
 }
 
 local subcommands = {
-  aibom = { "test", "--help" },
-  code = { "test", "--help" },
-  config = { "get", "set", "unset", "clear", "--help" },
-  container = { "test", "monitor", "sbom", "--help" },
-  iac = { "test", "describe", "update-exclude-policy", "--help" },
-  redteam = { "--help" },
-  sbom = { "--format", "--org", "--file", "--all-projects", "--json-file-output", "--help" },
-  secrets = { "test" },
+	aibom = { "test", "--help" },
+	code = { "test", "--help" },
+	config = { "get", "set", "unset", "clear", "--help" },
+	container = { "test", "monitor", "sbom", "--help" },
+	iac = { "test", "describe", "update-exclude-policy", "--help" },
+	redteam = { "--help" },
+	sbom = {
+		"--format",
+		"--org",
+		"--file",
+		"--all-projects",
+		"--json-file-output",
+		"--help",
+	},
+	secrets = { "test" },
 }
 
 local function complete(arg_lead, cmd_line)
-  -- tokenise what has been typed so far (strip the leading :Snyk)
-  local tokens = {}
-  for token in cmd_line:gmatch("%S+") do
-    table.insert(tokens, token)
-  end
-  -- tokens[1] == "Snyk", tokens[2..] == arguments
+	-- tokenise what has been typed so far (strip the leading :Snyk)
+	local tokens = {}
+	for token in cmd_line:gmatch("%S+") do
+		table.insert(tokens, token)
+	end
+	-- tokens[1] == "Snyk", tokens[2..] == arguments
 
-  -- determine position: how many complete arguments are before the cursor word
-  -- if cmd_line ends with whitespace the user is starting a new token
-  local completing_new = cmd_line:sub(-1) == " "
-  local arg_count = #tokens - 1 -- number of args after "Snyk"
-  if completing_new then
-    arg_count = arg_count + 1
-  end
+	-- determine position: how many complete arguments are before the cursor word
+	-- if cmd_line ends with whitespace the user is starting a new token
+	local completing_new = cmd_line:sub(-1) == " "
+	local arg_count = #tokens - 1 -- number of args after "Snyk"
+	if completing_new then
+		arg_count = arg_count + 1
+	end
 
-  local first_arg = tokens[2]
+	local first_arg = tokens[2]
 
-  -- completing the first argument → top-level commands
-  if arg_count <= 1 then
-    return vim
-      .iter(top_level)
-      :filter(function(c)
-        return c:find(arg_lead, 1, true) == 1
-      end)
-      :totable()
-  end
+	-- completing the first argument → top-level commands
+	if arg_count <= 1 then
+		return vim.iter(top_level)
+			:filter(function(c)
+				return c:find(arg_lead, 1, true) == 1
+			end)
+			:totable()
+	end
 
-  -- completing a subcommand for commands that have them
-  if arg_count == 2 and first_arg and subcommands[first_arg] then
-    return vim
-      .iter(subcommands[first_arg])
-      :filter(function(c)
-        return c:find(arg_lead, 1, true) == 1
-      end)
-      :totable()
-  end
+	-- completing a subcommand for commands that have them
+	if arg_count == 2 and first_arg and subcommands[first_arg] then
+		return vim.iter(subcommands[first_arg])
+			:filter(function(c)
+				return c:find(arg_lead, 1, true) == 1
+			end)
+			:totable()
+	end
 
-  return {}
+	return {}
 end
 
 vim.api.nvim_create_user_command("Snyk", function(opts)
-  vim.cmd("botright new")
-  vim.fn.jobstart(snyk(opts.fargs), { term = true })
+	vim.cmd("botright new")
+	vim.fn.jobstart(snyk(opts.fargs), { term = true })
 end, {
-  desc = "Snyk CLI",
-  nargs = "*",
-  complete = complete,
+	desc = "Snyk CLI",
+	nargs = "*",
+	complete = complete,
 })
 
 vim.keymap.set("n", "<leader>rs", function()
-  local choices = {
-    "test",
-    "code test",
-    "iac test",
-    "container test",
-    "secrets test",
-  }
-  vim.ui.select(choices, { prompt = "Snyk subcommand:" }, function(choice)
-    if not choice then
-      return
-    end
-    vim.cmd("Snyk " .. choice)
-  end)
+	local choices = {
+		"test",
+		"code test",
+		"iac test",
+		"container test",
+		"secrets test",
+	}
+	vim.ui.select(choices, { prompt = "Snyk subcommand:" }, function(choice)
+		if not choice then
+			return
+		end
+		vim.cmd("Snyk " .. choice)
+	end)
 end, { desc = "[R]un [S]nyk" })

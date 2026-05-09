@@ -2,16 +2,16 @@
 
 -- automatically resize splits when the window is resized
 vim.api.nvim_create_autocmd("VimResized", {
-  group = vim.api.nvim_create_augroup("resize_windows", { clear = true }),
-  pattern = "*",
-  command = "wincmd =",
+	group = vim.api.nvim_create_augroup("resize_windows", { clear = true }),
+	pattern = "*",
+	command = "wincmd =",
 })
 
 -- highlight yanked text for 300ms
 vim.api.nvim_create_autocmd("TextYankPost", {
-  desc = "Highlight when yanking (copying) text",
-  group = vim.api.nvim_create_augroup("highlight_yank", { clear = true }),
-  callback = function()
-    vim.hl.on_yank({ timeout = 300 })
-  end,
+	desc = "Highlight when yanking (copying) text",
+	group = vim.api.nvim_create_augroup("highlight_yank", { clear = true }),
+	callback = function()
+		vim.hl.on_yank({ timeout = 300 })
+	end,
 })
