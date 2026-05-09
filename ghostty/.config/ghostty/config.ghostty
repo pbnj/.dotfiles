@@ -23,8 +23,7 @@ window-show-tab-bar = auto
 font-family = "SF Mono"
 font-size = 15
 # ghostty +list-themes
-theme = "light:Nvim Light,dark:Nvim Dark"
-# theme = "light:TokyoNight Day,dark:TokyoNight Moon"
+theme = "light:TokyoNight Day,dark:TokyoNight Moon"
 
 # Keybindings
 # https://ghostty.org/docs/config/keybind/reference
