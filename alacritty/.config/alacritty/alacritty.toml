@@ -10,12 +10,13 @@ import = [ "~/.local/share/nvim/site/pack/core/opt/tokyonight.nvim/extras/alacri
 decorations = "Buttonless"
 dynamic_padding = true
 option_as_alt = "OnlyLeft"
-opacity = 0.9
-blur = true
+opacity = 1.0
+blur = false
 
 [font]
 size = 15
-normal.family = "Terminess Nerd Font"
+normal.family = "IoskeleyMonoTerm Nerd Font"
+normal.style = "Light"
 
 [selection]
 save_to_clipboard = true
