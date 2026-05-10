@@ -5,3 +5,4 @@ set completion-query-items 0
 set mark-symlinked-directories on
 set page-completions off
 set visible-stats on
+set expand-tilde off
