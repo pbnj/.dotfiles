@@ -10,7 +10,7 @@ auto-update-channel = stable
 background-blur = true
 background-opacity = 1.0
 copy-on-select = clipboard
-cursor-color = #ff00ff
+# cursor-color = #ff00ff
 custom-shader = ~/.config/ghostty/shaders/cursor_warp.glsl
 macos-option-as-alt = true
 macos-titlebar-style = tabs
@@ -20,7 +20,6 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "Ioskeley Mono Term"
 font-family = "SF Mono"
 font-size = 15
 # ghostty +list-themes
