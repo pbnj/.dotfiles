@@ -1,7 +1,6 @@
 ---
 name: snyk
-description:
-  "Interact with the Snyk REST API (v2025-11-05) for vulnerability management,
+description: "Interact with the Snyk REST API (v2025-11-05) for vulnerability management,
   security scanning, and developer security. Use for: listing
   orgs/projects/targets, querying issues (package vulnerabilities, licenses,
   cloud misconfigs, SAST), searching audit logs, managing service accounts,

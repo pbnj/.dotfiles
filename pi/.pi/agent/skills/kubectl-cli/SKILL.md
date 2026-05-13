@@ -1,11 +1,9 @@
 ---
 name: kubectl-cli
-description:
-  "Use when interacting with Kubernetes clusters, pods, deployments, services,
+description: "Use when interacting with Kubernetes clusters, pods, deployments, services,
   namespaces, helm releases, or any k8s resource. Triggers on kubectl, helm,
   k8s, pod, deployment, namespace, etc."
-compatibility:
-  "Requires kubectl (https://kubernetes.io/docs/tasks/tools/), helm
+compatibility: "Requires kubectl (https://kubernetes.io/docs/tasks/tools/), helm
   (https://helm.sh/docs/intro/install/), kubectx/kubens
   (https://github.com/ahmetb/kubectx), and aws CLI v2 for EKS clusters. Cluster
   auth via ~/.kube/config or `aws eks update-kubeconfig`."

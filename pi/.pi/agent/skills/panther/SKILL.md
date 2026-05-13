@@ -1,7 +1,6 @@
 ---
 name: panther
-description:
-  'Queries Panther SIEM data lake via GraphQL API. Use when the user wants to
+description: 'Queries Panther SIEM data lake via GraphQL API. Use when the user wants to
   query Panther logs, run SQL against the data lake, search for indicators of
   compromise, explore databases/tables/columns, poll for query results, list
   past queries, build GraphQL scripts, or manage Panther alerts. Triggers on:

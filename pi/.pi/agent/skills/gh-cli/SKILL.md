@@ -1,14 +1,12 @@
 ---
 name: gh-cli
-description:
-  "Use when interacting with GitHub from the command line. Triggers on any
+description: "Use when interacting with GitHub from the command line. Triggers on any
   request involving pull requests, issues, repositories, GitHub Actions
   workflows, releases, GitHub API calls, or the `gh` command — even if the user
   doesn't say 'gh' but mentions checking out a PR, creating an issue, viewing
   workflow runs, listing releases, or querying the GitHub API. Use proactively
   for any GitHub operation that can be done from the terminal."
-compatibility:
-  "Requires gh CLI v2+ (https://cli.github.com). Authenticate with `gh auth
+compatibility: "Requires gh CLI v2+ (https://cli.github.com). Authenticate with `gh auth
   login`. Run `gh auth status` to verify. Extensions installable via `gh
   extension install`."
 metadata:

@@ -1,6 +1,5 @@
 ---
-description:
-  Comprehensive security review — OWASP, CVEs, containers, IaC, AI-SPM
+description: Comprehensive security review — OWASP, CVEs, containers, IaC, AI-SPM
 argument-hint: "[path]"
 ---
 

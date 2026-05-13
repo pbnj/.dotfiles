@@ -1,7 +1,6 @@
 ---
 name: search-web
-description:
-  Search the web for information, documentation, articles, code examples, and
+description: Search the web for information, documentation, articles, code examples, and
   answers. Use this skill whenever the user wants to find something online —
   even if they don't say "search" but instead say "look up", "find info about",
   "what is X", "latest news on", "find examples of", "research X", or any

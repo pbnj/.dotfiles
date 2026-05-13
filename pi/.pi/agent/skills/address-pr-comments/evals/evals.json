@@ -5,10 +5,7 @@
       "id": 1,
       "prompt": "Hey, I got a review comment on my PR that I need to address. I've already fetched the thread data from GitHub and saved it to `evals/files/eval1/threads.json`. The source file is at `evals/files/eval1/src/auth.py`. Can you work through the review thread and apply the fix?",
       "expected_output": "auth.py is updated with `is None` instead of `== None`. A reply is drafted for the thread. The agent identifies this as a Suggestion-type thread and follows the triage → address → respond → resolve workflow.",
-      "files": [
-        "evals/files/eval1/threads.json",
-        "evals/files/eval1/src/auth.py"
-      ],
+      "files": ["evals/files/eval1/threads.json", "evals/files/eval1/src/auth.py"],
       "assertions": [
         {
           "id": "a1",
@@ -32,10 +29,7 @@
       "id": 2,
       "prompt": "My PR has a security review comment I need to fix. Thread data is in `evals/files/eval2/threads.json` and the affected file is at `evals/files/eval2/src/database.py`. Can you address the feedback?",
       "expected_output": "database.py is updated to use a parameterized query instead of string interpolation. A reply is drafted explaining the fix. The agent identifies this as a Change-type thread (no suggestion block).",
-      "files": [
-        "evals/files/eval2/threads.json",
-        "evals/files/eval2/src/database.py"
-      ],
+      "files": ["evals/files/eval2/threads.json", "evals/files/eval2/src/database.py"],
       "assertions": [
         {
           "id": "a1",

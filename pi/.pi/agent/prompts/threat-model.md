@@ -1,6 +1,5 @@
 ---
-description:
-  STRIDE threat model — components, data flows, trust boundaries, SARIF + Linear
+description: STRIDE threat model — components, data flows, trust boundaries, SARIF + Linear
   issues
 argument-hint: "[system name or path]"
 ---

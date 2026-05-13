@@ -1,14 +1,12 @@
 ---
 name: address-pr-comments
-description:
-  "Use when addressing, responding to, or resolving pull request review comments
+description: "Use when addressing, responding to, or resolving pull request review comments
   and inline code suggestions. Triggers whenever the user wants to work through
   PR feedback — even if they say 'address the review comments', 'fix the PR
   feedback', 'apply the suggestions', 'resolve the threads', 'respond to
   reviewer comments', or just 'let's work through this PR review'. Use
   proactively after a PR review is received."
-compatibility:
-  "Requires gh CLI v2+ (https://cli.github.com) authenticated with `gh auth
+compatibility: "Requires gh CLI v2+ (https://cli.github.com) authenticated with `gh auth
   login`. Git must be configured for the working repository. Run `gh auth
   status` to verify before starting."
 metadata:

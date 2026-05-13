@@ -1,6 +1,7 @@
 # Config: https://pre-commit.com/#plugins
 # Hooks: https://pre-commit.com/#new-hooks
 ---
+fail_fast: true
 repos:
   - repo: local
     hooks:
@@ -10,12 +11,12 @@ repos:
         types: [markdown]
         language: system
         entry: npx doctoc --notitle --update-only
-      - id: prettier
-        name: prettier
-        description: Format markdown files
-        types: [markdown]
-        entry: npx prettier --write --check --prose-wrap always
-        language: system
+      # - id: prettier
+      #   name: prettier
+      #   description: Format markdown files
+      #   types: [markdown]
+      #   entry: npx prettier --write --check --prose-wrap always
+      #   language: system
       - id: markdownlint-cli2
         name: markdownlint-cli2
         description: Lint markdown files
@@ -71,6 +72,20 @@ repos:
         language: system
         types: [file, lua]
         entry: luacheck --
+      - id: pnpm-lint-fix
+        name: pnpm lint:fix
+        description: Lint and auto-fix JS/TS files
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        entry: pnpm --filter pi lint:fix
+        pass_filenames: false
+      - id: pnpm-fmt
+        name: pnpm fmt
+        description: Format JS/TS files
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        entry: pnpm --filter pi fmt
+        pass_filenames: false
       - id: commitizen
         name: commitizen
         description: This hook lints commit messages

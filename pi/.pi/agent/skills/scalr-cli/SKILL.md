@@ -10,8 +10,7 @@ description: >
   (create-workspace, list-environments, create-run, lock-workspace,
   get-variables, etc.). Use this skill proactively even if the user just says
   "how do I X in Scalr" -- they likely need CLI guidance.
-compatibility:
-  "Requires scalr CLI binary in $PATH
+compatibility: "Requires scalr CLI binary in $PATH
   (https://github.com/Scalr/scalr-cli/releases). Configure with SCALR_HOSTNAME
   and SCALR_TOKEN environment variables or run `scalr -configure` for
   interactive setup."

@@ -6,8 +6,7 @@ description: >
   fetch content/documentation from the web to turn noisy source pages into
   structured text. Triggers include "fetch URL", "get content from page", "parse
   web page", "what's on URL", and any request involving a web URL.
-compatibility:
-  "Requires network access and `uv` to run `uvx --from crawl4ai crwl`."
+compatibility: "Requires network access and `uv` to run `uvx --from crawl4ai crwl`."
 metadata:
   author: Peter Benjamin
   version: 1.0.0

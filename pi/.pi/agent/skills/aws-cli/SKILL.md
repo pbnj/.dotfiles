@@ -1,14 +1,12 @@
 ---
 name: aws-cli
-description:
-  "Use when interacting with AWS. Triggers on AWS resources, services, or
+description: "Use when interacting with AWS. Triggers on AWS resources, services, or
   accounts — s3, ec2, iam, kms, secretsmanager, eks, ecs, lambda, cloudwatch,
   rds, dynamodb, cloudformation, route53, sns, sqs, and more. Use this skill
   whenever the user wants to inspect, query, troubleshoot, or manage AWS
   infrastructure, even if they don't say 'AWS' explicitly but reference cloud
   resources, ARNs, account IDs, regions, or specific AWS service names."
-compatibility:
-  "Requires aws CLI v2
+compatibility: "Requires aws CLI v2
   (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
   with SSO authentication configured at $HOME/.aws/config. Run `aws sso login`
   to refresh expired SSO tokens before use."
