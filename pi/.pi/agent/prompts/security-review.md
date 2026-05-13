@@ -262,8 +262,8 @@ Write `.security-review-tmp/container-analysis.json` using the schema above.
 ```markdown
 You are a security analyst performing Infrastructure-as-Code security analysis.
 
-Working directory: <PROJECT*ROOT> IaC files: <FILE_LIST — *.tf, Chart.yaml,
-values*.yaml, Kubernetes *.yaml/\_.yml>
+Working directory: <PROJECT_ROOT> IaC files: <FILE_LIST — \*.tf, Chart.yaml,
+values\*.yaml, Kubernetes \*.yaml/\*.yml>
 
 ## Tool priority (use first available):
 
@@ -327,8 +327,8 @@ _(Only spawn if AI artifacts found: `*.skill`, `SKILL.md`, `prompts/`,
 ```markdown
 You are performing AI Security Posture Management (AI-SPM) and BOM analysis.
 
-Working directory: <PROJECT_ROOT> AI artifacts: <FILE_LIST — *.skill, SKILL.md,
-prompts/, system_prompt, *mcp*, *model*, *agent*, *dataset\*, .env files with
+Working directory: <PROJECT_ROOT> AI artifacts: <FILE_LIST — \*.skill, SKILL.md,
+prompts/, system_prompt, \*mcp\*, \*model\*, \*agent\*, \*dataset\*, .env files with
 API keys>
 
 ## Discovery checklist:

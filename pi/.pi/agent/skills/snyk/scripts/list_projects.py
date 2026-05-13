@@ -77,7 +77,9 @@ def list_projects(org_id: str, args) -> list[dict]:
             # Pagination next_links already contain all query params in the URL;
             # passing params= to httpx replaces the query string, so only send
             # params on the first request.
-            resp = client.get(url, headers=get_headers(), params=params if first_page else None)
+            resp = client.get(
+                url, headers=get_headers(), params=params if first_page else None
+            )
             if not resp.is_success:
                 try:
                     detail = resp.json()

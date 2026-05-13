@@ -81,7 +81,9 @@ GET_RESULTS = gql("""
 """)
 
 
-def run(indicators: list[str], start_time: str, end_time: str, indicator_name: str | None) -> list:
+def run(
+    indicators: list[str], start_time: str, end_time: str, indicator_name: str | None
+) -> list:
     client = get_client()
 
     search_input = {

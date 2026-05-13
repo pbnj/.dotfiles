@@ -42,7 +42,10 @@ def get_headers() -> dict:
     if not token:
         console.print("[red]Error:[/red] SNYK_TOKEN environment variable is not set.")
         sys.exit(1)
-    return {"Authorization": f"token {token}", "Content-Type": "application/vnd.api+json"}
+    return {
+        "Authorization": f"token {token}",
+        "Content-Type": "application/vnd.api+json",
+    }
 
 
 def build_base_url(org_id: str | None, group_id: str | None) -> str:
@@ -63,7 +66,11 @@ def cmd_list(args):
             accounts.extend(data.get("data", []))
             next_link = data.get("links", {}).get("next")
             if next_link:
-                url = next_link if next_link.startswith("http") else f"https://api.snyk.io{next_link}"
+                url = (
+                    next_link
+                    if next_link.startswith("http")
+                    else f"https://api.snyk.io{next_link}"
+                )
                 params = {}
             else:
                 url = None
@@ -138,13 +145,15 @@ def cmd_create(args):
 
     sa = data.get("data", data)
     attrs = sa.get("attributes", {})
-    console.print(f"[green]✓[/green] Service account created:")
+    console.print("[green]✓[/green] Service account created:")
     console.print(f"  ID:          {sa.get('id', '')}")
     console.print(f"  Name:        {attrs.get('name', '')}")
     console.print(f"  Client ID:   {attrs.get('client_id', '')}")
     if attrs.get("client_secret"):
         console.print(f"  [bold red]Client Secret:[/bold red] {attrs['client_secret']}")
-        console.print("[yellow]  ⚠ Save this secret now — it will not be shown again.[/yellow]")
+        console.print(
+            "[yellow]  ⚠ Save this secret now — it will not be shown again.[/yellow]"
+        )
 
 
 def cmd_delete(args):
@@ -153,7 +162,9 @@ def cmd_delete(args):
     with httpx.Client(timeout=30) as client:
         resp = client.delete(url, headers=get_headers(), params=params)
         resp.raise_for_status()
-    console.print(f"[green]✓[/green] Service account [bold]{args.sa_id}[/bold] deleted.")
+    console.print(
+        f"[green]✓[/green] Service account [bold]{args.sa_id}[/bold] deleted."
+    )
 
 
 def cmd_rotate(args):
@@ -171,15 +182,23 @@ def cmd_rotate(args):
 
     sa = data.get("data", data)
     attrs = sa.get("attributes", {})
-    console.print(f"[green]✓[/green] Client secret rotated for service account [bold]{args.sa_id}[/bold]:")
+    console.print(
+        f"[green]✓[/green] Client secret rotated for service account [bold]{args.sa_id}[/bold]:"
+    )
     if attrs.get("client_secret"):
-        console.print(f"  [bold red]New Client Secret:[/bold red] {attrs['client_secret']}")
-        console.print("[yellow]  ⚠ Save this secret now — it will not be shown again.[/yellow]")
+        console.print(
+            f"  [bold red]New Client Secret:[/bold red] {attrs['client_secret']}"
+        )
+        console.print(
+            "[yellow]  ⚠ Save this secret now — it will not be shown again.[/yellow]"
+        )
 
 
 def main():
     parser = argparse.ArgumentParser(description="Manage Snyk service accounts")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Shared scope args helper
@@ -215,7 +234,9 @@ def main():
     p_delete.add_argument("--sa-id", required=True, help="Service account ID")
 
     # rotate
-    p_rotate = subparsers.add_parser("rotate", help="Rotate a service account client secret")
+    p_rotate = subparsers.add_parser(
+        "rotate", help="Rotate a service account client secret"
+    )
     add_scope(p_rotate)
     p_rotate.add_argument("--sa-id", required=True, help="Service account ID")
 

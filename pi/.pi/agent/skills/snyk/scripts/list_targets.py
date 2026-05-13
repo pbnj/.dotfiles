@@ -66,7 +66,11 @@ def list_targets(org_id: str, args) -> list[dict]:
             targets.extend(data.get("data", []))
             next_link = data.get("links", {}).get("next")
             if next_link:
-                url = next_link if next_link.startswith("http") else f"https://api.snyk.io{next_link}"
+                url = (
+                    next_link
+                    if next_link.startswith("http")
+                    else f"https://api.snyk.io{next_link}"
+                )
                 params = {}
             else:
                 url = None
@@ -74,15 +78,27 @@ def list_targets(org_id: str, args) -> list[dict]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="List Snyk targets for an organization")
+    parser = argparse.ArgumentParser(
+        description="List Snyk targets for an organization"
+    )
     parser.add_argument("--org-id", required=True, help="Organization UUID")
     parser.add_argument("--url", help="Filter by remote URL")
     parser.add_argument("--display-name", help="Filter by display name prefix")
-    parser.add_argument("--source-type", action="append", help="Filter by source type (repeatable)")
-    parser.add_argument("--exclude-empty", action="store_true", help="Only return targets with projects")
-    parser.add_argument("--is-private", action="store_true", help="Only return private targets")
-    parser.add_argument("--limit", type=int, default=100, help="Results per page (default 100)")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser.add_argument(
+        "--source-type", action="append", help="Filter by source type (repeatable)"
+    )
+    parser.add_argument(
+        "--exclude-empty", action="store_true", help="Only return targets with projects"
+    )
+    parser.add_argument(
+        "--is-private", action="store_true", help="Only return private targets"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=100, help="Results per page (default 100)"
+    )
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     args = parser.parse_args()
 
     targets = list_targets(args.org_id, args)
@@ -95,7 +111,10 @@ def main():
         console.print("[yellow]No targets found.[/yellow]")
         return
 
-    table = Table(title=f"Snyk Targets for org {args.org_id} ({len(targets)} total)", show_lines=False)
+    table = Table(
+        title=f"Snyk Targets for org {args.org_id} ({len(targets)} total)",
+        show_lines=False,
+    )
     table.add_column("ID", style="dim", no_wrap=True, max_width=36)
     table.add_column("Display Name", style="bold", max_width=50)
     table.add_column("URL", max_width=60)

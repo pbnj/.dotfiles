@@ -140,7 +140,10 @@ def fetch_events(client: Client, alert_id: str, page_size: int) -> list:
         edge_list = data["alert"]["events"]["edges"]
         nodes = [edge["node"] for edge in edge_list]
         events.extend(nodes)
-        print(f"    Got {len(nodes)} event(s) (total so far: {len(events)})", file=sys.stderr)
+        print(
+            f"    Got {len(nodes)} event(s) (total so far: {len(events)})",
+            file=sys.stderr,
+        )
 
         end_cursor = data["alert"]["events"]["pageInfo"]["endCursor"]
         # API signals last page with a null/empty endCursor or an empty edge list
@@ -160,7 +163,7 @@ def run(alert_id: str, page_size: int = 25, include_events: bool = True) -> dict
         sys.exit(f"Error: alert '{alert_id}' not found.")
 
     if include_events:
-        print(f"Fetching associated log events ...", file=sys.stderr)
+        print("Fetching associated log events ...", file=sys.stderr)
         alert["events"] = fetch_events(client, alert_id, page_size)
         print(f"  Total events: {len(alert['events'])}", file=sys.stderr)
     else:
@@ -176,16 +179,24 @@ def main():
         epilog=__doc__,
     )
     parser.add_argument("id", metavar="ALERT_ID", help="The Panther alert ID to fetch.")
-    parser.add_argument("--page-size", type=int, default=25, metavar="N",
-                        help="Number of log events to fetch per page (default: 25).")
-    parser.add_argument("--no-events", action="store_true",
-                        help="Skip fetching log events (return alert metadata only).")
+    parser.add_argument(
+        "--page-size",
+        type=int,
+        default=25,
+        metavar="N",
+        help="Number of log events to fetch per page (default: 25).",
+    )
+    parser.add_argument(
+        "--no-events",
+        action="store_true",
+        help="Skip fetching log events (return alert metadata only).",
+    )
 
     args = parser.parse_args()
     alert = run(args.id, page_size=args.page_size, include_events=not args.no_events)
 
     print(json.dumps(alert, indent=2))
-    print(f"\nDone.", file=sys.stderr)
+    print("\nDone.", file=sys.stderr)
 
 
 if __name__ == "__main__":

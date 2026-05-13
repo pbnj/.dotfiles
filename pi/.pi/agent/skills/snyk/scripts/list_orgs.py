@@ -54,7 +54,11 @@ def list_orgs(group_id: str | None, name: str | None, slug: str | None) -> list[
             next_link = data.get("links", {}).get("next")
             if next_link:
                 # next link may be relative or absolute
-                url = next_link if next_link.startswith("http") else f"https://api.snyk.io{next_link}"
+                url = (
+                    next_link
+                    if next_link.startswith("http")
+                    else f"https://api.snyk.io{next_link}"
+                )
                 params = {}  # params are already encoded in the next link
             else:
                 url = None
@@ -66,7 +70,9 @@ def main():
     parser.add_argument("--group-id", help="Filter by group ID")
     parser.add_argument("--name", help="Filter orgs whose name contains this value")
     parser.add_argument("--slug", help="Filter orgs whose slug exactly matches")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     args = parser.parse_args()
 
     orgs = list_orgs(args.group_id, args.name, args.slug)

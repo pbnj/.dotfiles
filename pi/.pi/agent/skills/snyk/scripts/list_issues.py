@@ -102,12 +102,16 @@ def list_issues(args) -> list[dict]:
             issues.extend(batch)
 
             if args.max_results and len(issues) >= args.max_results:
-                issues = issues[:args.max_results]
+                issues = issues[: args.max_results]
                 break
 
             next_link = data.get("links", {}).get("next")
             if next_link:
-                url = next_link if next_link.startswith("http") else f"https://api.snyk.io{next_link}"
+                url = (
+                    next_link
+                    if next_link.startswith("http")
+                    else f"https://api.snyk.io{next_link}"
+                )
                 params = {}
             else:
                 url = None
@@ -115,13 +119,22 @@ def list_issues(args) -> list[dict]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="List Snyk issues at org or group scope")
+    parser = argparse.ArgumentParser(
+        description="List Snyk issues at org or group scope"
+    )
     scope = parser.add_mutually_exclusive_group()
     scope.add_argument("--org-id", help="Organization UUID")
     scope.add_argument("--group-id", help="Group UUID")
     parser.add_argument(
         "--type",
-        choices=["package_vulnerability", "license", "cloud", "code", "custom", "config"],
+        choices=[
+            "package_vulnerability",
+            "license",
+            "cloud",
+            "code",
+            "custom",
+            "config",
+        ],
         help="Filter by issue type",
     )
     parser.add_argument(
@@ -130,19 +143,38 @@ def main():
         choices=["critical", "high", "medium", "low", "info"],
         help="Filter by effective severity level (repeatable)",
     )
-    parser.add_argument("--status", action="append", help="Filter by status (repeatable)")
+    parser.add_argument(
+        "--status", action="append", help="Filter by status (repeatable)"
+    )
     ignored_group = parser.add_mutually_exclusive_group()
-    ignored_group.add_argument("--ignored", dest="ignored", action="store_true", default=None, help="Only ignored issues")
-    ignored_group.add_argument("--not-ignored", dest="ignored", action="store_false", help="Only non-ignored issues")
+    ignored_group.add_argument(
+        "--ignored",
+        dest="ignored",
+        action="store_true",
+        default=None,
+        help="Only ignored issues",
+    )
+    ignored_group.add_argument(
+        "--not-ignored",
+        dest="ignored",
+        action="store_false",
+        help="Only non-ignored issues",
+    )
     parser.add_argument("--scan-item-id", help="Filter by scan item ID")
-    parser.add_argument("--scan-item-type", choices=["project", "environment"], help="Scan item type")
+    parser.add_argument(
+        "--scan-item-type", choices=["project", "environment"], help="Scan item type"
+    )
     parser.add_argument("--created-after", help="RFC3339 date")
     parser.add_argument("--created-before", help="RFC3339 date")
     parser.add_argument("--updated-after", help="RFC3339 date")
     parser.add_argument("--updated-before", help="RFC3339 date")
-    parser.add_argument("--limit", type=int, default=100, help="Results per page (max 100)")
+    parser.add_argument(
+        "--limit", type=int, default=100, help="Results per page (max 100)"
+    )
     parser.add_argument("--max-results", type=int, help="Stop after N total results")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     args = parser.parse_args()
 
     if not args.org_id and not args.group_id:
@@ -159,7 +191,9 @@ def main():
         return
 
     scope_label = f"org {args.org_id}" if args.org_id else f"group {args.group_id}"
-    table = Table(title=f"Snyk Issues for {scope_label} ({len(issues)} results)", show_lines=False)
+    table = Table(
+        title=f"Snyk Issues for {scope_label} ({len(issues)} results)", show_lines=False
+    )
     table.add_column("ID", style="dim", no_wrap=True, max_width=36)
     table.add_column("Title", max_width=60)
     table.add_column("Type")

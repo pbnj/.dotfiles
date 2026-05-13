@@ -196,7 +196,7 @@ http:
       - GET /login HTTP/1.1
     extractors:
       - type: regex
-        name: csrf_token      # ← this name is shared across the workflow
+        name: csrf_token # ← this name is shared across the workflow
         internal: true
         regex:
           - 'name="_token" value="([^"]+)"'

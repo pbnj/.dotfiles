@@ -70,7 +70,11 @@ def get_package_issues(org_id: str, purl: str, limit: int) -> list[dict]:
             issues.extend(data.get("data", []))
             next_link = data.get("links", {}).get("next")
             if next_link:
-                url = next_link if next_link.startswith("http") else f"https://api.snyk.io{next_link}"
+                url = (
+                    next_link
+                    if next_link.startswith("http")
+                    else f"https://api.snyk.io{next_link}"
+                )
                 params = {}
             else:
                 url = None
@@ -80,9 +84,15 @@ def get_package_issues(org_id: str, purl: str, limit: int) -> list[dict]:
 def main():
     parser = argparse.ArgumentParser(description="List issues for a package by PURL")
     parser.add_argument("--org-id", required=True, help="Organization UUID")
-    parser.add_argument("--purl", required=True, help="Package URL (e.g. pkg:npm/lodash@4.17.21)")
-    parser.add_argument("--limit", type=int, default=1000, help="Results per page (max 1000)")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser.add_argument(
+        "--purl", required=True, help="Package URL (e.g. pkg:npm/lodash@4.17.21)"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=1000, help="Results per page (max 1000)"
+    )
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     args = parser.parse_args()
 
     issues = get_package_issues(args.org_id, args.purl, args.limit)
@@ -95,7 +105,9 @@ def main():
         console.print("[yellow]No issues found for this package.[/yellow]")
         return
 
-    table = Table(title=f"Issues for {args.purl} ({len(issues)} total)", show_lines=False)
+    table = Table(
+        title=f"Issues for {args.purl} ({len(issues)} total)", show_lines=False
+    )
     table.add_column("ID", style="dim", no_wrap=True, max_width=36)
     table.add_column("Title", max_width=60)
     table.add_column("Type")

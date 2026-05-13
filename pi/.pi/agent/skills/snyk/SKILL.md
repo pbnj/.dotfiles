@@ -341,7 +341,7 @@ op run -- sh -c 'curl -s -H "Authorization: token $SNYK_TOKEN" \
 
 ## API Reference
 
-**Base URL:** `https://api.snyk.io/rest`  
+**Base URL:** `https://api.snyk.io/rest`\
 **API Version:** `2025-11-05` (default; supports `experimental`, `beta`,
 date-based versions)
 

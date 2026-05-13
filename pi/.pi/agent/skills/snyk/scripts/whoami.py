@@ -39,8 +39,12 @@ def get_headers() -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Get current Snyk user details")
-    parser.add_argument("--tokens", action="store_true", help="Also list personal access tokens")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser.add_argument(
+        "--tokens", action="store_true", help="Also list personal access tokens"
+    )
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     args = parser.parse_args()
 
     params = {"version": API_VERSION}
@@ -51,7 +55,11 @@ def main():
 
         pat_data = None
         if args.tokens:
-            resp2 = client.get(f"{BASE_URL}/self/personal_access_tokens", headers=get_headers(), params=params)
+            resp2 = client.get(
+                f"{BASE_URL}/self/personal_access_tokens",
+                headers=get_headers(),
+                params=params,
+            )
             resp2.raise_for_status()
             pat_data = resp2.json()
 

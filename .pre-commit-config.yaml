@@ -41,12 +41,14 @@ repos:
         description: Format Python files
         language: system
         types: [python]
+        exclude: "/evals/"
         entry: ruff format
       - id: ruff-check-fix
         name: ruff check --fix
         description: Lint Python files
         language: system
         types: [python]
+        exclude: "/evals/"
         entry: ruff check --fix
       - id: shellcheck
         name: shellcheck
@@ -72,16 +74,16 @@ repos:
         language: system
         types: [file, lua]
         entry: luacheck --
-      - id: pnpm-lint-fix
-        name: pnpm lint:fix
+      - id: pnpx-oxlint
+        name: pnpx oxlint
         description: Lint and auto-fix JS/TS files
         language: system
         types_or: [javascript, jsx, ts, tsx]
-        entry: pnpm lint:fix
+        entry: pnpx oxlint
         pass_filenames: false
-      - id: pnpm-fmt
-        name: pnpm fmt
-        description: Format JS/TS files
+      - id: pnpx-oxfmt
+        name: pnpx oxfmt
+        description: Format supported files
         language: system
         # types_or: [javascript, jsx, ts, tsx]
         entry: pnpx oxfmt

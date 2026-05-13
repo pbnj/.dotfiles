@@ -83,7 +83,12 @@ LIST_ALERTS = gql("""
 """)
 
 
-def run(start_time: str, end_time: str, severities: list[str] | None, statuses: list[str] | None) -> list:
+def run(
+    start_time: str,
+    end_time: str,
+    severities: list[str] | None,
+    statuses: list[str] | None,
+) -> list:
     client = get_client()
 
     query_input: dict = {
@@ -110,7 +115,10 @@ def run(start_time: str, end_time: str, severities: list[str] | None, statuses: 
 
         nodes = [edge["node"] for edge in page["edges"]]
         all_alerts.extend(nodes)
-        print(f"  Fetched {len(nodes)} alerts (total so far: {len(all_alerts)})", file=sys.stderr)
+        print(
+            f"  Fetched {len(nodes)} alerts (total so far: {len(all_alerts)})",
+            file=sys.stderr,
+        )
 
         has_more = page["pageInfo"]["hasNextPage"]
         query_input["cursor"] = page["pageInfo"]["endCursor"]
@@ -124,16 +132,32 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--start-time", required=True, metavar="ISO8601",
-                        help="Earliest alert creation time (e.g. 2024-01-01T00:00:00.000Z).")
-    parser.add_argument("--end-time", required=True, metavar="ISO8601",
-                        help="Latest alert creation time (e.g. 2024-01-31T23:59:59.000Z).")
-    parser.add_argument("--severities", nargs="+", metavar="SEVERITY",
-                        choices=["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
-                        help="Filter by one or more severity levels.")
-    parser.add_argument("--statuses", nargs="+", metavar="STATUS",
-                        choices=["OPEN", "TRIAGED", "RESOLVED", "CLOSED"],
-                        help="Filter by one or more alert statuses.")
+    parser.add_argument(
+        "--start-time",
+        required=True,
+        metavar="ISO8601",
+        help="Earliest alert creation time (e.g. 2024-01-01T00:00:00.000Z).",
+    )
+    parser.add_argument(
+        "--end-time",
+        required=True,
+        metavar="ISO8601",
+        help="Latest alert creation time (e.g. 2024-01-31T23:59:59.000Z).",
+    )
+    parser.add_argument(
+        "--severities",
+        nargs="+",
+        metavar="SEVERITY",
+        choices=["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+        help="Filter by one or more severity levels.",
+    )
+    parser.add_argument(
+        "--statuses",
+        nargs="+",
+        metavar="STATUS",
+        choices=["OPEN", "TRIAGED", "RESOLVED", "CLOSED"],
+        help="Filter by one or more alert statuses.",
+    )
 
     args = parser.parse_args()
     results = run(args.start_time, args.end_time, args.severities, args.statuses)

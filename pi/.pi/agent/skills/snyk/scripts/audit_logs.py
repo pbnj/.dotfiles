@@ -84,13 +84,17 @@ def search_audit_logs(args) -> list[dict]:
             logs.extend(batch)
 
             if args.max_results and len(logs) >= args.max_results:
-                logs = logs[:args.max_results]
+                logs = logs[: args.max_results]
                 break
 
             # Pagination via cursor
             next_cursor = data.get("links", {}).get("next")
             if next_cursor:
-                url = next_cursor if next_cursor.startswith("http") else f"https://api.snyk.io{next_cursor}"
+                url = (
+                    next_cursor
+                    if next_cursor.startswith("http")
+                    else f"https://api.snyk.io{next_cursor}"
+                )
                 params = {}
             else:
                 url = None
@@ -102,16 +106,33 @@ def main():
     scope = parser.add_mutually_exclusive_group()
     scope.add_argument("--org-id", help="Organization UUID")
     scope.add_argument("--group-id", help="Group UUID")
-    parser.add_argument("--from", dest="from_date", help="Start date (RFC3339, e.g. 2024-01-01T00:00:00Z)")
+    parser.add_argument(
+        "--from",
+        dest="from_date",
+        help="Start date (RFC3339, e.g. 2024-01-01T00:00:00Z)",
+    )
     parser.add_argument("--to", dest="to_date", help="End date exclusive (RFC3339)")
     parser.add_argument("--user-id", help="Filter by user ID")
     parser.add_argument("--project-id", help="Filter by project ID")
-    parser.add_argument("--event", action="append", help="Filter by event type (repeatable)")
-    parser.add_argument("--exclude-event", action="append", help="Exclude event type (repeatable)")
-    parser.add_argument("--sort-order", choices=["ASC", "DESC"], default="DESC", help="Sort order (default DESC)")
-    parser.add_argument("--size", type=int, default=100, help="Results per page (max 100)")
+    parser.add_argument(
+        "--event", action="append", help="Filter by event type (repeatable)"
+    )
+    parser.add_argument(
+        "--exclude-event", action="append", help="Exclude event type (repeatable)"
+    )
+    parser.add_argument(
+        "--sort-order",
+        choices=["ASC", "DESC"],
+        default="DESC",
+        help="Sort order (default DESC)",
+    )
+    parser.add_argument(
+        "--size", type=int, default=100, help="Results per page (max 100)"
+    )
     parser.add_argument("--max-results", type=int, help="Stop after N total results")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     args = parser.parse_args()
 
     if not args.org_id and not args.group_id:
@@ -128,7 +149,9 @@ def main():
         return
 
     scope_label = f"org {args.org_id}" if args.org_id else f"group {args.group_id}"
-    table = Table(title=f"Audit Logs for {scope_label} ({len(logs)} entries)", show_lines=False)
+    table = Table(
+        title=f"Audit Logs for {scope_label} ({len(logs)} entries)", show_lines=False
+    )
     table.add_column("Created At", no_wrap=True)
     table.add_column("Event", style="bold")
     table.add_column("User ID", style="dim", max_width=36)
@@ -140,7 +163,9 @@ def main():
         created = entry.get("created", entry.get("attributes", {}).get("created", ""))
         event = entry.get("event", entry.get("attributes", {}).get("event", ""))
         user_id = entry.get("user_id", entry.get("attributes", {}).get("user_id", ""))
-        project_id = entry.get("project_id", entry.get("attributes", {}).get("project_id", ""))
+        project_id = entry.get(
+            "project_id", entry.get("attributes", {}).get("project_id", "")
+        )
         content = entry.get("content", entry.get("attributes", {}).get("content", {}))
         content_str = json.dumps(content, separators=(",", ":"))[:80] if content else ""
         table.add_row(

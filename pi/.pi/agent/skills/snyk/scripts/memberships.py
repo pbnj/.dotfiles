@@ -39,7 +39,10 @@ def get_headers() -> dict:
     if not token:
         console.print("[red]Error:[/red] SNYK_TOKEN environment variable is not set.")
         sys.exit(1)
-    return {"Authorization": f"token {token}", "Content-Type": "application/vnd.api+json"}
+    return {
+        "Authorization": f"token {token}",
+        "Content-Type": "application/vnd.api+json",
+    }
 
 
 def paginate(client, url, params) -> list[dict]:
@@ -51,7 +54,11 @@ def paginate(client, url, params) -> list[dict]:
         items.extend(data.get("data", []))
         next_link = data.get("links", {}).get("next")
         if next_link:
-            url = next_link if next_link.startswith("http") else f"https://api.snyk.io{next_link}"
+            url = (
+                next_link
+                if next_link.startswith("http")
+                else f"https://api.snyk.io{next_link}"
+            )
             params = {}
         else:
             url = None
@@ -154,12 +161,18 @@ def cmd_cancel_invite(args):
     with httpx.Client(timeout=30) as client:
         resp = client.delete(url, headers=get_headers(), params=params)
         resp.raise_for_status()
-    console.print(f"[green]✓[/green] Invitation [bold]{args.invite_id}[/bold] cancelled.")
+    console.print(
+        f"[green]✓[/green] Invitation [bold]{args.invite_id}[/bold] cancelled."
+    )
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Manage Snyk memberships and invitations")
-    parser.add_argument("--json", action="store_true", dest="as_json", help="Output raw JSON")
+    parser = argparse.ArgumentParser(
+        description="Manage Snyk memberships and invitations"
+    )
+    parser.add_argument(
+        "--json", action="store_true", dest="as_json", help="Output raw JSON"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     p_lo = subparsers.add_parser("list-org", help="List org memberships")
@@ -171,7 +184,9 @@ def main():
     p_inv = subparsers.add_parser("invite", help="Invite a user to an org")
     p_inv.add_argument("--org-id", required=True, help="Organization UUID")
     p_inv.add_argument("--email", required=True, help="User email address")
-    p_inv.add_argument("--role", required=True, help="Role name (e.g. collaborator, admin)")
+    p_inv.add_argument(
+        "--role", required=True, help="Role name (e.g. collaborator, admin)"
+    )
 
     p_ci = subparsers.add_parser("cancel-invite", help="Cancel a pending org invite")
     p_ci.add_argument("--org-id", required=True, help="Organization UUID")

@@ -107,43 +107,54 @@ ASSIGN_BY_ID = gql("""
 
 
 def cmd_status(client: Client, args: argparse.Namespace) -> dict:
-    print(f"Setting status={args.status} on {len(args.ids)} alert(s)...", file=sys.stderr)
-    data = client.execute(UPDATE_STATUS, variable_values={
-        "input": {"ids": args.ids, "status": args.status}
-    })
+    print(
+        f"Setting status={args.status} on {len(args.ids)} alert(s)...", file=sys.stderr
+    )
+    data = client.execute(
+        UPDATE_STATUS,
+        variable_values={"input": {"ids": args.ids, "status": args.status}},
+    )
     return data["updateAlertStatusById"]
 
 
 def cmd_comment(client: Client, args: argparse.Namespace) -> dict:
     fmt = "HTML" if args.html else "PLAIN_TEXT"
     print(f"Adding {fmt} comment to alert {args.id}...", file=sys.stderr)
-    data = client.execute(ADD_COMMENT, variable_values={
-        "input": {"alertId": args.id, "body": args.body, "format": fmt}
-    })
+    data = client.execute(
+        ADD_COMMENT,
+        variable_values={
+            "input": {"alertId": args.id, "body": args.body, "format": fmt}
+        },
+    )
     return data["createAlertComment"]
 
 
 def cmd_assign(client: Client, args: argparse.Namespace) -> dict:
     if args.email:
         print(f"Assigning {len(args.ids)} alert(s) to {args.email}...", file=sys.stderr)
-        data = client.execute(ASSIGN_BY_EMAIL, variable_values={
-            "input": {"assigneeEmail": args.email, "ids": args.ids}
-        })
+        data = client.execute(
+            ASSIGN_BY_EMAIL,
+            variable_values={"input": {"assigneeEmail": args.email, "ids": args.ids}},
+        )
         return data["updateAlertsAssigneeByEmail"]
     else:
-        print(f"Assigning {len(args.ids)} alert(s) to user ID {args.user_id}...", file=sys.stderr)
-        data = client.execute(ASSIGN_BY_ID, variable_values={
-            "input": {"assigneeId": args.user_id, "ids": args.ids}
-        })
+        print(
+            f"Assigning {len(args.ids)} alert(s) to user ID {args.user_id}...",
+            file=sys.stderr,
+        )
+        data = client.execute(
+            ASSIGN_BY_ID,
+            variable_values={"input": {"assigneeId": args.user_id, "ids": args.ids}},
+        )
         return data["updateAlertsAssigneeById"]
 
 
 def cmd_unassign(client: Client, args: argparse.Namespace) -> dict:
     # Panther unassigns by setting assigneeId to null
     print(f"Unassigning {len(args.ids)} alert(s)...", file=sys.stderr)
-    data = client.execute(ASSIGN_BY_ID, variable_values={
-        "input": {"assigneeId": None, "ids": args.ids}
-    })
+    data = client.execute(
+        ASSIGN_BY_ID, variable_values={"input": {"assigneeId": None, "ids": args.ids}}
+    )
     return data["updateAlertsAssigneeById"]
 
 
@@ -157,43 +168,64 @@ def main():
 
     # status sub-command
     p_status = sub.add_parser("status", help="Update alert status.")
-    p_status.add_argument("--ids", nargs="+", required=True, metavar="ALERT_ID",
-                          help="One or more alert IDs to update.")
-    p_status.add_argument("--status", required=True,
-                          choices=["OPEN", "TRIAGED", "RESOLVED", "CLOSED"],
-                          help="New status to apply.")
+    p_status.add_argument(
+        "--ids",
+        nargs="+",
+        required=True,
+        metavar="ALERT_ID",
+        help="One or more alert IDs to update.",
+    )
+    p_status.add_argument(
+        "--status",
+        required=True,
+        choices=["OPEN", "TRIAGED", "RESOLVED", "CLOSED"],
+        help="New status to apply.",
+    )
 
     # comment sub-command
     p_comment = sub.add_parser("comment", help="Add a comment to an alert.")
-    p_comment.add_argument("--id", required=True, metavar="ALERT_ID",
-                           help="Alert ID to comment on.")
-    p_comment.add_argument("--body", required=True,
-                           help="Comment body text.")
-    p_comment.add_argument("--html", action="store_true",
-                           help="Treat --body as HTML (default: plain text).")
+    p_comment.add_argument(
+        "--id", required=True, metavar="ALERT_ID", help="Alert ID to comment on."
+    )
+    p_comment.add_argument("--body", required=True, help="Comment body text.")
+    p_comment.add_argument(
+        "--html",
+        action="store_true",
+        help="Treat --body as HTML (default: plain text).",
+    )
 
     # assign sub-command
     p_assign = sub.add_parser("assign", help="Assign alerts to a user.")
-    p_assign.add_argument("--ids", nargs="+", required=True, metavar="ALERT_ID",
-                          help="One or more alert IDs to assign.")
+    p_assign.add_argument(
+        "--ids",
+        nargs="+",
+        required=True,
+        metavar="ALERT_ID",
+        help="One or more alert IDs to assign.",
+    )
     assign_by = p_assign.add_mutually_exclusive_group(required=True)
-    assign_by.add_argument("--email", metavar="EMAIL",
-                           help="Assignee's email address.")
-    assign_by.add_argument("--user-id", metavar="USER_ID",
-                           help="Assignee's Panther user ID.")
+    assign_by.add_argument("--email", metavar="EMAIL", help="Assignee's email address.")
+    assign_by.add_argument(
+        "--user-id", metavar="USER_ID", help="Assignee's Panther user ID."
+    )
 
     # unassign sub-command
     p_unassign = sub.add_parser("unassign", help="Remove assignee from alerts.")
-    p_unassign.add_argument("--ids", nargs="+", required=True, metavar="ALERT_ID",
-                            help="One or more alert IDs to unassign.")
+    p_unassign.add_argument(
+        "--ids",
+        nargs="+",
+        required=True,
+        metavar="ALERT_ID",
+        help="One or more alert IDs to unassign.",
+    )
 
     args = parser.parse_args()
     client = get_client()
 
     dispatch = {
-        "status":   cmd_status,
-        "comment":  cmd_comment,
-        "assign":   cmd_assign,
+        "status": cmd_status,
+        "comment": cmd_comment,
+        "assign": cmd_assign,
         "unassign": cmd_unassign,
     }
     result = dispatch[args.command](client, args)

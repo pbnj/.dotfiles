@@ -55,7 +55,9 @@ def main():
     parser = argparse.ArgumentParser(description="Get SBOM document for a Snyk project")
     parser.add_argument("--org-id", required=True, help="Organization UUID")
     parser.add_argument("--project-id", required=True, help="Project UUID")
-    parser.add_argument("--format", default="cyclonedx1.6+json", choices=FORMATS, help="SBOM format")
+    parser.add_argument(
+        "--format", default="cyclonedx1.6+json", choices=FORMATS, help="SBOM format"
+    )
     parser.add_argument("--output", "-o", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
