@@ -1,0 +1,95 @@
+{
+  "skill_name": "address-pr-comments",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Hey, I got a review comment on my PR that I need to address. I've already fetched the thread data from GitHub and saved it to `evals/files/eval1/threads.json`. The source file is at `evals/files/eval1/src/auth.py`. Can you work through the review thread and apply the fix?",
+      "expected_output": "auth.py is updated with `is None` instead of `== None`. A reply is drafted for the thread. The agent identifies this as a Suggestion-type thread and follows the triage → address → respond → resolve workflow.",
+      "files": [
+        "evals/files/eval1/threads.json",
+        "evals/files/eval1/src/auth.py"
+      ],
+      "assertions": [
+        {
+          "id": "a1",
+          "text": "auth.py is modified to use `is None` instead of `== None`"
+        },
+        {
+          "id": "a2",
+          "text": "A reply is drafted for the review thread"
+        },
+        {
+          "id": "a3",
+          "text": "The thread is classified as a Suggestion type"
+        },
+        {
+          "id": "a4",
+          "text": "The resolve step is mentioned or documented"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My PR has a security review comment I need to fix. Thread data is in `evals/files/eval2/threads.json` and the affected file is at `evals/files/eval2/src/database.py`. Can you address the feedback?",
+      "expected_output": "database.py is updated to use a parameterized query instead of string interpolation. A reply is drafted explaining the fix. The agent identifies this as a Change-type thread (no suggestion block).",
+      "files": [
+        "evals/files/eval2/threads.json",
+        "evals/files/eval2/src/database.py"
+      ],
+      "assertions": [
+        {
+          "id": "a1",
+          "text": "database.py no longer contains an f-string in the SQL query"
+        },
+        {
+          "id": "a2",
+          "text": "database.py uses a parameterized query with a placeholder (? or %s) and a separate values argument"
+        },
+        {
+          "id": "a3",
+          "text": "A reply is drafted describing the SQL injection fix"
+        },
+        {
+          "id": "a4",
+          "text": "The thread is classified as a Change request (not a Suggestion)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I've got 3 open review threads on my PR that I need to work through — there's a suggestion, a change request, and a question from the reviewer. Thread data is at `evals/files/eval3/threads.json`, source files are in `evals/files/eval3/src/`. Can you handle all of them?",
+      "expected_output": "api_client.py is updated with a USERS_ENDPOINT constant and the suggestion applied. logger.py is updated to use the `logging` module. The question thread gets a reply but no code change. All three threads have replies drafted. Only the two actionable threads have code changes.",
+      "files": [
+        "evals/files/eval3/threads.json",
+        "evals/files/eval3/src/api_client.py",
+        "evals/files/eval3/src/logger.py"
+      ],
+      "assertions": [
+        {
+          "id": "a1",
+          "text": "api_client.py contains a `USERS_ENDPOINT` constant"
+        },
+        {
+          "id": "a2",
+          "text": "The suggestion in thread 03a is applied — get_users() uses the USERS_ENDPOINT variable"
+        },
+        {
+          "id": "a3",
+          "text": "logger.py uses `logging.info` or similar instead of `print`"
+        },
+        {
+          "id": "a4",
+          "text": "All three threads have replies drafted"
+        },
+        {
+          "id": "a5",
+          "text": "Thread 03c (question) gets a reply but no code change is made"
+        },
+        {
+          "id": "a6",
+          "text": "The agent classifies thread 03c as a Question type"
+        }
+      ]
+    }
+  ]
+}

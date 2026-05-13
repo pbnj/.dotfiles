@@ -1,0 +1,31 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "PRRT_kwDOAAAA01",
+              "isResolved": false,
+              "path": "src/auth.py",
+              "line": 2,
+              "originalLine": 2,
+              "diffHunk": "@@ -1,4 +1,4 @@\n def validate_token(token):\n+    if token == None:\n+        raise ValueError(\"Token cannot be None\")\n+    return len(token) > 0",
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "IC_kwDOAAAA01",
+                    "databaseId": 11111111,
+                    "body": "Use `is None` for identity comparison — `== None` can misbehave if the object overrides `__eq__`.\n\n```suggestion\n    if token is None:\n```",
+                    "author": { "login": "alice" },
+                    "createdAt": "2026-03-24T18:00:00Z"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -21,6 +21,7 @@ repos:
         description: Lint markdown files
         language: system
         types: [markdown]
+        exclude: '^templates/'
         entry: npx markdownlint-cli2 --ignore ./templates
       - id: prettier
         name: prettier

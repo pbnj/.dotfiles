@@ -1,0 +1,69 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "PRRT_kwDOAAAA03a",
+              "isResolved": false,
+              "path": "src/api_client.py",
+              "line": 5,
+              "originalLine": 5,
+              "diffHunk": "@@ -1,10 +1,10 @@\n import requests\n \n BASE_URL = \"https://api.example.com/v1\"\n \n def get_users():\n+    response = requests.get(BASE_URL + \"/users\")\n+    return response.json()",
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "IC_kwDOAAAA03a",
+                    "databaseId": 33333331,
+                    "body": "Let's extract `/users` to a named constant so it's easy to find and change.\n\n```suggestion\n    response = requests.get(BASE_URL + USERS_ENDPOINT)\n```",
+                    "author": { "login": "carol" },
+                    "createdAt": "2026-03-24T20:00:00Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOAAAA03b",
+              "isResolved": false,
+              "path": "src/logger.py",
+              "line": 2,
+              "originalLine": 2,
+              "diffHunk": "@@ -1,2 +1,2 @@\n def log_event(event_type, data):\n+    print(f\"EVENT: {event_type} - {data}\")",
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "IC_kwDOAAAA03b",
+                    "databaseId": 33333332,
+                    "body": "Please use Python's `logging` module instead of `print` — this lets us control log levels and redirect output in production without changing application code.",
+                    "author": { "login": "carol" },
+                    "createdAt": "2026-03-24T20:05:00Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOAAAA03c",
+              "isResolved": false,
+              "path": "src/api_client.py",
+              "line": 9,
+              "originalLine": 9,
+              "diffHunk": "@@ -7,4 +7,4 @@\n \n def create_user(name, email):\n+    response = requests.post(BASE_URL + \"/users\", json={\"name\": name, \"email\": email})\n+    return response.json()",
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "IC_kwDOAAAA03c",
+                    "databaseId": 33333333,
+                    "body": "Curious — why are we concatenating URL strings here instead of using `urllib.parse.urljoin`? Is there a reason we're avoiding that?",
+                    "author": { "login": "carol" },
+                    "createdAt": "2026-03-24T20:10:00Z"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "PRRT_kwDOAAAA02",
+              "isResolved": false,
+              "path": "src/database.py",
+              "line": 3,
+              "originalLine": 3,
+              "diffHunk": "@@ -1,4 +1,4 @@\n def fetch_user(user_id):\n     conn = get_connection()\n+    result = conn.execute(f\"SELECT * FROM users WHERE id = {user_id}\")\n+    return result.fetchone()",
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "IC_kwDOAAAA02",
+                    "databaseId": 22222222,
+                    "body": "SQL injection vulnerability — `user_id` is interpolated directly into the query string. Please use a parameterized query so the value is passed separately from the SQL.",
+                    "author": { "login": "bob" },
+                    "createdAt": "2026-03-24T19:00:00Z"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
