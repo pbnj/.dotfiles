@@ -1,0 +1,29 @@
+{
+  "skill_name": "search-glean",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Find the incident response runbook in our internal docs",
+      "expected_output": "Search results from Glean showing internal Confluence pages or documents related to incident response runbooks, with direct URLs ready to fetch for full content.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Search for the Jira epic about the data pipeline migration",
+      "expected_output": "Glean search results filtered to Jira showing epics or tickets related to data pipeline migration, with issue URLs and relevant snippets.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Look up how our authentication middleware works in the codebase",
+      "expected_output": "Glean search results filtered to GitHub showing READMEs, code files, or PRs related to authentication middleware, with repository URLs and code snippets.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Find any internal documentation about our onboarding process",
+      "expected_output": "Cross-source Glean results covering Confluence pages, Google Drive docs, or Notion pages about employee or developer onboarding, with URLs and excerpts.",
+      "files": []
+    }
+  ]
+}
