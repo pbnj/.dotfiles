@@ -10,7 +10,7 @@ repos:
         description: Generate or update Table of Contents in markdown files
         types: [markdown]
         language: system
-        entry: npx doctoc --notitle --update-only
+        entry: doctoc --notitle --update-only
       # - id: prettier
       #   name: prettier
       #   description: Format markdown files
@@ -22,14 +22,14 @@ repos:
         description: Lint markdown files
         language: system
         types: [markdown]
-        exclude: '^templates/'
-        entry: npx markdownlint-cli2 --ignore ./templates
-      - id: prettier
-        name: prettier
-        description: Format markdown files
-        types: [json, yaml]
-        entry: npx prettier --write --check
-        language: system
+        exclude: "^templates/"
+        entry: markdownlint-cli2
+      # - id: prettier
+      #   name: prettier
+      #   description: Format markdown files
+      #   types: [json, yaml]
+      #   entry: prettier --write --check
+      #   language: system
       - id: betterleaks
         name: betterleaks
         description: Detect hardcoded secrets using Betterleaks
@@ -37,13 +37,13 @@ repos:
         language: system
         pass_filenames: false
       - id: ruff-format
-        name: ruff-format
+        name: ruff format
         description: Format Python files
         language: system
         types: [python]
         entry: ruff format
-      - id: ruff-check
-        name: ruff-check
+      - id: ruff-check-fix
+        name: ruff check --fix
         description: Lint Python files
         language: system
         types: [python]
@@ -77,14 +77,14 @@ repos:
         description: Lint and auto-fix JS/TS files
         language: system
         types_or: [javascript, jsx, ts, tsx]
-        entry: pnpm --filter pi lint:fix
+        entry: pnpm lint:fix
         pass_filenames: false
       - id: pnpm-fmt
         name: pnpm fmt
         description: Format JS/TS files
         language: system
-        types_or: [javascript, jsx, ts, tsx]
-        entry: pnpm --filter pi fmt
+        # types_or: [javascript, jsx, ts, tsx]
+        entry: pnpx oxfmt
         pass_filenames: false
       - id: commitizen
         name: commitizen

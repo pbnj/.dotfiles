@@ -1,4 +1,12 @@
 {
   "name": "dotfiles",
-  "private": true
+  "private": true,
+  "scripts": {
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "lint:types": "oxlint --type-aware",
+    "lint:types:check": "oxlint --type-aware --type-check",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
+  }
 }
