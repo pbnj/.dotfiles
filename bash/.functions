@@ -5,17 +5,29 @@ dateiso() {
 }
 
 brew() {
-        arch -arm64 brew $@
+        arch -arm64 brew "$@"
 }
 
 paws() {
-        TMP_DIR="$(mktemp -d)"
-        AWS_CONFIG_FILE="${TMP_DIR}/config"
-        op read -o "${AWS_CONFIG_FILE}" "op://Employee/aws/config" &>/dev/null
-        AWS_CONFIG_FILE="${TMP_DIR}/config" command aws $@
-        rm -rf "${TMP_DIR}"
+        AWS_CONFIG_FILE="$(mktemp)"
+        export AWS_CONFIG_FILE
+        op read "op://Employee/aws/config" >"${AWS_CONFIG_FILE}"
+        command aws "$@"
+        unset AWS_CONFIG_FILE
+        rm -f "$AWS_CONFIG_FILE"
 }
 complete -C 'aws_completer' paws # for shell tab-completion
+
+
+pkubectl() {
+        AWS_CONFIG_FILE="$(mktemp)"
+        export AWS_CONFIG_FILE
+        op read "op://Employee/aws/config" >"${AWS_CONFIG_FILE}"
+        command kubectl "$@"
+        unset AWS_CONFIG_FILE
+        rm -f "$AWS_CONFIG_FILE"
+}
+complete -o default -F __start_kubectl pkubectl # for shell tab-completion
 
 __git_branch() {
   git branch --show-current 2>/dev/null | sed 's/^/ (/' | sed 's/$/)/'

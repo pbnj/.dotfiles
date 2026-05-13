@@ -68,15 +68,12 @@ vim.lsp.log.set_level("OFF")
 local servers = {
 	-- copilot = {},
 	-- pyright = {},
-	bashls = {},
-	docker_language_server = {},
+	-- terraformls = {},
 	golangci_lint_ls = {},
 	gopls = {},
 	lua_ls = {},
-	marksman = {},
 	ruff = {},
 	rust_analyzer = {},
-	terraformls = {},
 	tflint = {},
 	jsonls = {
 		settings = {
