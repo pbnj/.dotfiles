@@ -1,7 +1,7 @@
 # Config: https://pre-commit.com/#plugins
 # Hooks: https://pre-commit.com/#new-hooks
 ---
-fail_fast: true
+# fail_fast: true
 repos:
   - repo: local
     hooks:
@@ -11,6 +11,20 @@ repos:
         types: [markdown]
         language: system
         entry: doctoc --notitle --update-only
+      - id: pnpx-oxlint
+        name: pnpx oxlint
+        description: Lint and auto-fix JS/TS files
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        entry: pnpx oxlint
+        pass_filenames: false
+      - id: pnpx-oxfmt
+        name: pnpx oxfmt
+        description: Format supported files
+        language: system
+        # types_or: [javascript, jsx, ts, tsx]
+        entry: pnpx oxfmt
+        pass_filenames: false
       # - id: prettier
       #   name: prettier
       #   description: Format markdown files
@@ -23,7 +37,7 @@ repos:
         language: system
         types: [markdown]
         exclude: "^templates/"
-        entry: markdownlint-cli2
+        entry: markdownlint-cli2 --fix
       # - id: prettier
       #   name: prettier
       #   description: Format markdown files
@@ -74,20 +88,6 @@ repos:
         language: system
         types: [file, lua]
         entry: luacheck --
-      - id: pnpx-oxlint
-        name: pnpx oxlint
-        description: Lint and auto-fix JS/TS files
-        language: system
-        types_or: [javascript, jsx, ts, tsx]
-        entry: pnpx oxlint
-        pass_filenames: false
-      - id: pnpx-oxfmt
-        name: pnpx oxfmt
-        description: Format supported files
-        language: system
-        # types_or: [javascript, jsx, ts, tsx]
-        entry: pnpx oxfmt
-        pass_filenames: false
       - id: commitizen
         name: commitizen
         description: This hook lints commit messages

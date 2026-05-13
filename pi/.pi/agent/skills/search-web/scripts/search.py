@@ -4,26 +4,38 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "click",
+#   "crawl4ai",
 #   "ddgs",
 #   "requests",
-#   "simple-term-menu",
 # ]
 # ///
 
+import asyncio
 import sys
 import json
-import webbrowser
 import click
 import requests
 from typing import Optional
 from ddgs import DDGS
-from simple_term_menu import TerminalMenu
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+from crawl4ai.async_configs import CacheMode
 
 SEARXNG_DEFAULT_URL = "http://localhost:8888"
 
 
+async def _fetch_contents(urls: list[str]) -> dict[str, str]:
+    """Fetch page content for a list of URLs using crawl4ai.
+
+    Returns a mapping of URL -> markdown content (empty string on failure).
+    """
+    config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
+    async with AsyncWebCrawler() as crawler:
+        results = await crawler.arun_many(urls=urls, config=config)
+    return {r.url: (r.markdown or "") if r.success else "" for r in results}
+
+
 def _search_searxng(
-    query: str, base_url: str, num_results: int, region: str, safesearch: str
+    query: str, base_url: str, num: int, region: str, safesearch: str
 ) -> list[dict]:
     safesearch_map = {"off": 0, "moderate": 1, "strict": 2}
     params = {
@@ -43,25 +55,37 @@ def _search_searxng(
             "href": r.get("url", ""),
             "body": r.get("content", ""),
         }
-        for r in data.get("results", [])[:num_results]
+        for r in data.get("results", [])[:num]
     ]
 
 
-def _search_ddgs(
-    query: str, num_results: int, region: str, safesearch: str
-) -> list[dict]:
+def _search_ddgs(query: str, num: int, region: str, safesearch: str) -> list[dict]:
     return list(
-        DDGS().text(
-            query, region=region, safesearch=safesearch, max_results=num_results
-        )
+        DDGS().text(query, region=region, safesearch=safesearch, max_results=num)
     )
+
+
+def _render_markdown(results: list[dict]) -> str:
+    parts = []
+    for i, r in enumerate(results, 1):
+        title = r.get("title") or "(no title)"
+        href = r.get("href", "")
+        body = r.get("body", "")
+        content = r.get("content", "")
+
+        parts.append(f"## {i}. [{title}]({href})")
+        if body:
+            parts.append(f"{body}")
+        if content:
+            parts.append("")
+            parts.append(content.strip())
+        parts.append("")
+    return "\n".join(parts).rstrip()
 
 
 @click.command()
 @click.argument("query")
-@click.option(
-    "--num-results", type=int, default=10, help="Number of results to return (1-50)"
-)
+@click.option("--num", type=int, default=10, help="Number of results to return (1-50)")
 @click.option(
     "--region", default="wt-wt", help="Geographic region (e.g., wt-wt, en-us)"
 )
@@ -77,32 +101,48 @@ def _search_ddgs(
     help="Safe search level",
 )
 @click.option(
-    "--json", "json_output", is_flag=True, help="Output results in JSON format"
-)
-@click.option(
     "--searxng-url",
     default=None,
     envvar="SEARXNG_URL",
     help=f"SearXNG base URL (default: {SEARXNG_DEFAULT_URL})",
 )
+@click.option(
+    "--fetch",
+    "fetch_content",
+    is_flag=True,
+    default=False,
+    help="Fetch full page content for each result using crawl4ai.",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["json", "markdown"]),
+    default="json",
+    help="Output format: json (default) or markdown.",
+)
 def search(
     query: str,
-    num_results: int,
+    num: int,
     region: str,
     site: Optional[str],
     safesearch: str,
-    json_output: bool,
     searxng_url: Optional[str],
+    fetch_content: bool,
+    output: str,
 ) -> None:
     """Search the web via SearXNG (primary) with DuckDuckGo fallback.
 
+    Output is JSON by default.
+
     Examples:
-        python search.py "Python asyncio" --num-results 5
-        python search.py "async patterns" --num-results 10 --site github.com
+        python search.py "Python asyncio" --num 5
+        python search.py "async patterns" --num 10 --site github.com
         SEARXNG_URL=http://searxng.internal python search.py "Rust ownership"
+        python search.py "crawl4ai quickstart" --fetch
+        python search.py "Rust lifetimes" --output markdown
+        python search.py "Rust lifetimes" --fetch --output markdown
     """
-    if num_results < 1 or num_results > 50:
-        click.echo("Error: num-results must be between 1 and 50", err=True)
+    if num < 1 or num > 50:
+        click.echo("Error: num must be between 1 and 50", err=True)
         sys.exit(1)
 
     if site:
@@ -110,11 +150,10 @@ def search(
 
     base_url = searxng_url or SEARXNG_DEFAULT_URL
     results = None
-    engine_used = None
 
     try:
-        results = _search_searxng(query, base_url, num_results, region, safesearch)
-        engine_used = "SearXNG"
+        results = _search_searxng(query, base_url, num, region, safesearch)
+        click.echo("engine: SearXNG", err=True)
     except Exception as e:
         click.echo(
             f"SearXNG unavailable ({e}), falling back to DuckDuckGo...", err=True
@@ -122,74 +161,27 @@ def search(
 
     if not results:
         try:
-            results = _search_ddgs(query, num_results, region, safesearch)
-            engine_used = "DuckDuckGo"
+            results = _search_ddgs(query, num, region, safesearch)
+            click.echo("engine: DuckDuckGo", err=True)
         except Exception as e:
             click.echo(f"Error during search: {e}", err=True)
             sys.exit(1)
 
     if not results:
-        click.echo("No results found.")
-        if json_output:
-            click.echo(json.dumps([]))
+        click.echo(json.dumps([]) if output == "json" else "No results found.")
         return
 
-    if json_output:
+    if fetch_content:
+        click.echo("Fetching page content...", err=True)
+        urls = [r["href"] for r in results if r.get("href")]
+        content_map = asyncio.run(_fetch_contents(urls))
+        for r in results:
+            r["content"] = content_map.get(r.get("href", ""), "")
+
+    if output == "markdown":
+        click.echo(_render_markdown(results))
+    else:
         click.echo(json.dumps(results, indent=2))
-        return
-
-    click.echo(f"[{engine_used}]\n", err=True)
-
-    if not sys.stdin.isatty():
-        for i, result in enumerate(results, 1):
-            title = result.get("title", "")
-            url = result.get("href", "")
-            excerpt = result.get("body", "")
-            click.echo(f" {i}. {title}")
-            click.echo(f"    {url}")
-            if excerpt:
-                click.echo(f"    {excerpt}")
-            click.echo()
-        return
-
-    entries = [
-        f"{i + 1}. {r.get('title', '') or '(no title)'}" for i, r in enumerate(results)
-    ]
-
-    def preview(entry: str) -> str:
-        try:
-            idx = int(entry.split(".")[0].strip()) - 1
-            r = results[idx]
-        except (ValueError, IndexError):
-            return ""
-        parts = []
-        if r.get("title"):
-            parts.append(r["title"])
-        if r.get("href"):
-            parts.append(r["href"])
-        if r.get("body"):
-            parts.append("")
-            parts.append(r["body"])
-        return "\n".join(parts)
-
-    last_idx = 0
-    while True:
-        menu = TerminalMenu(
-            entries,
-            title="j/k or ↑/↓ to navigate, Enter to open, q/Esc to quit",
-            preview_command=preview,
-            preview_size=0.4,
-            preview_title="Preview",
-            cursor_index=last_idx,
-            clear_screen=False,
-        )
-        idx = menu.show()
-        if idx is None:
-            break
-        last_idx = idx
-        url = results[idx].get("href", "")
-        # click.echo(f"Opening: {url}", err=True)
-        webbrowser.open(url)
 
 
 if __name__ == "__main__":

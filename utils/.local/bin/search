@@ -1,91 +1,182 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env -S uv run --script
 
-SKILL_SCRIPT="$HOME/.pi/agent/skills/search-web/scripts/search.py"
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "click",
+#   "simple-term-menu",
+# ]
+# ///
 
-usage() {
-  cat >&2 <<EOF
-Usage: search [options] KEYWORDS...
+"""
+Interactive web search wrapper around the search-web skill.
 
-Search the web via SearXNG (primary) with DuckDuckGo fallback.
+When stdout is a TTY: shows a navigable menu with preview and opens results
+in the browser on Enter.  When piped / non-interactive: passes JSON through
+unchanged so it can be consumed by other tools.
+"""
 
-Options:
-  -n, --num N           number of results (default: 10, max: 50)
-  -r, --reg REG         region, e.g. us-en, en-gb (default: wt-wt)
-  -w, --site SITE       restrict results to a domain (e.g. github.com)
-      --unsafe          disable safe search
-      --json            output results in JSON
-      --searxng-url URL override SearXNG base URL (also: \$SEARXNG_URL)
-  -h, --help            show this help
+import json
+import os
+import subprocess
+import sys
+import webbrowser
+from typing import Optional
 
-ddgr-compatible flags accepted but ignored: --np, --noprompt, -j, --ducky,
-  -x, --expand, -C, --nocolor, --rev, --reverse
-EOF
-  exit "${1:-0}"
-}
+import click
+from simple_term_menu import TerminalMenu
 
-num_results=10
-region="wt-wt"
-site=""
-safesearch="moderate"
-json_output=""
-keywords=()
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -n | --num)
-      num_results="$2"
-      shift 2
-      ;;
-    -r | --reg)
-      region="$2"
-      shift 2
-      ;;
-    -w | --site)
-      site="$2"
-      shift 2
-      ;;
-    --unsafe)
-      safesearch="off"
-      shift
-      ;;
-    --json)
-      json_output=true
-      shift
-      ;;
-    --searxng-url)
-      export SEARXNG_URL="$2"
-      shift 2
-      ;;
-    -h | --help)
-      usage 0
-      ;;
-    --np | --noprompt | -j | --ducky | -x | --expand | -C | --nocolor | --rev | --reverse)
-      shift
-      ;;
-    -*)
-      echo "search: unknown option: $1" >&2
-      usage 1
-      ;;
-    *)
-      keywords+=("$1")
-      shift
-      ;;
-  esac
-done
-
-if [[ ${#keywords[@]} -eq 0 ]]; then
-  echo "search: no keywords provided" >&2
-  usage 1
-fi
-
-args=(
-  "${keywords[*]}"
-  --num-results "$num_results"
-  --region "$region"
-  --safesearch "$safesearch"
+SKILL_SCRIPT = os.path.expanduser(
+    "~/.pi/agent/skills/search-web/scripts/search.py"
 )
-[[ -n "$site" ]] && args+=(--site "$site")
-[[ -n "${json_output:-}" ]] && args+=(--json)
 
-exec uv run --no-project "$SKILL_SCRIPT" "${args[@]}"
+
+def _run_search(
+    query: str,
+    num: int,
+    region: str,
+    site: Optional[str],
+    safesearch: str,
+    searxng_url: Optional[str],
+    fetch_content: bool,
+) -> list[dict]:
+    args = [
+        "uv",
+        "run",
+        "--no-project",
+        SKILL_SCRIPT,
+        query,
+        "--num",
+        str(num),
+        "--region",
+        region,
+        "--safesearch",
+        safesearch,
+    ]
+    if site:
+        args += ["--site", site]
+    if fetch_content:
+        args += ["--fetch"]
+
+    env = os.environ.copy()
+    if searxng_url:
+        env["SEARXNG_URL"] = searxng_url
+
+    proc = subprocess.run(
+        args,
+        capture_output=False,
+        stdout=subprocess.PIPE,
+        env=env,
+        text=True,
+    )
+    if proc.returncode != 0:
+        sys.exit(proc.returncode)
+
+    return json.loads(proc.stdout)
+
+
+def _interactive(results: list[dict]) -> None:
+    entries = [
+        f"{i + 1:>2}. {r.get('title') or '(no title)'}"
+        for i, r in enumerate(results)
+    ]
+
+    def preview(entry: str) -> str:
+        try:
+            idx = int(entry.split(".")[0].strip()) - 1
+            r = results[idx]
+        except (ValueError, IndexError):
+            return ""
+        parts = []
+        if r.get("title"):
+            parts.append(r["title"])
+        if r.get("href"):
+            parts.append(r["href"])
+        if r.get("body"):
+            parts += ["", r["body"]]
+        if r.get("content"):
+            parts += ["", "--- full content ---", r["content"][:2000]]
+        return "\n".join(parts)
+
+    last_idx = 0
+    while True:
+        menu = TerminalMenu(
+            entries,
+            title="j/k or ↑/↓ to navigate  •  Enter to open in browser  •  q/Esc to quit",
+            preview_command=preview,
+            preview_size=0.4,
+            preview_title="Preview",
+            cursor_index=last_idx,
+            clear_screen=False,
+        )
+        idx = menu.show()
+        if idx is None:
+            break
+        last_idx = idx
+        url = results[idx].get("href", "")
+        if url:
+            click.echo(f"Opening: {url}", err=True)
+            webbrowser.open(url)
+
+
+@click.command(context_settings={"ignore_unknown_options": True})
+@click.argument("keywords", nargs=-1, required=True)
+@click.option("-n", "--num", type=int, default=10, help="Number of results (1-50)")
+@click.option("-r", "--region", default="wt-wt", help="Region (e.g. us-en, wt-wt)")
+@click.option("-w", "--site", default=None, help="Restrict to domain (e.g. github.com)")
+@click.option(
+    "--safesearch",
+    type=click.Choice(["off", "moderate", "strict"]),
+    default="moderate",
+    help="Safe search level",
+)
+@click.option("--unsafe", is_flag=True, default=False, help="Alias for --safesearch off")
+@click.option("--searxng-url", default=None, envvar="SEARXNG_URL", help="Override SearXNG base URL")
+@click.option("--fetch", "fetch_content", is_flag=True, default=False, help="Fetch full page content via crawl4ai")
+# ddgr-compatible flags accepted but ignored
+@click.option("--np", "--noprompt", "noprompt", is_flag=True, hidden=True)
+@click.option("-j", "--ducky", is_flag=True, hidden=True)
+@click.option("-x", "--expand", is_flag=True, hidden=True)
+@click.option("-C", "--nocolor", is_flag=True, hidden=True)
+@click.option("--rev", "--reverse", "reverse", is_flag=True, hidden=True)
+def main(
+    keywords: tuple[str, ...],
+    num: int,
+    region: str,
+    site: Optional[str],
+    safesearch: str,
+    unsafe: bool,
+    searxng_url: Optional[str],
+    fetch_content: bool,
+    **_ignored,
+) -> None:
+    """Search the web. Interactive TUI when run in a terminal; JSON output when piped."""
+    if unsafe:
+        safesearch = "off"
+
+    query = " ".join(keywords)
+    results = _run_search(
+        query=query,
+        num=num,
+        region=region,
+        site=site,
+        safesearch=safesearch,
+        searxng_url=searxng_url,
+        fetch_content=fetch_content,
+    )
+
+    if not results:
+        if sys.stdout.isatty():
+            click.echo("No results found.")
+        else:
+            click.echo(json.dumps([]))
+        return
+
+    if sys.stdout.isatty():
+        _interactive(results)
+    else:
+        click.echo(json.dumps(results, indent=2))
+
+
+if __name__ == "__main__":
+    main()

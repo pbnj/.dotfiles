@@ -8,13 +8,14 @@ uv run /path/to/scripts/search.py --query "search terms" [OPTIONS]
 
 ## All Options
 
-| Option          | Description               | Example                  | Default            |
-| --------------- | ------------------------- | ------------------------ | ------------------ |
-| `--query`       | **Required** search terms | `--query "Python async"` | N/A                |
-| `--num-results` | Number of results (1-50)  | `--num-results 10`       | 10                 |
-| `--region`      | Geographic region         | `--region us-en`         | wt-wt (worldwide)  |
-| `--site`        | Limit to domain           | `--site github.com`      | none (all results) |
-| `--safesearch`  | Safe search level         | `--safesearch strict`    | moderate           |
+| Option         | Description               | Example                  | Default            |
+| -------------- | ------------------------- | ------------------------ | ------------------ |
+| `--query`      | **Required** search terms | `--query "Python async"` | N/A                |
+| `--num`        | Number of results (1-50)  | `--num 10`               | 10                 |
+| `--region`     | Geographic region         | `--region us-en`         | wt-wt (worldwide)  |
+| `--site`       | Limit to domain           | `--site github.com`      | none (all results) |
+| `--safesearch` | Safe search level         | `--safesearch strict`    | moderate           |
+| `--fetch`      | Fetch full page content   | `--fetch`                | off                |
 
 ## Common Commands
 
@@ -24,10 +25,16 @@ uv run /path/to/scripts/search.py --query "search terms" [OPTIONS]
 uv run scripts/search.py --query "topic"
 ```
 
+### Search and fetch full content
+
+```bash
+uv run scripts/search.py --query "topic" --num 5 --fetch --json
+```
+
 ### Search with custom result count
 
 ```bash
-uv run scripts/search.py --query "topic" --num-results 15
+uv run scripts/search.py --query "topic" --num 15
 ```
 
 ### Search GitHub
@@ -63,7 +70,7 @@ uv run scripts/search.py --query "topic" --safesearch strict
 ### Combine multiple options
 
 ```bash
-uv run scripts/search.py --query "async" --num-results 10 --site github.com
+uv run scripts/search.py --query "async" --num 10 --site github.com
 ```
 
 ## Domain Shortcuts
@@ -103,6 +110,7 @@ Each result includes:
 2. **Title** — Result title/heading
 3. **URL** — Full, expanded, copy-paste-ready URL
 4. **Excerpt** — Preview text (if available)
+5. **Content** — Full page markdown (only when `--fetch` is used)
 
 ```text
  1. Title of First Result
@@ -147,7 +155,7 @@ uv run scripts/search.py --query "topic" --safesearch strict
 1. **Search** for information:
 
    ```bash
-   uv run scripts/search.py --query "asyncio" --site docs.python.org --num-results 3
+   uv run scripts/search.py --query "asyncio" --site docs.python.org --num 3
    ```
 
 2. **Copy** the expanded URL from results
@@ -168,7 +176,7 @@ uv run scripts/search.py --query "topic" --safesearch strict
 - **Combine searches** — Try different `--site` values for different
   perspectives
 - **Check excerpts first** — They often have the answer without needing to fetch
-- **Get more if needed** — Can always run again with `--num-results 20` to see
+- **Get more if needed** — Can always run again with `--num 20` to see
   more
 - **No API key needed** — Uses public DuckDuckGo service
 - **Python-based** — More portable and reliable than CLI tools
@@ -178,7 +186,7 @@ uv run scripts/search.py --query "topic" --safesearch strict
 ### Research topic
 
 ```bash
-uv run scripts/search.py --query "Kubernetes networking" --num-results 10
+uv run scripts/search.py --query "Kubernetes networking" --num 10
 ```
 
 ### Troubleshoot error
@@ -190,13 +198,13 @@ uv run scripts/search.py --query "ModuleNotFoundError: No module named" --site s
 ### Find GitHub examples
 
 ```bash
-uv run scripts/search.py --query "rest api fastapi" --site github.com --num-results 10
+uv run scripts/search.py --query "rest api fastapi" --site github.com --num 10
 ```
 
 ### Get latest info
 
 ```bash
-uv run scripts/search.py --query "PostgreSQL 16 new features" --num-results 5
+uv run scripts/search.py --query "PostgreSQL 16 new features" --num 5
 ```
 
 ### Search tutorials
@@ -208,11 +216,11 @@ uv run scripts/search.py --query "Docker best practices" --site dev.to
 ### Search with region
 
 ```bash
-uv run scripts/search.py --query "tech news" --region us-en --num-results 5
+uv run scripts/search.py --query "tech news" --region us-en --num 5
 ```
 
 ### Multi-constraint search
 
 ```bash
-uv run scripts/search.py --query "async patterns" --site github.com --num-results 15 --region en-gb
+uv run scripts/search.py --query "async patterns" --site github.com --num 15 --region en-gb
 ```
