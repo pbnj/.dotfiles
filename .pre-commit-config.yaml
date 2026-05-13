@@ -35,6 +35,18 @@ repos:
         entry: betterleaks git --pre-commit --redact --staged --verbose
         language: system
         pass_filenames: false
+      - id: ruff-format
+        name: ruff-format
+        description: Format Python files
+        language: system
+        types: [python]
+        entry: ruff format
+      - id: ruff-check
+        name: ruff-check
+        description: Lint Python files
+        language: system
+        types: [python]
+        entry: ruff check --fix
       - id: shellcheck
         name: shellcheck
         description: Lint shell scripts
