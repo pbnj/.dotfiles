@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -euo pipefail
+
+brew uninstall --zap --force microsoft-office google-chrome
