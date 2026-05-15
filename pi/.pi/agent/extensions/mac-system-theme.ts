@@ -11,7 +11,7 @@ async function getSystemTheme(pi: ExtensionAPI): Promise<"dark" | "light"> {
       "-e",
       'tell application "System Events" to tell appearance preferences to return dark mode',
     ]);
-    return result.stdout.trim() === "true" ? "dark" : "light";
+    return result.stdout.trim() === "true" ? "Tokyo Night Moon" : "Tokyo Night Day";
   } catch {
     return "dark";
   }
