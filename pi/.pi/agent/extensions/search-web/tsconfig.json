@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "paths": {
+      "@earendil-works/pi-coding-agent": [
+        "/Users/peter.benjamin/Library/pnpm/store/v11/links/@earendil-works/pi-coding-agent/0.74.0/0fd0229d2239bc1d6c4df63d53cebe90bacdb97e34ee67f341bf249877d2c673/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
+      ],
+      "typebox": [
+        "/Users/peter.benjamin/Library/pnpm/store/v11/links/@earendil-works/pi-coding-agent/0.74.0/0fd0229d2239bc1d6c4df63d53cebe90bacdb97e34ee67f341bf249877d2c673/node_modules/typebox/build/index.d.mts"
+      ],
+      "@earendil-works/pi-tui": [
+        "/Users/peter.benjamin/Library/pnpm/store/v11/links/@earendil-works/pi-tui/0.74.0/7fb854bd7a46a189f88d8555bc5b2a53c37de026f13e432eb801b02d182b261f/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
+      ]
+    }
+  },
+  "include": ["*.ts", "tools/*.ts"]
+}

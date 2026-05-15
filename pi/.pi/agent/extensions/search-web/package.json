@@ -1,0 +1,25 @@
+{
+  "name": "pi-extension-search-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "duck-duck-scrape": "^2.2.5",
+    "linkedom": "^0.18.5",
+    "playwright": "^1.52.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/turndown": "^5.0.5",
+    "typescript": "^6.0.3"
+  }
+}

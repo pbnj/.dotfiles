@@ -11,26 +11,12 @@ repos:
         types: [markdown]
         language: system
         entry: doctoc --notitle --update-only
-      - id: pnpx-oxlint
-        name: pnpx oxlint
-        description: Lint and auto-fix JS/TS files
+      - id: prettier
+        name: prettier
+        description: Format markdown files
+        types_or: [markdown, json, yaml, json5, ts, tsx, javascript, jsx]
+        entry: npx prettier --write --check
         language: system
-        types_or: [javascript, jsx, ts, tsx]
-        entry: pnpx oxlint
-        pass_filenames: false
-      - id: pnpx-oxfmt
-        name: pnpx oxfmt
-        description: Format supported files
-        language: system
-        # types_or: [javascript, jsx, ts, tsx]
-        entry: pnpx oxfmt
-        pass_filenames: false
-      # - id: prettier
-      #   name: prettier
-      #   description: Format markdown files
-      #   types: [markdown]
-      #   entry: npx prettier --write --check --prose-wrap always
-      #   language: system
       - id: markdownlint-cli2
         name: markdownlint-cli2
         description: Lint markdown files
@@ -38,12 +24,6 @@ repos:
         types: [markdown]
         exclude: "^templates/"
         entry: markdownlint-cli2 --fix
-      # - id: prettier
-      #   name: prettier
-      #   description: Format markdown files
-      #   types: [json, yaml]
-      #   entry: prettier --write --check
-      #   language: system
       - id: betterleaks
         name: betterleaks
         description: Detect hardcoded secrets using Betterleaks
