@@ -29,3 +29,6 @@ require("plugins.vim-sleuth")
 require("plugins.vim-eunuch")
 require("plugins.vim-dadbod")
 require("plugins.vim-fugitive")
+
+-- language plugins
+require("plugins.helm")
