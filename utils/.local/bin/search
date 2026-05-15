@@ -4,6 +4,8 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "click",
+#   "crawl4ai",
+#   "rich",
 #   "simple-term-menu",
 # ]
 # ///
@@ -16,6 +18,7 @@ in the browser on Enter.  When piped / non-interactive: passes JSON through
 unchanged so it can be consumed by other tools.
 """
 
+import asyncio
 import json
 import os
 import subprocess
@@ -39,6 +42,8 @@ def _run_search(
     safesearch: str,
     searxng_url: Optional[str],
     fetch_content: bool,
+    page: int = 1,
+    quiet: bool = False,
 ) -> list[dict]:
     args = [
         "uv",
@@ -52,6 +57,8 @@ def _run_search(
         region,
         "--safesearch",
         safesearch,
+        "--page",
+        str(page),
     ]
     if site:
         args += ["--site", site]
@@ -64,8 +71,8 @@ def _run_search(
 
     proc = subprocess.run(
         args,
-        capture_output=False,
         stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL if quiet else None,
         env=env,
         text=True,
     )
@@ -75,48 +82,130 @@ def _run_search(
     return json.loads(proc.stdout)
 
 
-def _interactive(results: list[dict]) -> None:
-    entries = [
-        f"{i + 1:>2}. {r.get('title') or '(no title)'}"
-        for i, r in enumerate(results)
-    ]
+def _fetch_and_render(url: str) -> None:
+    """Fetch URL via crawl4ai and render its markdown in the terminal with rich."""
+    from crawl4ai import AsyncWebCrawler
+    from rich.console import Console
+    from rich.markdown import Markdown
+    from rich.panel import Panel
 
-    def preview(entry: str) -> str:
-        try:
-            idx = int(entry.split(".")[0].strip()) - 1
-            r = results[idx]
-        except (ValueError, IndexError):
-            return ""
-        parts = []
-        if r.get("title"):
-            parts.append(r["title"])
-        if r.get("href"):
-            parts.append(r["href"])
-        if r.get("body"):
-            parts += ["", r["body"]]
-        if r.get("content"):
-            parts += ["", "--- full content ---", r["content"][:2000]]
-        return "\n".join(parts)
+    async def _crawl() -> str:
+        async with AsyncWebCrawler() as crawler:
+            result = await crawler.arun(url=url)
+            return result.markdown or "*(no content)*"
 
+    console = Console()
+    with console.status(f"Fetching [bold]{url}[/bold]...", spinner="dots"):
+        md_text = asyncio.run(_crawl())
+
+    console.clear()
+    console.print(Panel(url, style="bold cyan", expand=False))
+    console.print(Markdown(md_text))
+    console.input("\n[dim]Press Enter to return...[/dim]")
+
+
+def _interactive(
+    query: str,
+    num: int,
+    region: str,
+    site: Optional[str],
+    safesearch: str,
+    searxng_url: Optional[str],
+    fetch_content: bool,
+) -> None:
+    page = 1
     last_idx = 0
+
     while True:
+        results = _run_search(
+            query=query,
+            num=num,
+            region=region,
+            site=site,
+            safesearch=safesearch,
+            searxng_url=searxng_url,
+            fetch_content=fetch_content,
+            page=page,
+            quiet=True,
+        )
+
+        if not results:
+            click.echo(f"No results on page {page}.", err=True)
+            if page > 1:
+                page -= 1
+                last_idx = 0
+                continue
+            break
+
+        entries = [
+            f"{i + 1:>2}. {r.get('title') or '(no title)'}"
+            for i, r in enumerate(results)
+        ]
+
+        def preview(entry: str) -> str:
+            try:
+                idx = int(entry.split(".")[0].strip()) - 1
+                r = results[idx]
+            except (ValueError, IndexError):
+                return ""
+            parts = []
+            if r.get("title"):
+                parts.append(r["title"])
+            if r.get("href"):
+                parts.append(r["href"])
+            if r.get("body"):
+                parts += ["", r["body"]]
+            if r.get("content"):
+                parts += ["", "--- full content ---", r["content"][:2000]]
+            return "\n".join(parts)
+
+        title = (
+            f"j/k ↑/↓ navigate  •  Tab: mark  •  Enter: view content  •  o: open in browser  •  n: next page  •  p: prev page  •  q/Esc: quit"
+            f"  [page {page}]"
+        )
         menu = TerminalMenu(
             entries,
-            title="j/k or ↑/↓ to navigate  •  Enter to open in browser  •  q/Esc to quit",
+            title=title,
             preview_command=preview,
             preview_size=0.4,
             preview_title="Preview",
-            cursor_index=last_idx,
-            clear_screen=False,
+            cursor_index=min(last_idx, len(results) - 1),
+            clear_screen=True,
+            accept_keys=("enter", "o", "n", "p"),
+            multi_select=True,
+            multi_select_select_on_accept=True,
+            show_multi_select_hint=False,
         )
         idx = menu.show()
+        key = menu.chosen_accept_key
+
         if idx is None:
             break
-        last_idx = idx
-        url = results[idx].get("href", "")
-        if url:
-            click.echo(f"Opening: {url}", err=True)
-            webbrowser.open(url)
+        elif key == "n":
+            page += 1
+            last_idx = 0
+        elif key == "p":
+            if page > 1:
+                page -= 1
+            last_idx = 0
+        elif key == "o":
+            # o — open all selected results in browser
+            valid = [i for i in idx if i < len(results)]
+            if valid:
+                last_idx = valid[0]
+                for i in valid:
+                    url = results[i].get("href", "")
+                    if url:
+                        webbrowser.open(url)
+        else:
+            # Enter — fetch and render content as markdown
+            valid = [i for i in idx if i < len(results)]
+            if valid:
+                last_idx = valid[0]
+                for i in valid:
+                    url = results[i].get("href", "")
+                    if url:
+                        _fetch_and_render(url)
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -155,26 +244,30 @@ def main(
         safesearch = "off"
 
     query = " ".join(keywords)
-    results = _run_search(
-        query=query,
-        num=num,
-        region=region,
-        site=site,
-        safesearch=safesearch,
-        searxng_url=searxng_url,
-        fetch_content=fetch_content,
-    )
-
-    if not results:
-        if sys.stdout.isatty():
-            click.echo("No results found.")
-        else:
-            click.echo(json.dumps([]))
-        return
 
     if sys.stdout.isatty():
-        _interactive(results)
+        _interactive(
+            query=query,
+            num=num,
+            region=region,
+            site=site,
+            safesearch=safesearch,
+            searxng_url=searxng_url,
+            fetch_content=fetch_content,
+        )
     else:
+        results = _run_search(
+            query=query,
+            num=num,
+            region=region,
+            site=site,
+            safesearch=safesearch,
+            searxng_url=searxng_url,
+            fetch_content=fetch_content,
+        )
+        if not results:
+            click.echo(json.dumps([]))
+            return
         click.echo(json.dumps(results, indent=2))
 
 

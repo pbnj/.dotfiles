@@ -35,7 +35,7 @@ async def _fetch_contents(urls: list[str]) -> dict[str, str]:
 
 
 def _search_searxng(
-    query: str, base_url: str, num: int, region: str, safesearch: str
+    query: str, base_url: str, num: int, region: str, safesearch: str, page: int = 1
 ) -> list[dict]:
     safesearch_map = {"off": 0, "moderate": 1, "strict": 2}
     params = {
@@ -43,7 +43,7 @@ def _search_searxng(
         "format": "json",
         "language": region,
         "safesearch": safesearch_map.get(safesearch, 1),
-        "pageno": 1,
+        "pageno": page,
     }
     url = f"{base_url.rstrip('/')}/search"
     resp = requests.get(url, params=params, timeout=5)
@@ -59,9 +59,17 @@ def _search_searxng(
     ]
 
 
-def _search_ddgs(query: str, num: int, region: str, safesearch: str) -> list[dict]:
+def _search_ddgs(
+    query: str, num: int, region: str, safesearch: str, page: int = 1
+) -> list[dict]:
     return list(
-        DDGS().text(query, region=region, safesearch=safesearch, max_results=num)
+        DDGS().text(
+            query,
+            region=region,
+            safesearch=safesearch,
+            max_results=num,
+            offset=(page - 1) * num,
+        )
     )
 
 
@@ -106,6 +114,7 @@ def _render_markdown(results: list[dict]) -> str:
     envvar="SEARXNG_URL",
     help=f"SearXNG base URL (default: {SEARXNG_DEFAULT_URL})",
 )
+@click.option("--page", type=int, default=1, help="Page number (1-indexed)")
 @click.option(
     "--fetch",
     "fetch_content",
@@ -126,6 +135,7 @@ def search(
     site: Optional[str],
     safesearch: str,
     searxng_url: Optional[str],
+    page: int,
     fetch_content: bool,
     output: str,
 ) -> None:
@@ -151,8 +161,12 @@ def search(
     base_url = searxng_url or SEARXNG_DEFAULT_URL
     results = None
 
+    if page < 1:
+        click.echo("Error: page must be >= 1", err=True)
+        sys.exit(1)
+
     try:
-        results = _search_searxng(query, base_url, num, region, safesearch)
+        results = _search_searxng(query, base_url, num, region, safesearch, page)
         click.echo("engine: SearXNG", err=True)
     except Exception as e:
         click.echo(
@@ -161,7 +175,7 @@ def search(
 
     if not results:
         try:
-            results = _search_ddgs(query, num, region, safesearch)
+            results = _search_ddgs(query, num, region, safesearch, page)
             click.echo("engine: DuckDuckGo", err=True)
         except Exception as e:
             click.echo(f"Error during search: {e}", err=True)
