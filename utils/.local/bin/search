@@ -5,6 +5,8 @@
 # dependencies = [
 #   "click",
 #   "crawl4ai",
+#   "ddgs",
+#   "requests",
 #   "rich",
 #   "simple-term-menu",
 # ]
@@ -20,18 +22,65 @@ unchanged so it can be consumed by other tools.
 
 import asyncio
 import json
-import os
-import subprocess
 import sys
 import webbrowser
 from typing import Optional
 
 import click
+import requests
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+from crawl4ai.async_configs import CacheMode
+from ddgs import DDGS
 from simple_term_menu import TerminalMenu
 
-SKILL_SCRIPT = os.path.expanduser(
-    "~/.pi/agent/skills/search-web/scripts/search.py"
-)
+SEARXNG_DEFAULT_URL = "http://localhost:8888"
+
+
+async def _fetch_contents(urls: list[str]) -> dict[str, str]:
+    """Fetch page content for a list of URLs using crawl4ai."""
+    config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
+    async with AsyncWebCrawler() as crawler:
+        results = await crawler.arun_many(urls=urls, config=config)
+    return {r.url: (r.markdown or "") if r.success else "" for r in results}
+
+
+def _search_searxng(
+    query: str, base_url: str, num: int, region: str, safesearch: str, page: int = 1
+) -> list[dict]:
+    safesearch_map = {"off": 0, "moderate": 1, "strict": 2}
+    params = {
+        "q": query,
+        "format": "json",
+        "language": region,
+        "safesearch": safesearch_map.get(safesearch, 1),
+        "pageno": page,
+    }
+    url = f"{base_url.rstrip('/')}/search"
+    resp = requests.get(url, params=params, timeout=5)
+    resp.raise_for_status()
+    data = resp.json()
+    return [
+        {
+            "title": r.get("title", ""),
+            "href": r.get("url", ""),
+            "body": r.get("content", ""),
+        }
+        for r in data.get("results", [])[:num]
+    ]
+
+
+def _search_ddgs(
+    query: str, num: int, region: str, safesearch: str, page: int = 1
+) -> list[dict]:
+    return list(
+        DDGS().text(
+            query,
+            region=region,
+            safesearch=safesearch,
+            max_results=num,
+            offset=(page - 1) * num,
+        )
+    )
 
 
 def _run_search(
@@ -45,41 +94,38 @@ def _run_search(
     page: int = 1,
     quiet: bool = False,
 ) -> list[dict]:
-    args = [
-        "uv",
-        "run",
-        "--no-project",
-        SKILL_SCRIPT,
-        query,
-        "--num",
-        str(num),
-        "--region",
-        region,
-        "--safesearch",
-        safesearch,
-        "--page",
-        str(page),
-    ]
     if site:
-        args += ["--site", site]
-    if fetch_content:
-        args += ["--fetch"]
+        query = f"site:{site} {query}"
 
-    env = os.environ.copy()
-    if searxng_url:
-        env["SEARXNG_URL"] = searxng_url
+    base_url = searxng_url or SEARXNG_DEFAULT_URL
+    results: list[dict] = []
 
-    proc = subprocess.run(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL if quiet else None,
-        env=env,
-        text=True,
-    )
-    if proc.returncode != 0:
-        sys.exit(proc.returncode)
+    try:
+        results = _search_searxng(query, base_url, num, region, safesearch, page)
+        if not quiet:
+            click.echo("engine: SearXNG", err=True)
+    except Exception as e:
+        if not quiet:
+            click.echo(f"SearXNG unavailable ({e}), falling back to DuckDuckGo...", err=True)
 
-    return json.loads(proc.stdout)
+    if not results:
+        try:
+            results = _search_ddgs(query, num, region, safesearch, page)
+            if not quiet:
+                click.echo("engine: DuckDuckGo", err=True)
+        except Exception as e:
+            click.echo(f"Error during search: {e}", err=True)
+            sys.exit(1)
+
+    if fetch_content and results:
+        if not quiet:
+            click.echo("Fetching page content...", err=True)
+        urls = [r["href"] for r in results if r.get("href")]
+        content_map = asyncio.run(_fetch_contents(urls))
+        for r in results:
+            r["content"] = content_map.get(r.get("href", ""), "")
+
+    return results
 
 
 def _fetch_and_render(url: str) -> None:
