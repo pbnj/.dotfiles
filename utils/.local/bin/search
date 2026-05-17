@@ -255,7 +255,7 @@ def _interactive(
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
-@click.argument("keywords", nargs=-1, required=True)
+@click.argument("keywords", nargs=-1, required=False)
 @click.option("-n", "--num", type=int, default=10, help="Number of results (1-50)")
 @click.option("-r", "--region", default="wt-wt", help="Region (e.g. us-en, wt-wt)")
 @click.option("-w", "--site", default=None, help="Restrict to domain (e.g. github.com)")
@@ -290,6 +290,13 @@ def main(
         safesearch = "off"
 
     query = " ".join(keywords)
+
+    if not query:
+        if sys.stdout.isatty():
+            query = click.prompt("Search")
+        else:
+            click.echo("Error: a search term is required when piped", err=True)
+            sys.exit(1)
 
     if sys.stdout.isatty():
         _interactive(
