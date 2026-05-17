@@ -66,9 +66,6 @@ vim.pack.add({
 vim.lsp.log.set_level("OFF")
 
 local servers = {
-	-- copilot = {},
-	-- pyright = {},
-	-- terraformls = {},
 	golangci_lint_ls = {},
 	gopls = {},
 	lua_ls = {},
