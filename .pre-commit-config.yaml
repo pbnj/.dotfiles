@@ -11,11 +11,17 @@ repos:
         types: [markdown]
         language: system
         entry: doctoc --notitle --update-only
-      - id: prettier
-        name: prettier
-        description: Format markdown files
+      # - id: prettier
+      #   name: prettier
+      #   description: Format markdown files
+      #   types_or: [markdown, json, yaml, json5, ts, tsx, javascript, jsx]
+      #   entry: npx prettier --write --check
+      #   language: system
+      - id: oxfmt
+        name: oxfmt
+        description: Format supported files
         types_or: [markdown, json, yaml, json5, ts, tsx, javascript, jsx]
-        entry: npx prettier --write --check
+        entry: oxfmt
         language: system
       - id: markdownlint-cli2
         name: markdownlint-cli2
