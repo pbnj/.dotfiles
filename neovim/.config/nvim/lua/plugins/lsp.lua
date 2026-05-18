@@ -14,12 +14,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
 				{ autotrigger = false }
 			) -- :help lsp-completion
 		end
-		if
-			client:supports_method(
-				vim.lsp.protocol.Methods.textDocument_inlineCompletion
-			)
-		then
-			vim.lsp.inline_completion.enable(true) -- :help lsp-completion
+		if client.name == "rust-analyzer" then
+			vim.lsp.on_type_formatting.enable(true, { client_id = client.id })
 		end
 		local map = function(keys, func, desc, mode)
 			mode = mode or "n"
@@ -37,9 +33,44 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			"Trigger completion suggestion",
 			"i"
 		)
-		map("gd", vim.lsp.buf.definition, "Go to definition")
-		map("gD", vim.lsp.buf.declaration, "Go to declaration")
-		map("gi", vim.lsp.buf.implementation, "Go to implementation")
+		if
+			client:supports_method(
+				vim.lsp.protocol.Methods.textDocument_definition
+			)
+		then
+			map("gd", vim.lsp.buf.definition, "Go to definition")
+		end
+		if
+			client:supports_method(
+				vim.lsp.protocol.Methods.textDocument_declaration
+			)
+		then
+			map("gD", vim.lsp.buf.declaration, "Go to declaration")
+		end
+		if
+			client:supports_method(
+				vim.lsp.protocol.Methods.textDocument_implementation
+			)
+		then
+			map("gi", vim.lsp.buf.implementation, "Go to implementation")
+		end
+		if
+			client:supports_method(
+				vim.lsp.protocol.Methods.textDocument_formatting
+			)
+		then
+			map("<leader>lf", vim.lsp.buf.format, "Format buffer")
+			vim.api.nvim_create_autocmd("BufWritePre", {
+				buffer = event.buf,
+				group = vim.api.nvim_create_augroup(
+					"lsp-format-" .. event.buf,
+					{ clear = true }
+				),
+				callback = function()
+					vim.lsp.buf.format({ bufnr = event.buf, id = client.id })
+				end,
+			})
+		end
 	end,
 })
 
@@ -63,15 +94,19 @@ vim.pack.add({
 	"https://github.com/b0o/SchemaStore.nvim",
 })
 
-vim.lsp.log.set_level("OFF")
+-- vim.lsp.log.set_level("OFF")
 
 local servers = {
 	golangci_lint_ls = {},
 	gopls = {},
 	lua_ls = {},
+	oxfmt = {},
+	oxlint = {},
 	ruff = {},
 	rust_analyzer = {},
+	stylua = {},
 	tflint = {},
+	-- custom lsp config
 	jsonls = {
 		settings = {
 			json = {
@@ -83,13 +118,8 @@ local servers = {
 	yamlls = {
 		settings = {
 			yaml = {
-				schemaStore = {
-					enable = false, -- disable built-in yamlls schemastore
-					url = "", -- Avoid TypeError: Cannot read properties of undefined (reading 'length')
-				},
-				schemas = require("schemastore").yaml.schemas({
-					extra = {},
-				}),
+				schemaStore = { enable = false, url = "" },
+				schemas = require("schemastore").yaml.schemas({ extra = {} }),
 			},
 		},
 	},
