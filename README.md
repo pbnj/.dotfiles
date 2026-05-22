@@ -1,21 +1,5 @@
 # dotfiles
 
-## Table of Contents
-
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-
-- [Overview](#overview)
-- [Tools & Utilities](#tools--utilities)
-  - [General Purpose](#general-purpose)
-  - [Languages](#languages)
-  - [Linters and Formatters](#linters-and-formatters)
-  - [Language Servers](#language-servers)
-- [Platform Specific](#platform-specific)
-  - [macOS](#macos)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
 ## Overview
 
 This repo contains my

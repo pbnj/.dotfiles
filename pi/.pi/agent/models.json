@@ -5,11 +5,27 @@
       "api": "openai-completions",
       "apiKey": "none",
       "models": [
-        { "id": "unsloth/Qwen3.5-4B-GGUF:Q4_K_M" },
-        { "id": "unsloth/Qwen3.5-4B-MTP-GGUF:Q4_K_M" },
-        { "id": "unsloth/Qwen3.5-9B-GGUF:Q4_K_XL" },
-        { "id": "unsloth/Qwen3.5-9B-MTP-GGUF:Q4_K_M" },
-        { "id": "unsloth/gemma-4-E4B-it-GGUF:Q4_K_XL" }
+        {
+          "id": "unsloth/Qwen3.5-4B-GGUF:Q4_K_M"
+        },
+        {
+          "id": "unsloth/Qwen3.5-4B-MTP-GGUF:Q4_K_M"
+        },
+        {
+          "id": "unsloth/Qwen3.5-9B-GGUF:Q4_K_XL"
+        },
+        {
+          "id": "unsloth/Qwen3.5-9B-MTP-GGUF:Q4_K_M"
+        },
+        {
+          "id": "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M"
+        },
+        {
+          "id": "Jackrong/Qwopus3.5-9B-Coder-GGUF:Q4_K_M"
+        },
+        {
+          "id": "Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF:Q4_K_M"
+        }
       ]
     }
   }

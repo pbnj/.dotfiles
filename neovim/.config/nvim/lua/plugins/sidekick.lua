@@ -4,16 +4,6 @@ require("sidekick").setup({
 	nes = { enabled = false },
 })
 
-vim.keymap.set({ "i", "n" }, "<tab>", function()
-	if require("sidekick").nes_jump_or_apply() then
-		return
-	end
-	if vim.lsp.inline_completion.get() then
-		return
-	end
-	return "<tab>"
-end, { expr = true, desc = "Goto/Apply Next Edit Suggestion" })
-
 vim.keymap.set({ "n", "t", "i", "x" }, "<c-.>", function()
 	require("sidekick.cli").toggle()
 end, { desc = "Sidekick Toggle" })

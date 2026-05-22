@@ -5,12 +5,12 @@
 repos:
   - repo: local
     hooks:
-      - id: doctoc
-        name: doctoc
-        description: Generate or update Table of Contents in markdown files
-        types: [markdown]
-        language: system
-        entry: doctoc --notitle --update-only
+      # - id: doctoc
+      #   name: doctoc
+      #   description: Generate or update Table of Contents in markdown files
+      #   types: [markdown]
+      #   language: system
+      #   entry: doctoc --notitle --update-only
       # - id: prettier
       #   name: prettier
       #   description: Format markdown files
