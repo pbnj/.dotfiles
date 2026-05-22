@@ -7,7 +7,6 @@
 #   "crawl4ai",
 #   "ddgs",
 #   "requests",
-#   "rich",
 #   "simple-term-menu",
 # ]
 # ///
@@ -15,14 +14,19 @@
 """
 Interactive web search wrapper around the search-web skill.
 
-When stdout is a TTY: shows a navigable menu with preview and opens results
-in the browser on Enter.  When piped / non-interactive: passes JSON through
+When stdout is a TTY: shows a navigable menu with preview and opens fetched
+content in $EDITOR on Enter (and in the browser with `o`). When piped /
+non-interactive: passes JSON through
 unchanged so it can be consumed by other tools.
 """
 
 import asyncio
 import json
+import os
+import shlex
+import subprocess
 import sys
+import tempfile
 import webbrowser
 from typing import Optional
 
@@ -129,25 +133,39 @@ def _run_search(
 
 
 def _fetch_and_render(url: str) -> None:
-    """Fetch URL via crawl4ai and render its markdown in the terminal with rich."""
+    """Fetch URL via crawl4ai and open its markdown in $EDITOR."""
     from crawl4ai import AsyncWebCrawler
-    from rich.console import Console
-    from rich.markdown import Markdown
-    from rich.panel import Panel
 
     async def _crawl() -> str:
         async with AsyncWebCrawler() as crawler:
             result = await crawler.arun(url=url)
             return result.markdown or "*(no content)*"
 
-    console = Console()
-    with console.status(f"Fetching [bold]{url}[/bold]...", spinner="dots"):
-        md_text = asyncio.run(_crawl())
+    click.echo(f"Fetching {url}...", err=True)
+    md_text = asyncio.run(_crawl())
 
-    console.clear()
-    console.print(Panel(url, style="bold cyan", expand=False))
-    console.print(Markdown(md_text))
-    console.input("\n[dim]Press Enter to return...[/dim]")
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if not editor:
+        raise click.ClickException("Set $EDITOR (or $VISUAL) to view fetched content.")
+
+    content = f"# {url}\n\n{md_text}\n"
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".md",
+        prefix="search-",
+        delete=False,
+        encoding="utf-8",
+    ) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        completed = subprocess.run(shlex.split(editor) + [tmp_path], check=False)
+    finally:
+        os.unlink(tmp_path)
+
+    if completed.returncode != 0:
+        raise click.ClickException(f"Editor exited with code {completed.returncode}.")
 
 
 def _interactive(
