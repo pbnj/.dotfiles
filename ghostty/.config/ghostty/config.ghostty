@@ -13,7 +13,7 @@ copy-on-select = clipboard
 cursor-color = #ff00ff
 custom-shader = ~/.config/ghostty/shaders/cursor_warp.glsl
 macos-option-as-alt = true
-macos-titlebar-style = hidden
+macos-titlebar-style = tabs
 quick-terminal-animation-duration = 0
 quick-terminal-position = bottom
 window-new-tab-position = current
@@ -22,8 +22,8 @@ window-show-tab-bar = auto
 # ghostty +list-fonts
 font-family = "Ioskeley Mono"
 font-family = "SF Mono"
-font-size = 18
-font-feature = zero
+font-size = 14
+font-feature = zero,-calt,-liga,-dlig
 
 # ghostty +list-themes
 theme = "light:TokyoNight Day,dark:TokyoNight Moon"
