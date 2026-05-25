@@ -5,7 +5,7 @@
 --
 -- SearXNG is tried first; falls back to DuckDuckGo via an inline ddgs script
 -- when SearXNG is unreachable.
--- Page content is fetched with crawl4ai via `uv run` and opened in a split.
+-- Page content is fetched with playwright via `uv run` and opened in a split.
 
 local SEARXNG_URL = (vim.env.SEARXNG_URL or "http://localhost:8888"):gsub(
   "/$",
@@ -30,18 +30,27 @@ sys.stdout.write(json.dumps([
 ]))
 ]]
 
--- Passed verbatim to `uv run --with crawl4ai python -c`.
+-- Passed verbatim to `uv run --with playwright --with html2text python -c`.
 -- The target URL is injected through CRAWL_URL to avoid shell-quoting issues.
+-- Uses a headless Chromium browser so JS-rendered pages are fully evaluated.
 local CRAWL_SCRIPT = [[
 import asyncio, os, sys
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
-from crawl4ai.async_configs import CacheMode
+from playwright.async_api import async_playwright
+import html2text
 
 async def main():
-    cfg = CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
-    async with AsyncWebCrawler() as c:
-        r = await c.arun(url=os.environ["CRAWL_URL"])
-        sys.stdout.write(r.markdown or "")
+    url = os.environ["CRAWL_URL"]
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.goto(url, wait_until="load", timeout=30000)
+        await page.wait_for_timeout(2000)
+        html = await page.content()
+        await browser.close()
+    h = html2text.HTML2Text()
+    h.ignore_links = False
+    h.body_width = 0
+    sys.stdout.write(h.handle(html))
 
 asyncio.run(main())
 ]]
@@ -134,7 +143,7 @@ local function search(query, opts, cb)
   end)
 end
 
--- Fetch URL with crawl4ai and open the resulting markdown in a new split.
+-- Fetch URL with playwright and open the resulting markdown in a new split.
 local function fetch_and_view(href, title)
   local label = title ~= "" and title or href
   local buf = vim.api.nvim_create_buf(false, true)
@@ -153,34 +162,38 @@ local function fetch_and_view(href, title)
   vim.api.nvim_win_set_buf(0, buf)
 
   local lines = {}
-  vim.fn.jobstart(
-    { "uv", "run", "--with", "crawl4ai", "python", "-c", CRAWL_SCRIPT },
-    {
-      env = vim.tbl_extend("force", vim.fn.environ(), { CRAWL_URL = href }),
-      stdout_buffered = true,
-      stderr_buffered = true,
-      on_stdout = function(_, data)
-        vim.list_extend(lines, data)
-      end,
-      on_exit = function(_, code)
-        vim.schedule(function()
-          local content = { "# " .. label, "", href, "" }
-          if code == 0 and #lines > 0 then
-            while lines[#lines] == "" do
-              lines[#lines] = nil
-            end
-            vim.list_extend(content, lines)
-          else
-            table.insert(
-              content,
-              "*(fetch failed — exit code " .. code .. ")*"
-            )
+  vim.fn.jobstart({
+    "uv",
+    "run",
+    "--with",
+    "playwright",
+    "--with",
+    "html2text",
+    "python",
+    "-c",
+    CRAWL_SCRIPT,
+  }, {
+    env = vim.tbl_extend("force", vim.fn.environ(), { CRAWL_URL = href }),
+    stdout_buffered = true,
+    stderr_buffered = true,
+    on_stdout = function(_, data)
+      vim.list_extend(lines, data)
+    end,
+    on_exit = function(_, code)
+      vim.schedule(function()
+        local content = { "# " .. label, "", href, "" }
+        if code == 0 and #lines > 0 then
+          while lines[#lines] == "" do
+            lines[#lines] = nil
           end
-          vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
-        end)
-      end,
-    }
-  )
+          vim.list_extend(content, lines)
+        else
+          table.insert(content, "*(fetch failed — exit code " .. code .. ")*")
+        end
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+      end)
+    end,
+  })
 end
 
 -- Main interactive loop.
