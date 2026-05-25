@@ -27,7 +27,7 @@ vim.opt.listchars = "tab:│⋅,trail:⋅,nbsp:␣"
 vim.opt.modeline = true
 vim.opt.modelines = 5
 vim.opt.mouse = "a"
-vim.opt.number = false
+vim.opt.number = true
 vim.opt.pumborder = "rounded"
 vim.opt.ruler = true
 vim.opt.scrolloff = 10
@@ -35,7 +35,7 @@ vim.opt.shortmess = "FCcWl"
 vim.opt.showcmd = false
 vim.opt.showmode = false
 vim.opt.sidescrolloff = 10
-vim.opt.signcolumn = "no"
+vim.opt.signcolumn = "number"
 vim.opt.smartcase = true
 vim.opt.smartindent = true
 vim.opt.smarttab = true
@@ -55,16 +55,16 @@ vim.opt.wrapscan = true
 
 -- Append git branch (from mini.git) to Neovim's default statusline.
 _G.StatuslineBranch = function()
-	local s = vim.b.minigit_summary
-	return (s and s.head_name) and string.format("(%s)", s.head_name) or ""
+  local s = vim.b.minigit_summary
+  return (s and s.head_name) and string.format("(%s)", s.head_name) or ""
 end
 
 local default_statusline_split =
-	vim.fn.split(vim.opt.statusline._info.default, "%=")
+  vim.fn.split(vim.opt.statusline._info.default, "%=")
 default_statusline_split[1] = string.format(
-	"%s %s",
-	default_statusline_split[1],
-	"%{% v:lua.StatuslineBranch() %}"
+  "%s %s",
+  default_statusline_split[1],
+  "%{% v:lua.StatuslineBranch() %}"
 )
 -- default_statusline_split[2] = string.format("%s %s", default_statusline_split[2], "(%{ wordcount().bytes / 4 })")
 vim.opt.statusline = table.concat(default_statusline_split, "%=")
