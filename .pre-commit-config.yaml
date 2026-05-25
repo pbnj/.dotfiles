@@ -72,7 +72,7 @@ repos:
         name: luacheck
         description: Lint Lua
         language: system
-        types: [file, lua]
+        types: [lua]
         entry: luacheck --
       - id: commitizen
         name: commitizen
