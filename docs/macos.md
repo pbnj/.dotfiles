@@ -12,8 +12,8 @@ stow macos
 
 ## SearXNG Launch Agent
 
-The `Library/LaunchAgents/com.peterbenjamin.searxng.plist` file configures a
-background agent to run a local instance of SearXNG.
+The `Library/LaunchAgents/com.pbnj.searxng.plist` file configures a background
+agent to run a local instance of SearXNG.
 
 ### Requirements
 
@@ -30,13 +30,13 @@ background agent to run a local instance of SearXNG.
 2. **Load the Agent**:
 
    ```bash
-   launchctl load ~/Library/LaunchAgents/com.peterbenjamin.searxng.plist
+   launchctl load ~/Library/LaunchAgents/com.pbnj.searxng.plist
    ```
 
 3. **Unload the Agent**:
 
    ```bash
-   launchctl unload ~/Library/LaunchAgents/com.peterbenjamin.searxng.plist
+   launchctl unload ~/Library/LaunchAgents/com.pbnj.searxng.plist
    ```
 
 4. **Check Logs**:
@@ -51,4 +51,4 @@ bind address by editing the `.plist` file before running `stow`.
 > [!WARNING] The `.plist` contains hardcoded paths to the user's home directory.
 > If you are deploying this to a machine with a different username or directory
 > structure, update the paths in
-> `macos/Library/LaunchAgents/com.peterbenjamin.searxng.plist` accordingly.
+> `macos/Library/LaunchAgents/com.pbnj.searxng.plist` accordingly.
