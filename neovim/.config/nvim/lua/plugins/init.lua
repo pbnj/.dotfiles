@@ -3,6 +3,7 @@ vim.cmd.packadd("nohlsearch") -- auto-toggle hlsearch
 vim.cmd.packadd("nvim.difftool")
 
 -- high priority plugins
+require("plugins.flatten")
 require("plugins.mini")
 require("plugins.snacks")
 
