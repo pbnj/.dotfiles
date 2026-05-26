@@ -4,7 +4,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.peterbenjamin.searxng</string>
+    <string>com.pbnj.searxng</string>
 
     <key>ProgramArguments</key>
     <array>

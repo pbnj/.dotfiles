@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pbnj.tmux</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/tmux</string>
+        <string>new-session</string>
+        <string>-d</string>
+        <string>-s</string>
+        <string>main</string>
+    </array>
+
+    <!-- Only run if tmux server is not already running -->
+    <key>KeepAlive</key>
+    <false/>
+
+    <!-- Start at login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/tmux-launchagent.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/tmux-launchagent.err.log</string>
+</dict>
+</plist>
