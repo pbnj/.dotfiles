@@ -19,6 +19,9 @@ alias vga='nvim -c "lua Snacks.picker.grep({ title = \"Grep (all projects)\", di
 alias awc='nvim -c "lua Snacks.picker.aws_console({ layout = { fullscreen = true } })"'
 alias okta='nvim -c "lua Snacks.picker.okta_apps({ layout = { fullscreen = true } })"'
 
+# llama-server
+alias llm='llama-server --models-max 1 --no-mmproj -ngl 999 -fa on --cache-type-k q8_0 --cache-type-v q8_0 --parallel 1 --jinja'
+
 # tmux
 alias tm="tmux -u a || tmux -u"
 
