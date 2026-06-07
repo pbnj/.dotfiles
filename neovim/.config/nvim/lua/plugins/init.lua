@@ -14,6 +14,7 @@ require("plugins.lsp")
 require("plugins.showkeys")
 require("plugins.treesitter")
 require("plugins.vim-startuptime")
+require("plugins.tmux-complete")
 
 -- folke plugins
 require("plugins.sidekick")
