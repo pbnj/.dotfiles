@@ -6,14 +6,13 @@ vim.opt.belloff = "all"
 vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
-vim.opt.complete:append({ "o" })
-vim.opt.completeopt = { "menu", "menuone", "fuzzy", "noinsert" }
+vim.opt.complete:append({ "o", "F" })
+vim.opt.completeopt = { "menu", "menuone", "noinsert" }
 vim.opt.conceallevel = 0
 vim.opt.cursorline = false
 vim.opt.expandtab = true
 vim.opt.foldenable = false
 vim.opt.grepformat:append({ "%f:%l:%c:%m", "%f:%l:%m" })
-vim.opt.guifont = "JetBrainsMono Nerd Font"
 vim.opt.hidden = true
 vim.opt.hlsearch = true
 vim.opt.ignorecase = true
@@ -52,6 +51,13 @@ vim.opt.wildmenu = true
 vim.opt.winborder = "rounded"
 vim.opt.wrap = false
 vim.opt.wrapscan = true
+
+vim.opt.guicursor:append({
+  "n-v-c-sm:block",
+  "i-ci-ve:ver25",
+  "r-cr-o:hor20",
+  "t:ver25-blinkon500-blinkoff500-TermCursor",
+})
 
 -- Append git branch (from mini.git) to Neovim's default statusline.
 _G.StatuslineBranch = function()
