@@ -6,7 +6,7 @@ vim.opt.belloff = "all"
 vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
-vim.opt.complete:append({ "o", "F" })
+vim.opt.complete:append({ "o", "F^5" })
 vim.opt.completeopt = { "menu", "menuone", "noinsert" }
 vim.opt.conceallevel = 0
 vim.opt.cursorline = false
