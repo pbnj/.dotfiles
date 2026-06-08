@@ -1,5 +1,10 @@
 {
   "providers": {
+    "google": {
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+      "api": "google-generative-ai",
+      "apiKey": "$GOOGLE_AI_STUDIO_KEY"
+    },
     "llama-cpp": {
       "baseUrl": "http://localhost:8080/v1",
       "api": "openai-completions",
@@ -21,10 +26,10 @@
           "id": "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M"
         },
         {
-          "id": "Jackrong/Qwopus3.5-9B-Coder-GGUF:Q4_K_M"
+          "id": "unsloth/gemma-4-12b-it-GGUF:Q4_K_M"
         },
         {
-          "id": "Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF:Q4_K_M"
+          "id": "unsloth/LFM2.5-8B-A1B-GGUF:UD-Q4_K_M"
         }
       ]
     }
