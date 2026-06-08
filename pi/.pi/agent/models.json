@@ -29,6 +29,9 @@
           "id": "unsloth/gemma-4-12b-it-GGUF:Q4_K_M"
         },
         {
+          "id": "unsloth/gemma-4-12B-it-qat-GGUF:Q4_K_XL"
+        },
+        {
           "id": "unsloth/LFM2.5-8B-A1B-GGUF:UD-Q4_K_M"
         }
       ]
