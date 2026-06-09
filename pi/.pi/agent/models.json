@@ -1,10 +1,5 @@
 {
   "providers": {
-    "google": {
-      "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
-      "api": "google-generative-ai",
-      "apiKey": "$GOOGLE_AI_STUDIO_KEY"
-    },
     "llama-cpp": {
       "baseUrl": "http://localhost:8080/v1",
       "api": "openai-completions",
