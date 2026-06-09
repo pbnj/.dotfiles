@@ -88,7 +88,16 @@
 
 [include]
 	path = ~/.config/git/personal.config
-	; path = ~/.config/git/work.config
+; ~/.config/git/personal.config
+; [user]
+;   name =
+;   email =
+;   ; https://developer.1password.com/docs/ssh/git-commit-signing
+;   signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINcFm5rlVWP2ylrKOVINDm8hSxm42/zctUfHnvvWRH3C
+; [core]
+;   sshCommand = "ssh -i ~/.ssh/personal"
+; [url "git@github.com:pbnj/"]
+;   insteadOf = "https://github.com/pbnj/"
 
 ; work config
 [includeIf "hasconfig:remote.*.url:https://github.com/komodohealth/**"]
