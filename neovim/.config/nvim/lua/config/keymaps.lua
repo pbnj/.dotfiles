@@ -1,8 +1,8 @@
 -- Keymaps
 
 -- Disable mouse scroll
-vim.keymap.set({ "n", "i", "c" }, "<ScrollWheelLeft>", "<nop>")
-vim.keymap.set({ "n", "i", "c" }, "<ScrollWheelRight>", "<nop>")
+vim.keymap.set({ "n", "i", "c", "t" }, "<ScrollWheelLeft>", "<nop>")
+vim.keymap.set({ "n", "i", "c", "t" }, "<ScrollWheelRight>", "<nop>")
 
 -- Movements
 vim.keymap.set("c", "<C-n>", "<Down>", { noremap = true })
