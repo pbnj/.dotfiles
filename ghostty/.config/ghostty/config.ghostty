@@ -20,10 +20,8 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "Ioskeley Mono"
 font-family = "SF Mono"
 font-size = 14
-font-feature = zero,-calt,-liga,-dlig
 
 # ghostty +list-themes
 theme = "light:TokyoNight Day,dark:TokyoNight Moon"
