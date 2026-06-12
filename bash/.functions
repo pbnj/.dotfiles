@@ -29,6 +29,19 @@ pkubectl() {
 }
 complete -o default -F __start_kubectl pkubectl # for shell tab-completion
 
+llm() {
+        llama-server \
+                --models-max 1 \
+                --no-mmproj \
+                -ngl 999 \
+                -fa on \
+                --cache-type-k q8_0 \
+                --cache-type-v q8_0 \
+                --parallel 1 \
+                --jinja \
+                --chat-template-kwargs '{"preserve_thinking": true}'
+}
+
 __git_branch() {
   git branch --show-current 2>/dev/null | sed 's/^/ (/' | sed 's/$/)/'
 }
