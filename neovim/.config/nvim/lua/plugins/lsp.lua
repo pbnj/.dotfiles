@@ -97,8 +97,7 @@ local servers = {
   ruff = {},
   rust_analyzer = {},
   stylua = {},
-  terraformls = {},
-  -- tofu_ls = {},
+  tofu_ls = {},
   tflint = {},
   -- custom lsp config
   jsonls = {
