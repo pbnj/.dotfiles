@@ -1,9 +1,11 @@
 ---
 name: kubectl-cli
-description: "Use when interacting with Kubernetes clusters, pods, deployments, services,
+description:
+  "Use when interacting with Kubernetes clusters, pods, deployments, services,
   namespaces, helm releases, or any k8s resource. Triggers on kubectl, helm,
   k8s, pod, deployment, namespace, etc."
-compatibility: "Requires kubectl (https://kubernetes.io/docs/tasks/tools/), helm
+compatibility:
+  "Requires kubectl (https://kubernetes.io/docs/tasks/tools/), helm
   (https://helm.sh/docs/intro/install/), kubectx/kubens
   (https://github.com/ahmetb/kubectx), and aws CLI v2 for EKS clusters. Cluster
   auth via ~/.kube/config or `aws eks update-kubeconfig`."
@@ -30,6 +32,33 @@ command and wait for explicit approval. When in doubt, ask.
 
 ## Authentication
 
+### Network Access
+
+EKS clusters sit in a private network behind Twingate VPN.
+
+Errors like the following indicate that the current device is not connected to
+the VPN:
+
+```text
+E0617 18:34:16.859056   65323 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: Get \"https://04E4BEF23C0A171C284CF39155E53F75.gr7.us-west-2.eks.amazonaws.com/api?timeo
+ut=32s\": dial tcp 10.13.126.213:443: connect: connection refused"
+```
+
+### Cloud Access
+
+EKS clusters require a valid AWS SSO session.
+
+Errors like the following indicate that AWS SSO session has expired:
+
+```text
+aws: [ERROR]: The SSO session associated with this profile has expired or is otherwise invalid. To refresh this SSO session run aws sso login with the corresponding profile.
+E0617 18:31:54.939030   64334 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: Get \"https://04E4BEF23C0A171C284CF39155E53F75.gr7.us-west-2.eks.amazonaws.com/api?timeo
+ut=32s\": getting credentials: exec: executable aws failed with exit code 255"
+Unable to connect to the server: getting credentials: exec: executable aws failed with exit code 255
+```
+
+To renew or authenticate to AWS SSO, run: `aws sso login`
+
 ### Discover Available Contexts
 
 ```sh
@@ -40,23 +69,12 @@ $ kubectl config get-contexts
 $ kubectl config current-context
 ```
 
-### Switch Context / Namespace with kubectx/kubens
+### Switch Context
+
+Explicitly set the context via `--context` flag:
 
 ```sh
-# List and switch contexts (clusters)
-kubectx              # list all contexts
-kubectx <name>       # switch to context
-
-# List and switch namespaces
-kubens               # list all namespaces
-kubens <name>        # switch active namespace
-```
-
-### Switch Context (kubectl native)
-
-```sh
-# Using kubectl
-$ kubectl config use-context <context-name>
+kubectl --context="<KUBE_CONTEXT>" ...
 ```
 
 ### Add an EKS Cluster
@@ -68,17 +86,18 @@ ID from the ARN to determine the `--profile` (see aws-cli skill).
 $ aws eks update-kubeconfig \
     --name <cluster-name> \
     --region <region> \
-    --profile <account-id-or-alias>
+    --profile <account-id-or-alias> \
+    --alias <cluster-name>
 ```
 
 ### Switch Namespace
 
+Explicitly set the namespace via `--namespace` flag:
+
 ```sh
 # pass --namespace / -n inline
-$ kubectl get pods -n <namespace>
+$ kubectl --context="<KUBE_CONTEXT>" --namespace="<KUBE_NAMESPACE>" get pods
 ```
-
----
 
 ## Common Patterns
 

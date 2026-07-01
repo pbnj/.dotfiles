@@ -1,0 +1,14 @@
+{
+  "name": "glean-chat",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@gleanwork/api-client": "^0.15.0"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
