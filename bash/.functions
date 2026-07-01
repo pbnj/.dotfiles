@@ -39,9 +39,12 @@ llm() {
                 --cache-type-v q8_0 \
                 --parallel 1 \
                 --jinja \
-                --chat-template-kwargs '{"preserve_thinking": true}'
+                --repeat-penalty 1.5 \
+                --chat-template-kwargs '{"preserve_thinking": true}' \
+                "$@"
 }
 
 __git_branch() {
-  git branch --show-current 2>/dev/null | sed 's/^/ (/' | sed 's/$/)/'
+  local branch
+  branch=$(git symbolic-ref --short HEAD 2>/dev/null) && echo " ($branch)"
 }
