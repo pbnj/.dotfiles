@@ -52,6 +52,12 @@ vim.opt.winborder = "rounded"
 vim.opt.wrap = false
 vim.opt.wrapscan = true
 
+if vim.fn.executable("rg") == 1 then
+  vim.opt.grepprg = "rg --vimgrep -uu --smart-case --glob=!.git"
+else
+  vim.opt.grepprg = "grep -HIn --exclude-dir=.git $* /dev/null"
+end
+
 vim.opt.guicursor:append({
   "n-v-c-sm:block",
   "i-ci-ve:ver25",
@@ -64,7 +70,6 @@ _G.StatuslineBranch = function()
   local s = vim.b.minigit_summary
   return (s and s.head_name) and string.format("(%s)", s.head_name) or ""
 end
-
 local default_statusline_split =
   vim.fn.split(vim.opt.statusline._info.default, "%=")
 default_statusline_split[1] = string.format(
