@@ -9,6 +9,18 @@ cd ~/.pi/agent/extensions/glean-chat
 npm install
 ```
 
+## Tests
+
+```bash
+npm test
+```
+
+Unit tests (`index.test.ts`) run with the built-in Node test runner (Node >=
+23.6 for native type stripping). They cover request building (most-recent-first
+ordering, author mapping, merging, context stripping) and ND-JSON stream parsing
+(fragment reassembly per messageId, thinking/text interleaving, citations,
+errors, abort) against a mock Glean backend.
+
 Configure env vars. Best stored in 1Password and injected at runtime:
 
 ```bash
@@ -58,7 +70,13 @@ session message so subsequent LLM turns can reference it.
 ### Model: `glean / Glean Assistant`
 
 Selectable via `Ctrl+P` or `/model`. Routes the active conversation through
-Glean Chat instead of a normal LLM.
+Glean Chat instead of a normal LLM. Registered only when `GLEAN_BACKEND_URL` or
+`GLEAN_INSTANCE` is set at startup.
+
+Streaming is real: the provider calls `/rest/api/v1/chat` with `stream: true`
+and parses ND-JSON lines as they arrive. Glean `UPDATE`/`HEADING` progress
+messages render as thinking blocks; `CONTENT` messages stream as text; citations
+are appended as a Sources block.
 
 **Limitations — read before using:**
 
@@ -81,7 +99,7 @@ full conversation history to Glean on every turn.
 
 ## Token source
 
-The tool and command read `GLEAN_API_TOKEN` from `process.env`. The model
-surface receives the resolved token from pi's provider registry via
-`options.apiKey` (supports future OAuth wiring via `pi.registerProvider` `oauth`
-block).
+The tool and command read `GLEAN_API_TOKEN` from `process.env` (falling back to
+`glean.key` in `~/.pi/agent/auth.json`). The model surface receives the resolved
+token from pi's provider registry via `options.apiKey` (declared as
+`$GLEAN_API_TOKEN`), falling back to the same resolution chain.
