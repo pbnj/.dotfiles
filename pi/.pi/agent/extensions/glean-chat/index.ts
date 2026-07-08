@@ -16,13 +16,12 @@
  *                         GLEAN_ENABLE_MODEL_SURFACE=0.
  *
  * Required env vars:
- *   GLEAN_API_TOKEN    — Glean Client API token (Bearer)
  *   GLEAN_BACKEND_URL  — e.g. https://mycompany-be.glean.com
  *                        (or set GLEAN_INSTANCE as fallback)
  *   GLEAN_INSTANCE     — instance name, e.g. "mycompany"
  *
- * Recommended: launch pi with `op run -- pi` so 1Password resolves
- * GLEAN_API_TOKEN at runtime without exposing the raw token in your env.
+ * Token: store via /login glean (persisted as glean.key in
+ * ~/.pi/agent/auth.json), or export GLEAN_API_TOKEN.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

@@ -9,6 +9,23 @@ cd ~/.pi/agent/extensions/glean-chat
 npm install
 ```
 
+Set the backend URL (shell profile):
+
+```bash
+export GLEAN_BACKEND_URL="https://mycompany-be.glean.com"
+```
+
+Store the API token via pi (persisted as `glean.key` in
+`~/.pi/agent/auth.json`):
+
+```plaintext
+/login
+# select glean, paste your Glean Client API token
+```
+
+Alternatively export `GLEAN_API_TOKEN` (e.g. via 1Password: set it to an `op://`
+reference and launch with `op run -- pi`).
+
 ## Tests
 
 ```bash
@@ -21,27 +38,13 @@ ordering, author mapping, merging, context stripping) and ND-JSON stream parsing
 (fragment reassembly per messageId, thinking/text interleaving, citations,
 errors, abort) against a mock Glean backend.
 
-Configure env vars. Best stored in 1Password and injected at runtime:
-
-```bash
-# shell profile — op resolves these at runtime, never stored in plaintext
-export GLEAN_API_TOKEN="op://Private/Glean/api-token"
-export GLEAN_BACKEND_URL="https://mycompany-be.glean.com"
-```
-
-Launch pi with secrets injected:
-
-```bash
-op run -- pi
-```
-
 ## Environment variables
 
 | Variable                     | Required | Description                                                               |
 | ---------------------------- | -------- | ------------------------------------------------------------------------- |
-| `GLEAN_API_TOKEN`            | yes      | Glean Client API token (Bearer)                                           |
 | `GLEAN_BACKEND_URL`          | one of   | Full backend URL, e.g. `https://mycompany-be.glean.com`                   |
 | `GLEAN_INSTANCE`             | one of   | Instance name, e.g. `mycompany` — used when `GLEAN_BACKEND_URL` is absent |
+| `GLEAN_API_TOKEN`            | no       | Glean Client API token — overrides the token stored in `auth.json`        |
 | `GLEAN_ENABLE_MODEL_SURFACE` | no       | Set to `0` to disable the provider/model surface                          |
 
 ## Surfaces
@@ -99,7 +102,8 @@ full conversation history to Glean on every turn.
 
 ## Token source
 
-The tool and command read `GLEAN_API_TOKEN` from `process.env` (falling back to
-`glean.key` in `~/.pi/agent/auth.json`). The model surface receives the resolved
-token from pi's provider registry via `options.apiKey` (declared as
-`$GLEAN_API_TOKEN`), falling back to the same resolution chain.
+The token is resolved from `~/.pi/agent/auth.json` (`glean.key`, managed by pi's
+`/login`) or the `GLEAN_API_TOKEN` env var. For the tool and command, env takes
+precedence over `auth.json`. For the model surface, pi's auth storage takes
+precedence and passes the token via `options.apiKey`, with `$GLEAN_API_TOKEN` as
+the declared fallback.
