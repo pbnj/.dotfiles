@@ -22,6 +22,11 @@ alias okta='nvim -c "lua Snacks.picker.okta_apps({ layout = { fullscreen = true 
 # tmux
 alias tm="tmux -u a || tmux -u"
 
+# ai
+alias cc="claude --dangerously-skip-permissions"
+alias co="copilot --yolo"
+alias ca="cursor agent --yolo"
+
 # terraform
 alias tfsl="terraform state list"
 alias tfsr="terraform state list | fzf --multi --reverse --height=20 | xargs -t -I{} -L1 terraform state rm '{}'"
