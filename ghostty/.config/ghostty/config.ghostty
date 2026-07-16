@@ -15,6 +15,7 @@ custom-shader = ~/.config/ghostty/shaders/cursor_warp.glsl
 macos-option-as-alt = true
 macos-titlebar-style = hidden
 quick-terminal-animation-duration = 0
+quick-terminal-autohide = false
 quick-terminal-position = bottom
 window-new-tab-position = current
 window-show-tab-bar = auto
