@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#
+# git find-reviewer [--months N] [--top N] [--] [<path>...]
+#
+# Prints reviewer candidates for a change, ranked most-relevant first, based on
+# who has committed to the affected paths. Relevance = a recency-weighted score
+# (each past commit contributes exp(-age_days/365), so a commit from last month
+# counts far more than one from three years ago); ties break on raw commit count.
+#
+# Paths default to the files changed on the current branch vs the repo's default
+# branch (origin/HEAD), falling back to uncommitted working-tree changes. Pass
+# paths explicitly to scope it yourself. For a path with no history (e.g. a
+# brand-new file), it walks up to the nearest ancestor directory that does.
+#
+# The current git user and bot/service accounts are excluded. Output is git-only
+# (author name + email); map the winner to a GitHub handle separately.
+
+set -euo pipefail
+
+months=24
+top=0   # 0 = show all candidates
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --months) months="${2:?--months needs a value}"; shift 2 ;;
+    --top)    top="${2:?--top needs a value}"; shift 2 ;;
+    --)       shift; break ;;
+    -*)       echo "git find-reviewer: unknown flag: $1" >&2; exit 2 ;;
+    *)        break ;;
+  esac
+done
+
+# --- Determine the paths to analyze ---------------------------------------
+paths=()
+if [ $# -gt 0 ]; then
+  paths=("$@")
+else
+  base=""
+  if git remote get-url origin >/dev/null 2>&1; then
+    base=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##') || true
+  fi
+  if [ -z "$base" ]; then
+    for b in main master develop trunk; do
+      if git show-ref --verify --quiet "refs/remotes/origin/$b"; then base="$b"; break; fi
+    done
+  fi
+  if [ -n "$base" ]; then
+    while IFS= read -r line; do [ -n "$line" ] && paths+=("$line"); done \
+      < <(git diff --name-only "origin/${base}...HEAD" 2>/dev/null || true)
+  fi
+  if [ ${#paths[@]} -eq 0 ]; then
+    # no branch diff -> fall back to uncommitted changes (staged + unstaged)
+    while IFS= read -r line; do [ -n "$line" ] && paths+=("$line"); done \
+      < <( (git diff --name-only HEAD 2>/dev/null; git diff --name-only 2>/dev/null) | sort -u )
+  fi
+  if [ ${#paths[@]} -eq 0 ]; then
+    echo "git find-reviewer: no paths given and no changed files detected — pass path(s) explicitly." >&2
+    exit 1
+  fi
+fi
+
+# --- Resolve each path to something with history (walk up for new files) ---
+whole_repo=0
+effective=()
+for p in "${paths[@]}"; do
+  q="$p"
+  while :; do
+    if [ -z "$q" ] || [ "$q" = "." ] || [ "$q" = "/" ]; then whole_repo=1; break; fi
+    if [ -n "$(git log -1 --pretty=%H -- "$q" 2>/dev/null)" ]; then effective+=("$q"); break; fi
+    q=$(dirname "$q")
+  done
+done
+# de-duplicate effective paths
+if [ ${#effective[@]} -gt 0 ]; then
+  while IFS= read -r line; do uniq_eff+=("$line"); done \
+    < <(printf '%s\n' "${effective[@]}" | awk 'NF && !seen[$0]++')
+  effective=("${uniq_eff[@]:-}")
+fi
+
+me=$(git config user.email 2>/dev/null || true)
+now=$(date +%s)
+
+scope_desc="whole repo"
+if [ "$whole_repo" -eq 0 ] && [ ${#effective[@]} -gt 0 ]; then
+  scope_desc=$(printf '%s, ' "${effective[@]}"); scope_desc="${scope_desc%, }"
+fi
+echo "# reviewer candidates — scope: ${scope_desc} — window: last ${months} months — excluding: ${me:-<none>} + bots" >&2
+
+# --- Collect history and rank ---------------------------------------------
+if [ "$whole_repo" -eq 1 ] || [ ${#effective[@]} -eq 0 ]; then
+  log_out=$(git log --no-merges --since="${months} months ago" --pretty='%at%x09%as%x09%aN <%aE>' 2>/dev/null || true)
+else
+  log_out=$(git log --no-merges --since="${months} months ago" --pretty='%at%x09%as%x09%aN <%aE>' -- "${effective[@]}" 2>/dev/null || true)
+fi
+
+if [ -z "$log_out" ]; then
+  echo "git find-reviewer: no matching history in the last ${months} months (try --months with a larger window)." >&2
+  exit 0
+fi
+
+printf '%s\n' "$log_out" \
+| awk -F'\t' -v me="$me" -v now="$now" '
+    {
+      at=$1+0; adate=$2; who=$3; lw=tolower(who);
+      if (me != "" && index(lw, tolower(me))) next;
+      if (lw ~ /\[bot\]|noreply|dependabot|renovate|snyk-bot|semantic-release|actions@github|github-actions/) next;
+      cnt[who]++;
+      age=(now-at)/86400.0;
+      score[who]+=exp(-age/365.0);
+      if (at > lastat[who]) { lastat[who]=at; lastd[who]=adate }
+    }
+    END { for (w in cnt) printf "%.4f\t%d\t%s\t%s\n", score[w], cnt[w], lastd[w], w }
+  ' \
+| sort -t "$(printf '\t')" -k1,1 -rn \
+| awk -F'\t' -v top="$top" '
+    BEGIN { OFS="\t"; print "RANK","SCORE","COMMITS","LAST","REVIEWER" }
+    { if (top>0 && NR>top) next; print NR, $1, $2, $3, $4 }
+  ' \
+| column -t -s "$(printf '\t')"
