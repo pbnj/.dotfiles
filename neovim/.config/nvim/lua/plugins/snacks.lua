@@ -55,6 +55,121 @@ require("snacks").setup({
           },
         },
       },
+      tmux_panes = {
+        name = "Tmux Panes",
+        format = "text",
+        layout = { fullscreen = true },
+        finder = function()
+          if not vim.env.TMUX then
+            Snacks.notify.warn("Not inside a tmux session")
+            return {}
+          end
+          local fmt = table.concat({
+            "#{pane_id}",
+            "#{session_name}",
+            "#{window_index}",
+            "#{pane_index}",
+            "#{window_name}",
+            "#{pane_current_command}",
+            "#{?pane_active,1,0}",
+            "#{?window_active,1,0}",
+          }, "\t")
+          local result = vim
+            .system({ "tmux", "list-panes", "-a", "-F", fmt }, { text = true })
+            :wait()
+          if result.code ~= 0 then
+            return {}
+          end
+          return vim
+            .iter(vim.split(result.stdout, "\n", { trimempty = true }))
+            :map(function(line)
+              local fields = vim.split(line, "\t", { plain = true })
+              local pane_id = fields[1]
+              local session_name = fields[2]
+              local window_index = fields[3]
+              local pane_index = fields[4]
+              local window_name = fields[5]
+              local command = fields[6]
+              local pane_active = fields[7] == "1"
+              local window_active = fields[8] == "1"
+              return {
+                text = string.format(
+                  "%s:%s.%s [%s] %s",
+                  session_name,
+                  window_index,
+                  pane_index,
+                  window_name,
+                  command
+                ),
+                pane_id = pane_id,
+                session_name = session_name,
+                window_index = window_index,
+                pane_index = pane_index,
+                window_name = window_name,
+                command = command,
+                pane_active = pane_active,
+                window_active = window_active,
+              }
+            end)
+            :totable()
+        end,
+        preview = function(ctx)
+          ctx.preview:reset()
+          if not ctx.item then
+            return true
+          end
+          local result = vim
+            .system({
+              "tmux",
+              "capture-pane",
+              "-p",
+              "-S",
+              "-3000",
+              "-t",
+              ctx.item.pane_id,
+            }, { text = true })
+            :wait()
+          ctx.preview:set_title(ctx.item.text)
+          ctx.preview:set_lines(vim.split(result.stdout or "", "\n"))
+        end,
+        confirm = function(picker, item)
+          picker:close()
+          if not item then
+            return
+          end
+          vim
+            .system({
+              "tmux",
+              "switch-client",
+              "-t",
+              string.format("%s:%s", item.session_name, item.window_index),
+            })
+            :wait()
+          vim.system({ "tmux", "select-pane", "-t", item.pane_id }):wait()
+          vim.cmd("quit")
+        end,
+        actions = {
+          kill_pane = function(picker, item)
+            if not item then
+              return
+            end
+            vim.system({ "tmux", "kill-pane", "-t", item.pane_id }):wait()
+            Snacks.notify.info("Killed pane: " .. item.text)
+            picker:find({ refresh = true })
+          end,
+        },
+        win = {
+          input = {
+            keys = {
+              ["<c-x>"] = {
+                "kill_pane",
+                mode = { "n", "i" },
+                desc = "Kill pane",
+              },
+            },
+          },
+        },
+      },
       okta_apps = {
         name = "Okta Apps",
         format = "text",
@@ -754,9 +869,6 @@ end, { desc = "[S]earch [M]arks" })
 vim.keymap.set("n", "<leader>sM", function()
   Snacks.picker.man()
 end, { desc = "[S]earch [M]an Pages" })
-vim.keymap.set("n", "<leader>sp", function()
-  Snacks.picker.lazy()
-end, { desc = "[S]earch [P]lugin Spec" })
 vim.keymap.set("n", "<leader>sq", function()
   Snacks.picker.qflist()
 end, { desc = "[S]earch [Q]uickfix List" })
@@ -818,3 +930,6 @@ end, { desc = "[W]ork [O]kta Apps" })
 vim.keymap.set("n", "<leader>ws", function()
   Snacks.picker.scalr_workspaces()
 end, { desc = "[W]ork [S]calr Workspaces" })
+vim.keymap.set("n", "<leader>tp", function()
+  Snacks.picker.tmux_panes()
+end, { desc = "[T]mux [P]anes" })
