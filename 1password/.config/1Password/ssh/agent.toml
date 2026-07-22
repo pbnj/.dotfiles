@@ -1,9 +1,0 @@
-[[ssh-keys]]
-item = "ssh"
-vault = "Employee"
-account = "Komodo Health"
-
-[[ssh-keys]]
-item = "personal/ssh"
-vault = "Personal"
-account = "Peter Benjamin"
