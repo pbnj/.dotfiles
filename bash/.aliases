@@ -7,9 +7,6 @@
 # general
 alias ll="ls -alFh --color"
 alias grep="grep --color=auto"
-alias rm="rm -i"
-alias cp="cp -i"
-alias mv="mv -i"
 
 # vim
 alias vim=nvim
@@ -24,6 +21,7 @@ alias tm="tmux -u a || tmux -u"
 
 # ai
 alias cc="claude --dangerously-skip-permissions"
+alias cc5="claude --dangerously-skip-permissions --model claude-opus-5 --effort medium"
 alias co="copilot --yolo"
 alias ca="cursor agent --yolo"
 
