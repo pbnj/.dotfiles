@@ -1,0 +1,11 @@
+{
+  "tui.select.up": ["up", "ctrl+p"],
+  "tui.select.down": ["down", "ctrl+n"],
+  "app.session.togglePath": ["alt+p"],
+  "app.session.toggleNamedFilter": ["alt+n"],
+  "app.models.toggleProvider": ["alt+p"],
+  "tui.input.newLine": ["shift+enter"],
+  "tui.editor.deleteToLineEnd": [],
+  "app.model.cycleForward": ["ctrl+j"],
+  "app.model.cycleBackward": ["ctrl+k"]
+}
