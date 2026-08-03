@@ -99,3 +99,6 @@
 	path = ~/.config/git/work.config
 [includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
 	path = ~/.config/git/work.config
+
+; No credential helper here on purpose: personal.config and work.config each set
+; their own, so the identity follows whichever file the includeIf rules pick.
