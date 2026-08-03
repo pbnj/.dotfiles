@@ -5,12 +5,13 @@
  * forward and backward through every eligible model configuration in MRU order.
  *
  * Command:
- *   /mru-model   Open a fuzzy picker with two tabs, switched with `tab`:
+ *   /mru-models  Open a fuzzy picker with two tabs, switched with `tab`:
  *
  *     MRU models  enter    select the configuration
  *                 ctrl+x   forget the highlighted entry
  *                 ctrl+a   forget every entry
  *     All models  enter    pick a reasoning level and add it to the history
+ *                 ctrl+r   reload models.json and rebuild the list
  *
  * State lives in <agentDir>/model-mru.json, rather than the session, so the
  * history survives new sessions and is shared by all projects.
@@ -71,7 +72,8 @@ type PickerAction =
   | { kind: "select"; key: string }
   | { kind: "delete"; key: string }
   | { kind: "clear" }
-  | { kind: "add"; modelKey: string };
+  | { kind: "add"; modelKey: string }
+  | { kind: "refresh" };
 
 type PickerState = {
   tab: PickerTab;
@@ -245,17 +247,20 @@ export default function modelMruExtension(pi: ExtensionAPI) {
       : remember(reference);
   }
 
+  // Every model with configured credentials, ignoring `ctx.scopedModels`.
+  // The session scope (settings `enabledModels` / `--models`) only governs
+  // pi's own Ctrl+P cycling; this extension keeps its own history, so a model
+  // left out of the scope must still be selectable here.
   function eligibleModels(ctx: ExtensionContext): Map<string, Model<any>> {
-    const scoped =
-      ctx.scopedModels.length > 0
-        ? new Set(ctx.scopedModels.map(({ model }) => modelKey(model)))
-        : undefined;
     return new Map(
-      ctx.modelRegistry
-        .getAvailable()
-        .filter((model) => !scoped || scoped.has(modelKey(model)))
-        .map((model) => [modelKey(model), model]),
+      ctx.modelRegistry.getAvailable().map((model) => [modelKey(model), model]),
     );
+  }
+
+  function scopedModelKeys(ctx: ExtensionContext): Set<string> | undefined {
+    return ctx.scopedModels.length > 0
+      ? new Set(ctx.scopedModels.map(({ model }) => modelKey(model)))
+      : undefined;
   }
 
   function refreshSelectableModels(ctx: ExtensionContext): void {
@@ -443,6 +448,7 @@ export default function modelMruExtension(pi: ExtensionAPI) {
 
   function mruItems(ctx: ExtensionContext): SelectItem[] {
     const eligible = eligibleModels(ctx);
+    const scoped = scopedModelKeys(ctx);
     const currentKey = ctx.model
       ? entryKey(currentReference(ctx.model, ctx.thinkingLevel))
       : undefined;
@@ -452,6 +458,9 @@ export default function modelMruExtension(pi: ExtensionAPI) {
       const notes = [
         key === currentKey ? "current" : undefined,
         model ? undefined : "unavailable in this session",
+        model && scoped && !scoped.has(modelKey(entry))
+          ? "outside session model scope"
+          : undefined,
         model && model.name !== model.id ? model.name : undefined,
       ].filter((note): note is string => note !== undefined);
       return {
@@ -464,13 +473,22 @@ export default function modelMruExtension(pi: ExtensionAPI) {
 
   function allModelItems(ctx: ExtensionContext): SelectItem[] {
     refreshSelectableModels(ctx);
+    const scoped = scopedModelKeys(ctx);
     return [...selectableModels.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, model]) => ({
-        value: key,
-        label: key,
-        description: model.name === model.id ? undefined : model.name,
-      }));
+      .map(([key, model]) => {
+        const notes = [
+          model.name === model.id ? undefined : model.name,
+          scoped && !scoped.has(key)
+            ? "outside session model scope"
+            : undefined,
+        ].filter((note): note is string => note !== undefined);
+        return {
+          value: key,
+          label: key,
+          description: notes.length > 0 ? notes.join(" • ") : undefined,
+        };
+      });
   }
 
   // One picker drives every action, so it reopens after a destructive one and
@@ -540,7 +558,7 @@ export default function modelMruExtension(pi: ExtensionAPI) {
           const hint =
             tab === "mru"
               ? "tab switch • ↑↓ navigate • enter select • ctrl+x forget • ctrl+a forget all • esc close"
-              : "tab switch • type to search • ↑↓ navigate • enter add • esc close";
+              : "tab switch • type to search • ↑↓ navigate • enter add • ctrl+r reload • esc close";
           return [
             truncateToWidth(tabBar, width),
             truncateToWidth(theme.fg("dim", "Search:"), width),
@@ -575,6 +593,10 @@ export default function modelMruExtension(pi: ExtensionAPI) {
             if (selected) finish({ kind: "delete", key: selected.value });
           } else if (tab === "mru" && matchesKey(data, "ctrl+a")) {
             if (items.mru.length > 0) finish({ kind: "clear" });
+            // Models added to models.json after startup are missing from the
+            // registry snapshot until it is reloaded.
+          } else if (tab === "all" && matchesKey(data, "ctrl+r")) {
+            finish({ kind: "refresh" });
           } else {
             input.handleInput(data);
             makeList();
@@ -615,6 +637,18 @@ export default function modelMruExtension(pi: ExtensionAPI) {
         }
         await switchTo(reference, model, ctx);
         return;
+      }
+
+      if (action.kind === "refresh") {
+        try {
+          await ctx.modelRegistry.refresh();
+        } catch (error) {
+          ctx.ui.notify(`Could not reload models: ${String(error)}`, "error");
+          continue;
+        }
+        refreshSelectableModels(ctx);
+        ctx.ui.notify(`Reloaded ${selectableModels.size} models`, "info");
+        continue;
       }
 
       if (action.kind === "add") {
@@ -684,6 +718,10 @@ export default function modelMruExtension(pi: ExtensionAPI) {
     }
   });
 
+  pi.registerShortcut("ctrl+l", {
+    description: "Open MRU model picker",
+    handler: (ctx) => showPicker(ctx),
+  });
   pi.registerShortcut("ctrl+j", {
     description: "Cycle MRU model configurations forward",
     handler: (ctx) => cycleMru(ctx, 1),
@@ -693,7 +731,7 @@ export default function modelMruExtension(pi: ExtensionAPI) {
     handler: (ctx) => cycleMru(ctx, -1),
   });
 
-  pi.registerCommand("mru-model", {
+  pi.registerCommand("mru-models", {
     description: "Select, add, or forget recent model configurations",
     handler: (_args, ctx) => showPicker(ctx),
   });
