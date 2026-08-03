@@ -36,3 +36,4 @@ utils/.local/bin/custodian
 utils/.local/bin/devpod
 utils/.local/share/
 node_modules/
+pi/.pi/agent/models-store.json

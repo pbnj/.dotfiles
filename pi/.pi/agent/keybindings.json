@@ -6,6 +6,6 @@
   "app.models.toggleProvider": ["alt+p"],
   "tui.input.newLine": ["shift+enter"],
   "tui.editor.deleteToLineEnd": [],
-  "app.model.cycleForward": ["ctrl+j"],
-  "app.model.cycleBackward": ["ctrl+k"]
+  "app.model.cycleForward": [],
+  "app.model.cycleBackward": []
 }
