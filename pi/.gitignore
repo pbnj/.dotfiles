@@ -1,4 +1,5 @@
 .pi/agent/auth.json
+.pi/agent/model-mru.json
 .pi/agent/sessions/
 .pi/agent/git/
 .pi/agent/npm/
