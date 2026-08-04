@@ -6,7 +6,6 @@
 #   "click",
 #   "crawl4ai",
 #   "ddgs",
-#   "requests",
 #   "simple-term-menu",
 # ]
 # ///
@@ -31,13 +30,10 @@ import webbrowser
 from typing import Optional
 
 import click
-import requests
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.async_configs import CacheMode
 from ddgs import DDGS
 from simple_term_menu import TerminalMenu
-
-SEARXNG_DEFAULT_URL = "http://localhost:8888"
 
 
 async def _fetch_contents(urls: list[str]) -> dict[str, str]:
@@ -46,31 +42,6 @@ async def _fetch_contents(urls: list[str]) -> dict[str, str]:
     async with AsyncWebCrawler() as crawler:
         results = await crawler.arun_many(urls=urls, config=config)
     return {r.url: (r.markdown or "") if r.success else "" for r in results}
-
-
-def _search_searxng(
-    query: str, base_url: str, num: int, region: str, safesearch: str, page: int = 1
-) -> list[dict]:
-    safesearch_map = {"off": 0, "moderate": 1, "strict": 2}
-    params = {
-        "q": query,
-        "format": "json",
-        "language": region,
-        "safesearch": safesearch_map.get(safesearch, 1),
-        "pageno": page,
-    }
-    url = f"{base_url.rstrip('/')}/search"
-    resp = requests.get(url, params=params, timeout=5)
-    resp.raise_for_status()
-    data = resp.json()
-    return [
-        {
-            "title": r.get("title", ""),
-            "href": r.get("url", ""),
-            "body": r.get("content", ""),
-        }
-        for r in data.get("results", [])[:num]
-    ]
 
 
 def _search_ddgs(
@@ -93,7 +64,6 @@ def _run_search(
     region: str,
     site: Optional[str],
     safesearch: str,
-    searxng_url: Optional[str],
     fetch_content: bool,
     page: int = 1,
     quiet: bool = False,
@@ -101,25 +71,13 @@ def _run_search(
     if site:
         query = f"site:{site} {query}"
 
-    base_url = searxng_url or SEARXNG_DEFAULT_URL
-    results: list[dict] = []
-
     try:
-        results = _search_searxng(query, base_url, num, region, safesearch, page)
+        results = _search_ddgs(query, num, region, safesearch, page)
         if not quiet:
-            click.echo("engine: SearXNG", err=True)
+            click.echo("engine: DuckDuckGo", err=True)
     except Exception as e:
-        if not quiet:
-            click.echo(f"SearXNG unavailable ({e}), falling back to DuckDuckGo...", err=True)
-
-    if not results:
-        try:
-            results = _search_ddgs(query, num, region, safesearch, page)
-            if not quiet:
-                click.echo("engine: DuckDuckGo", err=True)
-        except Exception as e:
-            click.echo(f"Error during search: {e}", err=True)
-            sys.exit(1)
+        click.echo(f"Error during search: {e}", err=True)
+        sys.exit(1)
 
     if fetch_content and results:
         if not quiet:
@@ -174,7 +132,6 @@ def _interactive(
     region: str,
     site: Optional[str],
     safesearch: str,
-    searxng_url: Optional[str],
     fetch_content: bool,
 ) -> None:
     page = 1
@@ -187,7 +144,6 @@ def _interactive(
             region=region,
             site=site,
             safesearch=safesearch,
-            searxng_url=searxng_url,
             fetch_content=fetch_content,
             page=page,
             quiet=True,
@@ -283,9 +239,16 @@ def _interactive(
     default="moderate",
     help="Safe search level",
 )
-@click.option("--unsafe", is_flag=True, default=False, help="Alias for --safesearch off")
-@click.option("--searxng-url", default=None, envvar="SEARXNG_URL", help="Override SearXNG base URL")
-@click.option("--fetch", "fetch_content", is_flag=True, default=False, help="Fetch full page content via crawl4ai")
+@click.option(
+    "--unsafe", is_flag=True, default=False, help="Alias for --safesearch off"
+)
+@click.option(
+    "--fetch",
+    "fetch_content",
+    is_flag=True,
+    default=False,
+    help="Fetch full page content via crawl4ai",
+)
 # ddgr-compatible flags accepted but ignored
 @click.option("--np", "--noprompt", "noprompt", is_flag=True, hidden=True)
 @click.option("-j", "--ducky", is_flag=True, hidden=True)
@@ -299,7 +262,6 @@ def main(
     site: Optional[str],
     safesearch: str,
     unsafe: bool,
-    searxng_url: Optional[str],
     fetch_content: bool,
     **_ignored,
 ) -> None:
@@ -323,7 +285,6 @@ def main(
             region=region,
             site=site,
             safesearch=safesearch,
-            searxng_url=searxng_url,
             fetch_content=fetch_content,
         )
     else:
@@ -333,7 +294,6 @@ def main(
             region=region,
             site=site,
             safesearch=safesearch,
-            searxng_url=searxng_url,
             fetch_content=fetch_content,
         )
         if not results:

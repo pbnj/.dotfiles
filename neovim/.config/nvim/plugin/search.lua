@@ -3,14 +3,8 @@
 --
 -- :Search [-n <num>] [-w <site>] [query]
 --
--- SearXNG is tried first; falls back to DuckDuckGo via an inline ddgs script
--- when SearXNG is unreachable.
+-- Results are fetched from DuckDuckGo via an inline ddgs script.
 -- Page content is fetched with playwright via `uv run` and opened in a split.
-
-local SEARXNG_URL = (vim.env.SEARXNG_URL or "http://localhost:8888"):gsub(
-  "/$",
-  ""
-)
 
 -- Passed verbatim to `uv run --with ddgs python -c`.
 -- Query parameters are injected via environment variables.
@@ -23,6 +17,7 @@ results = list(DDGS().text(
     region=os.environ.get("DDGS_REGION", "wt-wt"),
     safesearch="moderate",
     max_results=int(os.environ.get("DDGS_NUM", "10")),
+    offset=int(os.environ.get("DDGS_OFFSET", "0")),
 ))
 sys.stdout.write(json.dumps([
     {"title": r.get("title", ""), "href": r.get("href", ""), "body": r.get("body", "")}
@@ -55,92 +50,38 @@ async def main():
 asyncio.run(main())
 ]]
 
-local function url_encode(s)
-  return (
-    s:gsub("([^%w%-_%.~])", function(c)
-      return ("%%%02X"):format(c:byte())
-    end)
-  )
-end
-
-local function build_searxng_url(query, opts)
-  return ("%s/search?q=%s&format=json&language=%s&safesearch=1&pageno=%d"):format(
-    SEARXNG_URL,
-    url_encode(query),
-    opts.region or "wt-wt",
-    opts.page or 1
-  )
-end
-
 -- Async search. cb(err, results) is always invoked via vim.schedule.
 local function search(query, opts, cb)
-  vim.net.request(build_searxng_url(query, opts), {}, function(err, res)
-    if err then
-      -- SearXNG unreachable: fall back to DuckDuckGo via inline ddgs script.
-      -- Results are written as a JSON array to stdout.
-      vim.schedule(function()
-        vim.notify(
-          "SearXNG unavailable, falling back to DuckDuckGo…",
-          vim.log.levels.WARN
-        )
-        local out = {}
-        vim.fn.jobstart(
-          { "uv", "run", "--with", "ddgs", "python", "-c", DDGS_SCRIPT },
-          {
-            env = vim.tbl_extend("force", vim.fn.environ(), {
-              DDGS_QUERY = query,
-              DDGS_NUM = tostring(opts.num or 10),
-              DDGS_REGION = opts.region or "wt-wt",
-            }),
-            stdout_buffered = true,
-            on_stdout = function(_, data)
-              vim.list_extend(out, data)
-            end,
-            on_exit = function(_, code)
-              vim.schedule(function()
-                if code ~= 0 then
-                  cb("DDG fallback failed (exit " .. code .. ")", nil)
-                  return
-                end
-                local ok, parsed =
-                  pcall(vim.json.decode, table.concat(out, "\n"))
-                if ok and type(parsed) == "table" then
-                  cb(nil, parsed)
-                else
-                  cb("Failed to parse DDG output", nil)
-                end
-              end)
-            end,
-          }
-        )
-      end)
-      return
-    end
-
-    local ok, data = pcall(vim.json.decode, res.body)
-    if not ok then
-      vim.schedule(function()
-        cb("JSON parse error: " .. tostring(data), nil)
-      end)
-      return
-    end
-
-    local num = opts.num or 10
-    local results = {}
-    for i, r in ipairs(data.results or {}) do
-      if i > num then
-        break
-      end
-      table.insert(results, {
-        title = r.title or "",
-        href = r.url or "",
-        body = r.content or "",
-      })
-    end
-    vim.schedule(function()
-      cb(nil, results)
-    end)
-  end)
+  local out = {}
+  vim.fn.jobstart(
+    { "uv", "run", "--with", "ddgs", "python", "-c", DDGS_SCRIPT },
+    {
+      env = vim.tbl_extend("force", vim.fn.environ(), {
+        DDGS_QUERY = query,
+        DDGS_NUM = tostring(opts.num or 10),
+        DDGS_REGION = opts.region or "wt-wt",
+        DDGS_OFFSET = tostring(((opts.page or 1) - 1) * (opts.num or 10)),
+      }),
+      stdout_buffered = true,
+      on_stdout = function(_, data)
+        vim.list_extend(out, data)
+      end,
+      on_exit = function(_, code)
+        vim.schedule(function()
+          if code ~= 0 then
+            cb("DuckDuckGo search failed (exit " .. code .. ")", nil)
+            return
+          end
+          local ok, parsed = pcall(vim.json.decode, table.concat(out, "\n"))
+          if ok and type(parsed) == "table" then
+            cb(nil, parsed)
+          else
+            cb("Failed to parse DuckDuckGo output", nil)
+          end
+        end)
+      end,
+    }
+  )
 end
 
 -- Fetch URL with playwright and open the resulting markdown in a new split.
