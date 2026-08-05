@@ -1,0 +1,13 @@
+onboarding = false
+
+[theme]
+name = "tokyo-night-day"
+auto_switch = false
+
+[keys]
+next_tab = ["prefix+n", "ctrl+alt+]"]
+# prefix+C-w mirrors the tmux pane-picker binding; keep the prefix+g default too
+goto = ["prefix+g", "prefix+ctrl+w"]
+
+[ui]
+show_agent_labels_on_pane_borders = false
