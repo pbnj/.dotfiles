@@ -6,11 +6,19 @@ auto_switch = true
 
 [keys]
 next_tab = ["prefix+n", "ctrl+alt+]"]
-# prefix+C-w mirrors the tmux pane-picker binding; keep the prefix+g default too
-goto = ["prefix+g", "prefix+ctrl+w"]
+# prefix+C-w mirrors the tmux pane-picker binding.
+goto = ["prefix+ctrl+w"]
 # spaces (workspaces): bare alt+[ / alt+] for prefix-free cycling, prefix+C-n/C-p as the tmux-style pair
 next_workspace = ["alt+]", "prefix+ctrl+n"]
 previous_workspace = ["alt+[", "prefix+ctrl+p"]
+
+[[keys.command]]
+key = "prefix+g"
+type = "popup"
+command = "pi --model glean"
+description = "Pi with Glean"
+width = "80%"
+height = "80%"
 
 [ui]
 show_agent_labels_on_pane_borders = false
