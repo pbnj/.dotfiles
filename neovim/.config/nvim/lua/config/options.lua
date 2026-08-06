@@ -7,7 +7,7 @@ vim.opt.breakindent = true
 vim.opt.clipboard = "unnamedplus"
 vim.opt.cmdheight = 1
 vim.opt.complete:append({ "o" })
-vim.opt.completeopt = { "menu", "menuone", "noinsert" }
+vim.opt.completeopt = { "menu", "menuone", "noselect" }
 vim.opt.conceallevel = 0
 vim.opt.cursorline = false
 vim.opt.expandtab = true
