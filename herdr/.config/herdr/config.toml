@@ -6,11 +6,13 @@ auto_switch = true
 
 [keys]
 next_tab = ["prefix+n", "ctrl+alt+]"]
-# prefix+C-w mirrors the tmux pane-picker binding.
 goto = ["prefix+ctrl+w"]
-# spaces (workspaces): bare alt+[ / alt+] for prefix-free cycling, prefix+C-n/C-p as the tmux-style pair
-next_workspace = ["alt+]", "prefix+ctrl+n"]
-previous_workspace = ["alt+[", "prefix+ctrl+p"]
+cycle_pane_next = "prefix+ctrl+o"
+split_vertical = "prefix+backslash"
+next_agent = "alt+]"
+previous_agent = "alt+["
+next_workspace = ["prefix+ctrl+n"]
+previous_workspace = ["prefix+ctrl+p"]
 
 [[keys.command]]
 key = "prefix+g"
@@ -22,3 +24,6 @@ height = "80%"
 
 [ui]
 show_agent_labels_on_pane_borders = false
+
+[ui.toast]
+delivery = "herdr"
