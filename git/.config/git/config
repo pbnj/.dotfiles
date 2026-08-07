@@ -75,10 +75,11 @@
 	gpgsign = true
 [tag]
 	gpgsign = true
+; Use the stock OpenSSH signer with the local keys configured below.
+; The matching private keys are loaded into the macOS SSH agent, not 1Password.
 [gpg]
 	format = ssh
 [gpg "ssh"]
-	program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
 	allowedSignersFile = ~/.ssh/allowed_signers
 
 [filter "lfs"]
