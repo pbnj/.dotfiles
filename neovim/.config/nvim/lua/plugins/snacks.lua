@@ -55,6 +55,178 @@ require("snacks").setup({
           },
         },
       },
+      herdr_projects = {
+        name = "Herdr Projects",
+        format = "text",
+        finder = function()
+          local roots = {
+            vim.fn.expand("~/Projects"),
+            vim.fn.expand("~/.dotfiles"),
+          }
+          local cmd = {
+            "fd",
+            "--hidden",
+            "--no-ignore",
+            "--type",
+            "d",
+            "--max-depth",
+            "5",
+            "^\\.git$",
+          }
+          vim.list_extend(cmd, roots)
+          local result = vim.system(cmd, { text = true }):wait()
+          if result.code ~= 0 then
+            return {}
+          end
+          local home = vim.fn.expand("~")
+          return vim
+            .iter(vim.split(result.stdout, "\n", { trimempty = true }))
+            :map(function(gitdir)
+              -- fd prints directories with a trailing slash; strip it so
+              -- dirname yields the repo root instead of the .git dir.
+              local dir = vim.fs.dirname((gitdir:gsub("/+$", "")))
+              return {
+                text = (dir:gsub("^" .. vim.pesc(home) .. "/", "~/")),
+                file = dir,
+                dir = dir,
+                label = vim.fs.basename(dir),
+              }
+            end)
+            :totable()
+        end,
+        preview = function(ctx)
+          ctx.preview:reset()
+          if not ctx.item then
+            return true
+          end
+          local result = vim
+            .system({
+              "git",
+              "-C",
+              ctx.item.dir,
+              "log",
+              "--oneline",
+              "--decorate",
+              "-20",
+            }, { text = true })
+            :wait()
+          ctx.preview:set_title(ctx.item.text)
+          ctx.preview:set_lines(vim.split(result.stdout or "", "\n"))
+          ctx.preview:highlight({ ft = "git" })
+        end,
+        confirm = function(picker, item)
+          local items = picker:selected({ fallback = true })
+          picker:close()
+          if #items == 0 then
+            items = { item }
+          end
+          local existing = {}
+          local list = vim
+            .system({ "herdr", "workspace", "list" }, { text = true })
+            :wait()
+          local ok, decoded = pcall(vim.json.decode, list.stdout or "")
+          if ok and decoded and decoded.result then
+            for _, ws in ipairs(decoded.result.workspaces or {}) do
+              existing[ws.label] = ws.workspace_id
+            end
+          end
+          for i, project in ipairs(items) do
+            local last = i == #items
+            if existing[project.label] then
+              if last then
+                vim
+                  .system({
+                    "herdr",
+                    "workspace",
+                    "focus",
+                    existing[project.label],
+                  })
+                  :wait()
+              end
+            else
+              vim
+                .system({
+                  "herdr",
+                  "workspace",
+                  "create",
+                  "--cwd",
+                  project.dir,
+                  "--label",
+                  project.label,
+                  last and "--focus" or "--no-focus",
+                })
+                :wait()
+            end
+          end
+          if vim.g.herdr_picker then
+            vim.cmd("qa!")
+          end
+        end,
+        on_close = function()
+          if vim.g.herdr_picker then
+            vim.schedule(function()
+              vim.cmd("qa!")
+            end)
+          end
+        end,
+        actions = {
+          ---@class snacks.picker.actions
+          trash_project = function(picker, _)
+            local items = picker:selected({ fallback = true })
+            if #items == 0 then
+              return
+            end
+            local names = vim
+              .iter(items)
+              :map(function(item)
+                return item.text
+              end)
+              :totable()
+            local choice = vim.fn.confirm(
+              string.format(
+                "Trash %d project(s)?\n%s",
+                #items,
+                table.concat(names, "\n")
+              ),
+              "&Yes\n&No",
+              2,
+              "Question"
+            )
+            if choice ~= 1 then
+              return
+            end
+            for _, item in ipairs(items) do
+              local result = vim
+                .system({ "trash", item.dir }, { text = true })
+                :wait()
+              if result.code == 0 then
+                Snacks.notify.info("Trashed " .. item.text)
+              else
+                Snacks.notify.error(
+                  string.format(
+                    "Failed to trash %s: %s",
+                    item.text,
+                    vim.trim(result.stderr or "")
+                  )
+                )
+              end
+            end
+            picker.list:set_selected()
+            picker:find({ refresh = true })
+          end,
+        },
+        win = {
+          input = {
+            keys = {
+              ["<c-d>"] = {
+                "trash_project",
+                mode = { "n", "i" },
+                desc = "Trash project directory",
+              },
+            },
+          },
+        },
+      },
       tmux_panes = {
         name = "Tmux Panes",
         format = "text",
@@ -933,3 +1105,6 @@ end, { desc = "[W]ork [S]calr Workspaces" })
 vim.keymap.set("n", "<leader>tp", function()
   Snacks.picker.tmux_panes()
 end, { desc = "[T]mux [P]anes" })
+vim.keymap.set("n", "<leader>wp", function()
+  Snacks.picker.herdr_projects()
+end, { desc = "[W]orkspace [P]rojects (Herdr)" })
