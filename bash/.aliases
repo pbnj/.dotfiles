@@ -20,8 +20,7 @@ alias okta='nvim -c "lua Snacks.picker.okta_apps({ layout = { fullscreen = true 
 alias tm="tmux -u a || tmux -u"
 
 # ai
-alias cc="claude --dangerously-skip-permissions"
-alias cc5="claude --dangerously-skip-permissions --model claude-opus-5 --effort medium"
+alias cw="claude-work"
 alias co="copilot --yolo"
 alias ca="cursor agent --yolo"
 

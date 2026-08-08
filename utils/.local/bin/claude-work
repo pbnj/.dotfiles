@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Launch Claude Code interactively with ~/.work.envs resolved from 1Password.
+#
+# Why not `op run --env-file=... -- claude`: op run pipes the child's stdio so it
+# can mask secrets, so the child never sees a TTY (true even with --no-masking).
+# Claude Code then falls back to non-interactive mode.
+#
+# Instead: resolve every op:// reference in ONE `op inject` call (one biometric
+# prompt), eval it into this process, and exec claude directly so it inherits the
+# real terminal. Secrets live only in this process tree, exactly as they would
+# under `op run` -- and they die with it, never touching the parent shell.
+
+set -euo pipefail
+
+ENV_FILE="${WORK_ENVS:-$HOME/.work.envs}"
+[ -f "$ENV_FILE" ] || {
+	echo "claude-work: missing $ENV_FILE -- cannot inject credentials" >&2
+	exit 1
+}
+
+eval "$(op inject -i "$ENV_FILE")"
+
+exec claude --dangerously-skip-permissions "$@"
