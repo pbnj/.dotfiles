@@ -93,14 +93,37 @@
 	path = ~/.config/git/personal.config
 
 ; work config
+;
+; Matched on every URL form a work remote can take, not just https: ~20 local
+; repos already use the git@ form, and those were previously selected only by the
+; gitdir rules below -- so a work repo cloned outside ~/Projects/github.com/ would
+; have silently fallen back to the personal identity.
+;
+; insteadOf rewrites happen at transport time and never touch .git/config, so the
+; stored URL these patterns match stays whatever was cloned. The `work:` patterns
+; cover remotes edited to the alias form by hand.
 [includeIf "hasconfig:remote.*.url:https://github.com/komodohealth/**"]
 	path = ~/.config/git/work.config
+[includeIf "hasconfig:remote.*.url:git@github.com:komodohealth/**"]
+	path = ~/.config/git/work.config
+[includeIf "hasconfig:remote.*.url:work:komodohealth/**"]
+	path = ~/.config/git/work.config
 [includeIf "gitdir:~/Projects/github.com/komodohealth/"]
-	path = ~/.config/git/work.config
-[includeIf "hasconfig:remote.*.url:https://github.com/pbnj-dragon/**"]
-	path = ~/.config/git/work.config
-[includeIf "gitdir:~/Projects/github.com/pbnj-dragon/"]
 	path = ~/.config/git/work.config
 
 ; No credential helper here on purpose: personal.config and work.config each set
 ; their own, so the identity follows whichever file the includeIf rules pick.
+
+; SSH transport. The `work` and `personal` aliases are defined in ~/.ssh/config;
+; each uses one local private key and disables ambient SSH agents, so exactly one
+; identity is offered. This avoids authenticating as the wrong GitHub account.
+;
+; These rewrites are unconditional (not in work.config) because includeIf does not
+; match during `git clone` from an unrelated directory. Both this rule and the
+; `personal:pbnj/` one are scoped to a single owner prefix, so they never overlap
+; and every other github.com URL is left on plain HTTPS. insteadOf affects
+; transport only and never rewrites .git/config, so the includeIf rules above
+; still see the URL as cloned.
+[url "work:komodohealth/"]
+	insteadOf = https://github.com/komodohealth/
+	insteadOf = git@github.com:komodohealth/
