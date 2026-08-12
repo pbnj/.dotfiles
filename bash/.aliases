@@ -13,13 +13,14 @@ alias vim=nvim
 alias vi="vim --clean"
 alias vfp='nvim -c "lua Snacks.picker.files({ cwd = \"~/Projects\", layout = { fullscreen = true } })"'
 alias vga='nvim -c "lua Snacks.picker.grep({ title = \"Grep (all projects)\", dirs = { \"~/Projects/\" }, layout = { fullscreen = true } })"'
-alias awc='nvim -c "lua Snacks.picker.aws_console({ layout = { fullscreen = true } })"'
-alias okta='nvim -c "lua Snacks.picker.okta_apps({ layout = { fullscreen = true } })"'
+alias awc='nvim -c AWSConsole'
+alias okta='nvim -c Okta'
 
 # tmux
 alias tm="tmux -u a || tmux -u"
 
 # ai
+alias cl="claude --dangerously-skip-permissions"
 alias cw="claude-work"
 alias co="copilot --yolo"
 alias ca="cursor agent --yolo"

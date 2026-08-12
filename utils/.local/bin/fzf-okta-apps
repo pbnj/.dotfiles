@@ -17,6 +17,6 @@ fzf \
   --delimiter='\t' \
   --with-nth=1 \
   --prompt "Okta Application: " \
-  --bind "start:reload:jq -rc '.[]._embedded.items[]._embedded.resource | [.label, .linkUrl] | @tsv' < ~/.okta/apps.json | sort -u" |
+  --bind "start:reload:jq -rc '.[] | [.label, .url] | @tsv' < ~/.okta/apps.json | sort -u" |
   awk '{print $NF}' |
   xargs -t -L1 open || true
