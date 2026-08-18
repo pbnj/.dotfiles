@@ -19,16 +19,24 @@ export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
 [[ ":${PATH}:" != *":${GOPATH}/bin:"* ]] && PATH="${GOPATH}/bin:${PATH}"
 
-# Native macOS SSH agent. The launchd socket path changes each login session;
-# resolve it here instead of routing Git through the 1Password agent.
+# Native macOS SSH agent, instead of routing Git through the 1Password agent.
+# launchd hands SSH_AUTH_SOCK to GUI-launched processes via SecureSocketWithKey,
+# which `launchctl getenv` cannot see -- so trust the inherited value whenever a
+# live agent answers on it, and only search for a socket when nothing does.
+# ssh-add -l exits 2 when no agent is reachable (1 just means "agent, no keys").
 if [[ "$(uname)" == "Darwin" ]]; then
-  ssh_auth_sock=$(/bin/launchctl getenv SSH_AUTH_SOCK 2>/dev/null)
-  if [[ -S "${ssh_auth_sock}" ]]; then
-    export SSH_AUTH_SOCK="${ssh_auth_sock}"
-  else
-    unset SSH_AUTH_SOCK
+  ssh-add -l >/dev/null 2>&1
+  if [[ $? -eq 2 ]]; then
+    for ssh_auth_sock in \
+      "$(/bin/launchctl getenv SSH_AUTH_SOCK 2>/dev/null)" \
+      /var/run/com.apple.launchd.*/Listeners; do
+      if [[ -S "${ssh_auth_sock}" ]]; then
+        export SSH_AUTH_SOCK="${ssh_auth_sock}"
+        break
+      fi
+    done
+    unset ssh_auth_sock
   fi
-  unset ssh_auth_sock
 fi
 
 # Rootless Docker
