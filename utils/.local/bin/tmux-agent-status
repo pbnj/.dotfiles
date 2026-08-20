@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+# Publishes coding-agent metadata to tmux pane options for the pane border.
+#
+# Producers (claude's status line, pi's tmux-pane-status extension) pipe one
+# JSON envelope on stdin; this script normalises it for display and writes the
+# fields as pane user options that `pane-border-format` reads as #{@agent_*}.
+#
+#   {"agent":"claude","model":"Opus 5","effort":"medium","cwd":"/path","ctx_pct":42,
+#    "limit_5h":8,"reset_5h":"2h 55m","limit_7d":17,"reset_7d":"79h 15m"}
+#   {"agent":"pi","model":"gpt-5.6-luna","effort":"max","cwd":"/path","ctx_pct":1,
+#    "input":163,"output":71828,"cache_read":11846398,"cache_write":197812}
+#
+# A producer fills whichever usage fields it has: claude reports rate limits,
+# which is what actually constrains the next hour of work, while pi has none and
+# reports session token totals instead. The border picks by which arrived.
+#
+# The token fields are session totals, not per-turn values: ctx_pct already
+# covers the live context, so the counts are only worth the space if they say
+# what the session as a whole has spent.
+#
+# Every field except `agent` is optional; absent fields render empty and the
+# border format drops the corresponding segment.
+#
+# Usage:
+#   <producer> | tmux-agent-status     publish
+#   tmux-agent-status --clear          unset every @agent_* option on the pane
+#
+# Outside tmux this is a silent no-op, so agents run unaffected.
+
+set -uo pipefail
+
+# Pane options are the transport, so both a server and a pane id are required.
+# TMUX_PANE is inherited from the agent process, which is the pane to annotate
+# even when the write happens from a grandchild (claude's status line command).
+[ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ] || exit 0
+command -v tmux >/dev/null 2>&1 || exit 0
+
+pane=$TMUX_PANE
+# $TMUX is "<socket>,<server pid>,<session>". Keying the dedupe cache by server
+# pid matters because pane ids restart at %0 when the tmux server does, and a
+# stale cache entry would otherwise suppress a new pane's first publish.
+server=${TMUX#*,}
+server=${server%%,*}
+cache_dir="${TMPDIR:-/tmp}/tmux-agent-status"
+cache_file="$cache_dir/${server:-0}-${pane#%}"
+
+FIELDS=(name model effort repo branch ctx tokens 5h 5h_reset 7d 7d_reset)
+
+clear_pane() {
+    local args=() field
+    # Remove the cache entry first: on a shutdown path the agent may not outlive
+    # this process long enough for the tmux round-trip to finish.
+    rm -f "$cache_file" 2>/dev/null
+    for field in "${FIELDS[@]}"; do
+        args+=(set-option -p -q -u -t "$pane" "@agent_$field" ';')
+    done
+    tmux "${args[@]}" refresh-client -S 2>/dev/null
+    exit 0
+}
+
+[ "${1:-}" = "--clear" ] && clear_pane
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+input=$(cat)
+[ -n "$input" ] || exit 0
+
+# One jq pass emits every field on a single tab-separated line, with `-`
+# standing in for absent so the read below never desynchronises.
+fields=$(printf '%s' "$input" | jq -r '
+    def f: if . == null or . == "" then "-" else tostring end;
+    [ (.agent | f)
+    , (.model | f)
+    , (.effort | f)
+    , (.cwd | f)
+    , (.ctx_pct | f)
+    , (.input | f)
+    , (.output | f)
+    , (.cache_read | f)
+    , (.cache_write | f)
+    , (.limit_5h | f)
+    , (.reset_5h | f)
+    , (.limit_7d | f)
+    , (.reset_7d | f)
+    ] | @tsv' 2>/dev/null)
+
+IFS=$'\t' read -r agent model effort cwd ctx_pct tok_in tok_out tok_cr tok_cw \
+    lim_5h rst_5h lim_7d rst_7d <<<"$fields"
+
+[ "${agent:--}" = "-" ] && exit 0
+
+# "Opus 5" -> "opus-5"; "github-copilot/gpt-5.6-luna" -> "gpt-5.6-luna".
+short_model() {
+    local m=${1##*/}
+    m=${m// /-}
+    printf '%s' "$m" | tr '[:upper:]' '[:lower:]'
+}
+
+# Keep effort to three columns so the medium tier stays inside a split pane.
+short_effort() {
+    case $1 in
+        low) printf 'low' ;;
+        medium) printf 'med' ;;
+        high) printf 'high' ;;
+        xhigh) printf 'xhi' ;;
+        max) printf 'max' ;;
+        off | none | minimal) printf '%s' "${1:0:3}" ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+# 8500 -> 8.5k, 1569383 -> 1.6M. Sub-1k counts stay exact.
+human() {
+    local n=$1
+    case $n in
+        '' | *[!0-9]*) return 1 ;;
+    esac
+    if [ "$n" -ge 1000000 ]; then
+        awk -v n="$n" 'BEGIN{printf "%.1fM", n/1000000}'
+    elif [ "$n" -ge 1000 ]; then
+        awk -v n="$n" 'BEGIN{printf "%.1fk", n/1000}'
+    else
+        printf '%s' "$n"
+    fi
+}
+
+# Same derivation as ~/.config/tmux/scripts/git-cwd.sh: repo root basename plus
+# the branch, falling back to a short SHA on a detached HEAD.
+repo=""
+branch=""
+if [ "$cwd" != "-" ] && [ -d "$cwd" ]; then
+    root=$(git -C "$cwd" --no-optional-locks rev-parse --show-toplevel 2>/dev/null)
+    if [ -n "$root" ]; then
+        repo=$(basename "$root")
+        branch=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null)
+        [ -n "$branch" ] || branch=$(git -C "$cwd" --no-optional-locks rev-parse --short HEAD 2>/dev/null)
+    else
+        repo=$(basename "$cwd")
+    fi
+fi
+
+name=$agent
+if [ "$model" = "-" ]; then model=""; else model=$(short_model "$model"); fi
+if [ "$effort" = "-" ]; then effort=""; else effort=$(short_effort "$effort"); fi
+
+as_pct() {
+    [ "$1" = "-" ] && return 0
+    awk -v p="$1" 'BEGIN{printf "%.0f%%", p}' 2>/dev/null
+}
+
+ctx=$(as_pct "$ctx_pct")
+# Rate limits are Claude.ai Pro/Max only, and only after the first API response;
+# the reset countdowns arrive pre-rendered ("2h 55m") from the producer, which
+# already formats them for its own status line.
+limit_5h=$(as_pct "$lim_5h")
+limit_7d=$(as_pct "$lim_7d")
+[ "$rst_5h" = "-" ] && rst_5h=""
+[ "$rst_7d" = "-" ] && rst_7d=""
+
+# Session-cumulative tokens as in / out / cache read / cache write, pipe-joined
+# to match the border's other separators.
+#
+# Labels are plain ASCII rather than arrows and symbols: the glyphs that fit this
+# job semantically (↑↓ and the rotation arrows for cache) are East-Asian
+# Ambiguous width, so a terminal advances one cell while the font draws nearly
+# two and the glyph bleeds into the digits beside it.
+#
+# A session that has not made an API call yet reports zeroes rather than absent
+# fields; "i:0 | o:0 | r:0 | w:0" takes up the border while saying nothing, so the
+# whole group is dropped until something has actually been spent.
+tokens=""
+spent=0
+for value in "$tok_in" "$tok_out" "$tok_cr" "$tok_cw"; do
+    case $value in
+        '' | '-' | *[!0-9]*) continue ;;
+    esac
+    [ "$value" -gt 0 ] && spent=1
+done
+if [ "$spent" = 1 ]; then
+    for pair in "i:$tok_in" "o:$tok_out" "r:$tok_cr" "w:$tok_cw"; do
+        label=${pair%%:*}
+        value=${pair#*:}
+        [ "$value" = "-" ] && continue
+        formatted=$(human "$value") || continue
+        tokens="${tokens:+$tokens | }$label:$formatted"
+    done
+fi
+
+# Producers fire far more often than the metadata changes (claude's status line
+# re-renders on every event), so skip the tmux round-trip when nothing moved.
+payload="$name|$model|$effort|$repo|$branch|$ctx|$tokens|$limit_5h|$rst_5h|$limit_7d|$rst_7d"
+if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; then
+    exit 0
+fi
+
+set -- \
+    set-option -p -q -t "$pane" @agent_name "$name" ';' \
+    set-option -p -q -t "$pane" @agent_model "$model" ';' \
+    set-option -p -q -t "$pane" @agent_effort "$effort" ';' \
+    set-option -p -q -t "$pane" @agent_repo "$repo" ';' \
+    set-option -p -q -t "$pane" @agent_branch "$branch" ';' \
+    set-option -p -q -t "$pane" @agent_ctx "$ctx" ';' \
+    set-option -p -q -t "$pane" @agent_tokens "$tokens" ';' \
+    set-option -p -q -t "$pane" @agent_5h "$limit_5h" ';' \
+    set-option -p -q -t "$pane" @agent_5h_reset "$rst_5h" ';' \
+    set-option -p -q -t "$pane" @agent_7d "$limit_7d" ';' \
+    set-option -p -q -t "$pane" @agent_7d_reset "$rst_7d" ';' \
+    refresh-client -S
+
+if tmux "$@" 2>/dev/null; then
+    mkdir -p "$cache_dir" 2>/dev/null && printf '%s' "$payload" >"$cache_file" 2>/dev/null
+fi
+
+exit 0

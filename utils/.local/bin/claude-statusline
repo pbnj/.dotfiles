@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# Claude Code status line.
+# Renders: model | effort | repo@branch | context % [bar] | 5h usage % [bar] (resets in Xh Ym) | 7d usage % [bar] (resets in Xh Ym)
+# Field docs: https://code.claude.com/docs/en/statusline
+# Every field except the model is optional and is omitted when absent:
+#   effort      - only for models supporting the reasoning effort parameter
+#   rate_limits - only for Claude.ai Pro/Max, after the first API response
+#   context_window.used_percentage - null early in a session and after /compact
+#
+# The same payload also feeds tmux-agent-status, which publishes a compact form
+# of these fields to the tmux pane border so every agent pane is legible at once.
+# ~/.claude/statusline.sh is a thin wrapper around this script.
+
+input=$(cat)
+
+j() { printf '%s' "$input" | jq -r "$1 // empty"; }
+
+model=$(printf '%s' "$input" | jq -r '.model.display_name // .model.id // "unknown"')
+effort=$(j '.effort.level')
+repo=$(printf '%s' "$input" | jq -r '.workspace.repo | if . then .owner + "/" + .name else empty end')
+cwd=$(j '.workspace.current_dir')
+branch=""
+if [ -n "$cwd" ] && [ -d "$cwd" ]; then
+    branch=$(git -C "$cwd" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null)
+    [ "$branch" = "HEAD" ] && branch=""
+fi
+ctx=$(j '.context_window.used_percentage')
+five=$(j '.rate_limits.five_hour.used_percentage')
+five_reset=$(j '.rate_limits.five_hour.resets_at')
+week=$(j '.rate_limits.seven_day.used_percentage')
+week_reset=$(j '.rate_limits.seven_day.resets_at')
+
+# resets_at is documented as Unix epoch seconds; ISO 8601 is handled defensively
+# so a future format change degrades to a missing reset time rather than garbage.
+to_epoch() {
+    local t=$1 epoch
+    [ -n "$t" ] || return 1
+    case $t in
+        *[!0-9.]*)
+            t=${t%%.*}
+            t=${t%Z}
+            epoch=$(date -j -u -f '%Y-%m-%dT%H:%M:%S' "$t" '+%s' 2>/dev/null) || return 1
+            ;;
+        *) epoch=${t%%.*} ;;
+    esac
+    printf '%s' "$epoch"
+}
+
+# Renders the time remaining until a reset epoch, e.g. "2h 14m" or "38m".
+fmt_remaining() {
+    local epoch=$1 now diff h m
+    [ -n "$epoch" ] || return 0
+    now=$(date '+%s')
+    diff=$(( epoch - now ))
+    [ "$diff" -gt 0 ] || { printf 'now'; return 0; }
+    h=$(( diff / 3600 ))
+    m=$(( (diff % 3600) / 60 ))
+    if [ "$h" -gt 0 ]; then
+        printf '%dh %dm' "$h" "$m"
+    else
+        printf '%dm' "$m"
+    fi
+}
+
+pct() { printf '%.0f%%' "$1"; }
+
+# Renders a small block progress bar for a 0-100 percentage.
+bar() {
+    local p=$1 width=10 filled empty
+    filled=$(awk -v p="$p" -v w="$width" 'BEGIN{v=(p*w/100)+0.5; if (v<0) v=0; if (v>w) v=w; printf "%d", v}')
+    empty=$(( width - filled ))
+    printf '['
+    [ "$filled" -gt 0 ] && printf '█%.0s' $(seq 1 "$filled")
+    [ "$empty" -gt 0 ] && printf '░%.0s' $(seq 1 "$empty")
+    printf ']'
+}
+
+# Reset countdowns, computed once for both the status line and the pane border.
+five_remaining=$(fmt_remaining "$(to_epoch "$five_reset")")
+week_remaining=$(fmt_remaining "$(to_epoch "$week_reset")")
+
+# Publishes to the tmux pane border. Backgrounded and silenced: a slow or
+# missing tmux must never delay or corrupt the status line itself.
+#
+# The border carries rate limits rather than token counts: what constrains the
+# next hour of work is how much of the window is left, and per-turn token counts
+# in that slot read as session figures while describing a single response.
+# Countdowns only advance when the status line runs, so an idle session's border
+# can show a stale "resets in" - the same staleness the status line itself has,
+# and deliberately not papered over with statusLine.refreshInterval.
+publish_tmux() {
+    local writer=${HOME}/.local/bin/tmux-agent-status
+    [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ] || return 0
+    [ -x "$writer" ] || return 0
+    # Spaces stripped ("2h 55m" -> "2h55m"): the border pays for every column and
+    # renders these bare, as "5h:8% (2h55m)", where the label already says which
+    # clock the parenthetical belongs to. The status line below keeps the roomier
+    # "(resets in 2h 55m)".
+    printf '%s' "$input" | jq -c \
+        --arg five_reset "${five_remaining// /}" \
+        --arg week_reset "${week_remaining// /}" '{
+        agent: "claude",
+        model: (.model.display_name // .model.id),
+        effort: .effort.level,
+        cwd: (.workspace.current_dir // .cwd),
+        ctx_pct: .context_window.used_percentage,
+        limit_5h: .rate_limits.five_hour.used_percentage,
+        reset_5h: (if $five_reset == "" then null else $five_reset end),
+        limit_7d: .rate_limits.seven_day.used_percentage,
+        reset_7d: (if $week_reset == "" then null else $week_reset end)
+    }' 2>/dev/null | "$writer" >/dev/null 2>&1 &
+}
+
+publish_tmux
+
+out=$model
+[ -n "$effort" ] && out="$out | effort:$effort"
+if [ -n "$repo" ] && [ -n "$branch" ]; then
+    out="$out | $repo@$branch"
+elif [ -n "$repo" ]; then
+    out="$out | $repo"
+elif [ -n "$branch" ]; then
+    out="$out | $branch"
+fi
+[ -n "$ctx" ] && out="$out | ctx:$(pct "$ctx") $(bar "$ctx")"
+
+for window in "5h:$five:$five_remaining" "7d:$week:$week_remaining"; do
+    label=${window%%:*}
+    rest=${window#*:}
+    used=${rest%%:*}
+    remaining=${rest#*:}
+    [ -n "$used" ] || continue
+    out="$out | $label:$(pct "$used") $(bar "$used")"
+    [ -n "$remaining" ] && out="$out (resets in $remaining)"
+done
+
+printf '\033[2m%s\033[0m' "$out"
