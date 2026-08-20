@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Fuzzy-find git projects and open each selection in a new Herdr workspace
+# Dependencies: brew install fd fzf herdr
+# Usage: fzf-herdr-project [initial query]
+#        Bind to prefix+ctrl+f via [[keys.command]] type = "popup" in herdr config.toml
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+QUERY="${1:-}"
+SEARCH_ROOTS=(
+  "${HOME}/Projects"
+  "${HOME}/.dotfiles"
+)
+MAX_DEPTH="${HERDR_PROJECT_DEPTH:-5}"
+
+project_list() {
+  fd --hidden --no-ignore --type d --max-depth "${MAX_DEPTH}" '^\.git$' "${SEARCH_ROOTS[@]}" \
+    -x dirname {} | sort -u
+}
+
+project_preview() {
+  local dir="${1:-}"
+  echo "${dir}"
+  echo
+  git -C "${dir}" log --oneline --decorate --color=always -10 2>/dev/null || true
+  echo
+  git -C "${dir}" status --short --branch 2>/dev/null || true
+}
+
+project_pull() {
+  local dir
+  for dir in "$@"; do
+    git -C "${dir}" pull --rebase --autostash --prune --quiet 2>/dev/null || true
+  done
+}
+
+export -f project_preview project_pull
+
+SELECTED=()
+while IFS= read -r line; do
+  SELECTED+=("${line}")
+done < <(
+  project_list | fzf \
+    --multi \
+    --reverse \
+    --prompt="Project> " \
+    --query="${QUERY}" \
+    --header='<TAB>: multi-select / <CTRL-G>: git pull --rebase --autostash / <ENTER>: open in new Herdr workspace' \
+    --preview='project_preview {}' \
+    --preview-window='right,50%' \
+    --bind='ctrl-g:execute-silent(project_pull {+})+refresh-preview' \
+    --with-nth=-2.. \
+    --delimiter=/ || true
+)
+
+[[ ${#SELECTED[@]} -eq 0 ]] && exit 0
+
+LAST_INDEX=$((${#SELECTED[@]} - 1))
+for i in "${!SELECTED[@]}"; do
+  DIR="${SELECTED[$i]}"
+  [[ -d "${DIR}" ]] || continue
+  LABEL="$(basename "${DIR}")"
+
+  # Reuse an existing workspace with the same label instead of duplicating it.
+  EXISTING="$(herdr workspace list 2>/dev/null |
+    jq -r --arg label "${LABEL}" '.result.workspaces[]? | select(.label == $label) | .workspace_id' |
+    head -1)"
+
+  if [[ -n "${EXISTING}" ]]; then
+    if [[ "${i}" -eq "${LAST_INDEX}" ]]; then
+      herdr workspace focus "${EXISTING}" >/dev/null
+    fi
+    continue
+  fi
+
+  if [[ "${i}" -eq "${LAST_INDEX}" ]]; then
+    herdr workspace create --cwd "${DIR}" --label "${LABEL}" --focus >/dev/null
+  else
+    herdr workspace create --cwd "${DIR}" --label "${LABEL}" --no-focus >/dev/null
+  fi
+done

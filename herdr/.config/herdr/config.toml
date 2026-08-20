@@ -1,3 +1,4 @@
+# herdr server reload-config
 onboarding = false
 
 [theme]
@@ -11,14 +12,31 @@ cycle_pane_next = "prefix+ctrl+o"
 split_vertical = "prefix+backslash"
 next_agent = "alt+]"
 previous_agent = "alt+["
+focus_agent = "alt+1..9"
 next_workspace = ["prefix+ctrl+n"]
 previous_workspace = ["prefix+ctrl+p"]
 
 [[keys.command]]
 key = "prefix+g"
 type = "popup"
-command = "pi --model glean"
+command = "cd ~/.dotfiles && pi --model glean"
 description = "Pi with Glean"
+width = "80%"
+height = "80%"
+
+[[keys.command]]
+key = "prefix+f"
+type = "popup"
+command = "nvim -c Projects"
+description = "Projects"
+width = "80%"
+height = "80%"
+
+[[keys.command]]
+key = "prefix+ctrl+f"
+type = "popup"
+command = "fzf-herdr-project"
+description = "Fuzzy-find projects"
 width = "80%"
 height = "80%"
 
