@@ -1,0 +1,12 @@
+# direnv man direnv.toml
+# Requires direnv >= 2.31.0 for load_dotenv
+
+[global]
+# Also load .env files, not just .envrc (.envrc wins when both exist)
+load_dotenv = true
+
+# Implicitly trusted paths: .envrc/.env under these prefixes load without
+# `direnv allow`. Anything that lands here executes on cd, including files
+# pushed by collaborators -- narrow this, or swap to `exact`, if that matters.
+[whitelist]
+prefix = ["~/Projects/github.com/komodohealth"]
