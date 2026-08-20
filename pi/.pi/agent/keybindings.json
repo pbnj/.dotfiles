@@ -4,6 +4,8 @@
   "app.session.togglePath": ["alt+p"],
   "app.session.toggleNamedFilter": ["alt+n"],
   "app.models.toggleProvider": ["alt+p"],
+  "app.model.select": [],
+  "app.tree.filter.labeledOnly": ["alt+l"],
   "tui.input.newLine": ["shift+enter"],
   "tui.editor.deleteToLineEnd": [],
   "app.model.cycleForward": [],
