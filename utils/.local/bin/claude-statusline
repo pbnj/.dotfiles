@@ -7,9 +7,9 @@
 #   rate_limits - only for Claude.ai Pro/Max, after the first API response
 #   context_window.used_percentage - null early in a session and after /compact
 #
-# The same payload also feeds tmux-agent-status, which publishes a compact form
-# of these fields to the tmux pane border so every agent pane is legible at once.
-# ~/.claude/statusline.sh is a thin wrapper around this script.
+# The same payload also feeds agent-status, which publishes a compact form of
+# these fields to the tmux pane border and the herdr sidebar so every agent pane
+# is legible at once. ~/.claude/statusline.sh is a thin wrapper around this script.
 
 input=$(cat)
 
@@ -79,26 +79,22 @@ bar() {
 five_remaining=$(fmt_remaining "$(to_epoch "$five_reset")")
 week_remaining=$(fmt_remaining "$(to_epoch "$week_reset")")
 
-# Publishes to the tmux pane border. Backgrounded and silenced: a slow or
-# missing tmux must never delay or corrupt the status line itself.
+# Publishes to the pane decoration of whichever workspace manager is running;
+# agent-status decides which transports are live. Backgrounded and silenced: a
+# slow or missing transport must never delay or corrupt the status line itself.
 #
-# The border carries rate limits rather than token counts: what constrains the
-# next hour of work is how much of the window is left, and per-turn token counts
-# in that slot read as session figures while describing a single response.
+# The decoration carries rate limits rather than token counts: what constrains
+# the next hour of work is how much of the window is left, and per-turn token
+# counts in that slot read as session figures while describing a single response.
 # Countdowns only advance when the status line runs, so an idle session's border
 # can show a stale "resets in" - the same staleness the status line itself has,
 # and deliberately not papered over with statusLine.refreshInterval.
-publish_tmux() {
-    local writer=${HOME}/.local/bin/tmux-agent-status
-    [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ] || return 0
+publish_status() {
+    local writer=${HOME}/.local/bin/agent-status
     [ -x "$writer" ] || return 0
-    # Spaces stripped ("2h 55m" -> "2h55m"): the border pays for every column and
-    # renders these bare, as "5h:8% (2h55m)", where the label already says which
-    # clock the parenthetical belongs to. The status line below keeps the roomier
-    # "(resets in 2h 55m)".
     printf '%s' "$input" | jq -c \
-        --arg five_reset "${five_remaining// /}" \
-        --arg week_reset "${week_remaining// /}" '{
+        --arg five_reset "$five_remaining" \
+        --arg week_reset "$week_remaining" '{
         agent: "claude",
         model: (.model.display_name // .model.id),
         effort: .effort.level,
@@ -111,7 +107,7 @@ publish_tmux() {
     }' 2>/dev/null | "$writer" >/dev/null 2>&1 &
 }
 
-publish_tmux
+publish_status
 
 out=$model
 [ -n "$effort" ] && out="$out | effort:$effort"

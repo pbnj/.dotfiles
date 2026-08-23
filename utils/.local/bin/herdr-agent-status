@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# Publishes coding-agent metadata to herdr as display-only pane metadata.
+#
+# Reads the normalised envelope produced by agent-status on stdin and reports it
+# with `herdr pane report-metadata` as custom pane tokens:
+#
+#   $model $effort $where $ctx $u5h $u7d $spend $cache
+#
+# rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml as
+# one block per agent in the sidebar.
+#
+# Deliberately no --display-agent: the reported agent label is what split pane
+# borders render, and a usage line there is more clutter than signal.
+#
+# Values are self-labelling ("ctx 42% [####..]") because herdr joins tokens with
+# a middle dot and adds no labels of its own, and short because the expanded
+# sidebar is 18-36 columns wide. An empty token value clears that key, so a row
+# whose tokens are all absent disappears rather than rendering a bare label.
+#
+# Usage:
+#   agent-status | herdr-agent-status   publish (not called directly)
+#   herdr-agent-status --clear          clear every field this script reports
+#
+# Outside a herdr pane this is a silent no-op.
+
+set -uo pipefail
+
+# $HERDR_PANE_ID is injected into every herdr-managed pane and inherited by
+# grandchildren, so it names the pane to annotate even when the write happens
+# from claude's status line command rather than the agent process itself.
+[ -n "${HERDR_PANE_ID:-}" ] || exit 0
+HERDR_BIN=${HERDR_BIN_PATH:-herdr}
+command -v "$HERDR_BIN" >/dev/null 2>&1 || exit 0
+
+pane=$HERDR_PANE_ID
+# A pane accepts sequenced token reports from at most 32 distinct sources during
+# its lifetime and clearing never releases a slot, so this must stay a single
+# constant rather than anything per-session.
+SOURCE=dotfiles.agent-status
+
+TOKENS=(model effort where ctx u5h u7d spend cache)
+
+# Keyed by socket as well as pane id: pane ids restart at w1:p1 when the server
+# does, and a stale cache entry would otherwise suppress a new pane's first
+# publish.
+cache_dir="${TMPDIR:-/tmp}/herdr-agent-status"
+cache_key=$(printf '%s' "${HERDR_SOCKET_PATH:-default}|$pane" | tr -c '[:alnum:]._-' '-')
+cache_file="$cache_dir/$cache_key"
+
+clear_pane() {
+    # --clear-display-agent covers panes still carrying a label from before this
+    # script stopped reporting one.
+    local args=(pane report-metadata "$pane" --source "$SOURCE" --clear-display-agent)
+    local name
+    # Remove the cache entry first: on a shutdown path the agent may not outlive
+    # this process long enough for the socket round-trip to finish.
+    rm -f "$cache_file" 2>/dev/null
+    for name in "${TOKENS[@]}"; do
+        args+=(--clear-token "$name")
+    done
+    "$HERDR_BIN" "${args[@]}" >/dev/null 2>&1
+    exit 0
+}
+
+[ "${1:-}" = "--clear" ] && clear_pane
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+input=$(cat)
+[ -n "$input" ] || exit 0
+
+# `-` stands in for absent rather than an empty field: tab is an IFS whitespace
+# character, so `read` collapses runs of it and empty fields would desynchronise
+# the whole line.
+fields=$(printf '%s' "$input" | jq -r '
+    def f: if . == null or . == "" then "-" else tostring end;
+    [ (.agent | f)
+    , (.model | f)
+    , (.effort | f)
+    , (.repo | f)
+    , (.branch | f)
+    , (.ctx | f)
+    , (.ctx_pct | f)
+    , (.spend | f)
+    , (.cache | f)
+    , (.limit_5h | f)
+    , (.reset_5h | f)
+    , (.limit_7d | f)
+    , (.reset_7d | f)
+    ] | @tsv' 2>/dev/null)
+[ -n "$fields" ] || exit 0
+
+IFS=$'\t' read -r agent model effort repo branch ctx ctx_pct spend cache \
+    limit_5h reset_5h limit_7d reset_7d <<<"$fields"
+
+for var in agent model effort repo branch ctx ctx_pct spend cache \
+    limit_5h reset_5h limit_7d reset_7d; do
+    [ "${!var}" = "-" ] && declare "$var="
+done
+
+[ -n "$agent" ] || exit 0
+
+# Six cells rather than the status line's ten: "ctx 42% [######]" is 16 columns,
+# which still fits the default 26-column sidebar beside its padding.
+bar() {
+    local p=$1 width=6 filled empty out=''
+    [ -n "$p" ] || return 0
+    filled=$(awk -v p="$p" -v w="$width" 'BEGIN{v=(p*w/100)+0.5; if (v<0) v=0; if (v>w) v=w; printf "%d", v}')
+    empty=$(( width - filled ))
+    while [ "$filled" -gt 0 ]; do out+='█'; filled=$(( filled - 1 )); done
+    while [ "$empty" -gt 0 ]; do out+='░'; empty=$(( empty - 1 )); done
+    printf '[%s]' "$out"
+}
+
+where=""
+if [ -n "$repo" ] && [ -n "$branch" ]; then
+    where="$repo@$branch"
+else
+    where="$repo$branch"
+fi
+
+ctx_value=""
+if [ -n "$ctx" ]; then
+    ctx_value="ctx $ctx"
+    [ -n "$ctx_pct" ] && ctx_value="$ctx_value $(bar "$ctx_pct")"
+fi
+
+# Reset countdowns are only meaningful next to the limit they belong to, so a
+# window with no percentage renders nothing at all.
+window() {
+    local label=$1 used=$2 reset=$3
+    [ -n "$used" ] || return 0
+    printf '%s %s' "$label" "$used"
+    [ -n "$reset" ] && printf ' (%s)' "$reset"
+}
+
+u5h=$(window 5h "$limit_5h" "$reset_5h")
+u7d=$(window 7d "$limit_7d" "$reset_7d")
+
+# Producers fire far more often than the metadata changes (claude's status line
+# re-renders on every event), so skip the socket round-trip when nothing moved.
+payload="$agent|$model|$effort|$where|$ctx_value|$u5h|$u7d|$spend|$cache"
+if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; then
+    exit 0
+fi
+
+# Publishes are backgrounded by their producers and can overlap, so every report
+# is sequenced and herdr drops any that arrives out of order. Time::HiRes keeps
+# the sequence monotonic at sub-second resolution; the fallback loses ordering
+# within a second, which is the same resolution as no sequencing at all.
+seq=$(perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000' 2>/dev/null) \
+    || seq=$(( $(date '+%s') * 1000 ))
+
+"$HERDR_BIN" pane report-metadata "$pane" \
+    --source "$SOURCE" \
+    --seq "$seq" \
+    --token "model=$model" \
+    --token "effort=$effort" \
+    --token "where=$where" \
+    --token "ctx=$ctx_value" \
+    --token "u5h=$u5h" \
+    --token "u7d=$u7d" \
+    --token "spend=$spend" \
+    --token "cache=$cache" \
+    >/dev/null 2>&1 \
+    && { mkdir -p "$cache_dir" 2>/dev/null && printf '%s' "$payload" >"$cache_file" 2>/dev/null; }
+
+exit 0

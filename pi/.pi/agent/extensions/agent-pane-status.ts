@@ -1,16 +1,18 @@
 /**
- * tmux Pane Status
+ * Agent Pane Status
  *
  * Publishes this session's model, thinking level, repo/branch, context usage,
- * and last-turn token counts to the tmux pane border, so a window full of agent
- * panes is legible at a glance instead of every border reading "node".
+ * and session token counts to the surrounding workspace manager's pane
+ * decoration - tmux pane borders and the herdr sidebar - so a window full of
+ * agent panes is legible at a glance instead of every border reading "node".
  *
- * The rendering and the tmux writes live in ~/.local/bin/tmux-agent-status,
- * shared with the claude status line, so both agents produce identical borders.
- * This extension only feeds it a JSON envelope on stdin.
+ * The rendering and the writes live in ~/.local/bin/agent-status, shared with
+ * the claude status line, so both agents produce identical decorations. This
+ * extension only feeds it a JSON envelope on stdin.
  *
- * Inert outside tmux and outside the TUI: without $TMUX_PANE there is no pane to
- * annotate, and `pi --print` / rpc runs have no border to draw on.
+ * Inert outside a managed pane and outside the TUI: without $TMUX_PANE or
+ * $HERDR_PANE_ID there is no pane to annotate, and `pi --print` / rpc runs have
+ * nothing to draw on.
  */
 
 import { execFile } from "node:child_process";
@@ -22,10 +24,10 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
-const WRITER = join(homedir(), ".local", "bin", "tmux-agent-status");
+const WRITER = join(homedir(), ".local", "bin", "agent-status");
 
 // Streaming turns emit a message_end per tool round-trip. Throttling those keeps
-// the border fresh mid-turn without one subprocess per message; state changes
+// the decoration fresh mid-turn without one subprocess per message; state changes
 // (model, thinking level, session, turn boundaries) always publish immediately.
 const THROTTLE_MS = 800;
 
@@ -48,21 +50,24 @@ function add(totals: Totals, usage: Usage | undefined): void {
   totals.cacheWrite += usage.cacheWrite ?? 0;
 }
 
-export default function tmuxPaneStatusExtension(pi: ExtensionAPI) {
+export default function agentPaneStatusExtension(pi: ExtensionAPI) {
   // Session totals rather than the last response: per-turn numbers on a border
   // read as if they described the session, which is the one thing they don't.
   let totals = emptyTotals();
   let lastPublish = 0;
   let timer: NodeJS.Timeout | undefined;
 
+  // agent-status decides which transports to write; this only checks whether
+  // any pane exists to annotate, so the common case costs no subprocess.
   function enabled(ctx: ExtensionContext): boolean {
-    return (
-      Boolean(process.env.TMUX && process.env.TMUX_PANE) && ctx.mode === "tui"
-    );
+    const managed =
+      Boolean(process.env.TMUX && process.env.TMUX_PANE) ||
+      Boolean(process.env.HERDR_PANE_ID);
+    return managed && ctx.mode === "tui";
   }
 
-  // Fire-and-forget: a missing writer or a tmux hiccup must never surface in the
-  // session, so failures are swallowed rather than notified.
+  // Fire-and-forget: a missing writer or a transport hiccup must never surface
+  // in the session, so failures are swallowed rather than notified.
   function run(args: string[], stdin?: string): void {
     const child = execFile(WRITER, args, () => {});
     child.on("error", () => {});
