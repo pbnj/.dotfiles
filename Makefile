@@ -104,3 +104,20 @@ macos-change-screenshot-location: ## Change default screenshot location to /tmp
 .PHONY: macos-disable-keypresshold
 macos-disable-keypresshold: ## Disable key press and hold feature
 	defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
+
+NVIM_GHOSTTY_DIR := $(CURDIR)/macos/.local/share/nvim-ghostty
+
+.PHONY: macos-nvim-ghostty
+macos-nvim-ghostty: ## Build ~/Applications/NvimGhostty.app (nvim in Ghostty document handler)
+	$(NVIM_GHOSTTY_DIR)/build.sh
+
+.PHONY: macos-nvim-ghostty-register
+macos-nvim-ghostty-register: ## Build NvimGhostty.app and make it the default JSON handler
+	if ! hash duti >/dev/null 2>&1 ; then brew install duti ; fi
+	$(NVIM_GHOSTTY_DIR)/build.sh --register
+
+.PHONY: macos-nvim-ghostty-uninstall
+macos-nvim-ghostty-uninstall: ## Remove NvimGhostty.app and reset Launch Services
+	rm -rf $(HOME)/Applications/NvimGhostty.app
+	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+		-kill -r -domain local -domain user

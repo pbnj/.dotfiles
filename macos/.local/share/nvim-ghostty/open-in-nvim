@@ -1,0 +1,39 @@
+#!/bin/sh
+# Open the given files in Neovim inside a new Ghostty window.
+#
+# Invoked from the NvimGhostty.app AppleScript handler, which runs under
+# `do shell script` with a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin) and no
+# shell profile. Both nvim and Ghostty are therefore resolved explicitly.
+
+set -eu
+
+find_nvim() {
+	for candidate in \
+		/opt/homebrew/bin/nvim \
+		/usr/local/bin/nvim \
+		/usr/bin/nvim; do
+		[ -x "$candidate" ] && printf '%s\n' "$candidate" && return 0
+	done
+	command -v nvim 2>/dev/null && return 0
+	return 1
+}
+
+nvim_bin=$(find_nvim) || {
+	/usr/bin/osascript -e 'display alert "NvimGhostty" message "Could not find the nvim binary."' >/dev/null
+	exit 1
+}
+
+# Wrap the paths in a single `sh -c` argument. Passing them as bare arguments
+# after `-e` makes Ghostty ALSO treat each existing path as a document to open,
+# spawning a second window that tries to execute the file as a command.
+quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+command_line="exec $(quote "$nvim_bin")"
+for f in "$@"; do
+	command_line="$command_line $(quote "$f")"
+done
+
+# On macOS, Ghostty cannot be launched from the CLI directly; `open -na` is the
+# supported path, and -n is required because arguments are only consumed at
+# launch. The trade-off is a separate Ghostty instance per invocation.
+/usr/bin/open -na Ghostty.app --args -e /bin/sh -c "$command_line"
