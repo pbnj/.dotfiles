@@ -1,33 +1,26 @@
 #!/usr/bin/env bash
-# Claude Code status line.
-# Renders: model | effort | repo@branch | context % [bar] | 5h usage % [bar] (resets in Xh Ym) | 7d usage % [bar] (resets in Xh Ym)
+# Claude Code status line command, kept as the producer of pane decoration only:
+# it prints nothing, so the TUI renders no status line, and instead feeds
+# agent-status, which publishes these fields to the tmux pane border and the
+# herdr sidebar. Those already sit beside every agent pane, so a per-pane status
+# line repeated the same numbers one row lower.
+#
 # Field docs: https://code.claude.com/docs/en/statusline
 # Every field except the model is optional and is omitted when absent:
 #   effort      - only for models supporting the reasoning effort parameter
 #   rate_limits - only for Claude.ai Pro/Max, after the first API response
 #   context_window.used_percentage - null early in a session and after /compact
 #
-# The same payload also feeds agent-status, which publishes a compact form of
-# these fields to the tmux pane border and the herdr sidebar so every agent pane
-# is legible at once. ~/.claude/statusline.sh is a thin wrapper around this script.
+# ~/.claude/statusline.sh is a thin wrapper around this script.
 
 input=$(cat)
 
 j() { printf '%s' "$input" | jq -r "$1 // empty"; }
 
-model=$(printf '%s' "$input" | jq -r '.model.display_name // .model.id // "unknown"')
-effort=$(j '.effort.level')
-repo=$(printf '%s' "$input" | jq -r '.workspace.repo | if . then .owner + "/" + .name else empty end')
-cwd=$(j '.workspace.current_dir')
-branch=""
-if [ -n "$cwd" ] && [ -d "$cwd" ]; then
-    branch=$(git -C "$cwd" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null)
-    [ "$branch" = "HEAD" ] && branch=""
-fi
-ctx=$(j '.context_window.used_percentage')
-five=$(j '.rate_limits.five_hour.used_percentage')
+# The percentages travel to the sinks inside the payload; only the reset
+# timestamps need work here, because they arrive as epochs and every sink renders
+# them as a countdown.
 five_reset=$(j '.rate_limits.five_hour.resets_at')
-week=$(j '.rate_limits.seven_day.used_percentage')
 week_reset=$(j '.rate_limits.seven_day.resets_at')
 
 # resets_at is documented as Unix epoch seconds; ISO 8601 is handled defensively
@@ -62,20 +55,7 @@ fmt_remaining() {
     fi
 }
 
-pct() { printf '%.0f%%' "$1"; }
-
-# Renders a small block progress bar for a 0-100 percentage.
-bar() {
-    local p=$1 width=10 filled empty
-    filled=$(awk -v p="$p" -v w="$width" 'BEGIN{v=(p*w/100)+0.5; if (v<0) v=0; if (v>w) v=w; printf "%d", v}')
-    empty=$(( width - filled ))
-    printf '['
-    [ "$filled" -gt 0 ] && printf '█%.0s' $(seq 1 "$filled")
-    [ "$empty" -gt 0 ] && printf '░%.0s' $(seq 1 "$empty")
-    printf ']'
-}
-
-# Reset countdowns, computed once for both the status line and the pane border.
+# Reset countdowns for the pane decoration.
 five_remaining=$(fmt_remaining "$(to_epoch "$five_reset")")
 week_remaining=$(fmt_remaining "$(to_epoch "$week_reset")")
 
@@ -109,25 +89,6 @@ publish_status() {
 
 publish_status
 
-out=$model
-[ -n "$effort" ] && out="$out | effort:$effort"
-if [ -n "$repo" ] && [ -n "$branch" ]; then
-    out="$out | $repo@$branch"
-elif [ -n "$repo" ]; then
-    out="$out | $repo"
-elif [ -n "$branch" ]; then
-    out="$out | $branch"
-fi
-[ -n "$ctx" ] && out="$out | ctx:$(pct "$ctx") $(bar "$ctx")"
-
-for window in "5h:$five:$five_remaining" "7d:$week:$week_remaining"; do
-    label=${window%%:*}
-    rest=${window#*:}
-    used=${rest%%:*}
-    remaining=${rest#*:}
-    [ -n "$used" ] || continue
-    out="$out | $label:$(pct "$used") $(bar "$used")"
-    [ -n "$remaining" ] && out="$out (resets in $remaining)"
-done
-
-printf '\033[2m%s\033[0m' "$out"
+# No output: empty stdout leaves the TUI without a status line, which is the
+# point - the same fields are already on the pane border and in the sidebar.
+exit 0

@@ -4,7 +4,7 @@
 # Reads the normalised envelope produced by agent-status on stdin and reports it
 # with `herdr pane report-metadata` as custom pane tokens:
 #
-#   $model $effort $where $ctx $u5h $u7d $spend $cache
+#   $model $where $ctx $u5h $u7d $spend $cache
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml as
 # one block per agent in the sidebar.
@@ -12,10 +12,15 @@
 # Deliberately no --display-agent: the reported agent label is what split pane
 # borders render, and a usage line there is more clutter than signal.
 #
-# Values are self-labelling ("ctx 42% [####..]") because herdr joins tokens with
-# a middle dot and adds no labels of its own, and short because the expanded
-# sidebar is 18-36 columns wide. An empty token value clears that key, so a row
-# whose tokens are all absent disappears rather than rendering a bare label.
+# Values are self-labelling ("ctx:42%") because herdr adds no labels of its own,
+# and short because the expanded sidebar is 18-36 columns wide. An empty token
+# value clears that key, so a row whose tokens are all absent disappears rather
+# than rendering a bare label.
+#
+# Each row is a single token: herdr joins the tokens within a row with a middle
+# dot, and "opus-5 · (medium)" reads as two facts where "opus-5 (medium)" reads
+# as one. So $model carries the effort and the label:value cells are pre-joined
+# here rather than left for the row layout to punctuate.
 #
 # Usage:
 #   agent-status | herdr-agent-status   publish (not called directly)
@@ -38,6 +43,8 @@ pane=$HERDR_PANE_ID
 # constant rather than anything per-session.
 SOURCE=dotfiles.agent-status
 
+# `effort` is no longer reported - it lives inside $model now - but stays in the
+# clear list so panes annotated by an older version of this script lose it too.
 TOKENS=(model effort where ctx u5h u7d spend cache)
 
 # Keyed by socket as well as pane id: pane ids restart at w1:p1 when the server
@@ -76,11 +83,10 @@ fields=$(printf '%s' "$input" | jq -r '
     def f: if . == null or . == "" then "-" else tostring end;
     [ (.agent | f)
     , (.model | f)
-    , (.effort | f)
+    , (.effort_long | f)
     , (.repo | f)
     , (.branch | f)
     , (.ctx | f)
-    , (.ctx_pct | f)
     , (.spend | f)
     , (.cache | f)
     , (.limit_5h | f)
@@ -90,27 +96,15 @@ fields=$(printf '%s' "$input" | jq -r '
     ] | @tsv' 2>/dev/null)
 [ -n "$fields" ] || exit 0
 
-IFS=$'\t' read -r agent model effort repo branch ctx ctx_pct spend cache \
+IFS=$'\t' read -r agent model effort repo branch ctx spend cache \
     limit_5h reset_5h limit_7d reset_7d <<<"$fields"
 
-for var in agent model effort repo branch ctx ctx_pct spend cache \
+for var in agent model effort repo branch ctx spend cache \
     limit_5h reset_5h limit_7d reset_7d; do
     [ "${!var}" = "-" ] && declare "$var="
 done
 
 [ -n "$agent" ] || exit 0
-
-# Six cells rather than the status line's ten: "ctx 42% [######]" is 16 columns,
-# which still fits the default 26-column sidebar beside its padding.
-bar() {
-    local p=$1 width=6 filled empty out=''
-    [ -n "$p" ] || return 0
-    filled=$(awk -v p="$p" -v w="$width" 'BEGIN{v=(p*w/100)+0.5; if (v<0) v=0; if (v>w) v=w; printf "%d", v}')
-    empty=$(( width - filled ))
-    while [ "$filled" -gt 0 ]; do out+='█'; filled=$(( filled - 1 )); done
-    while [ "$empty" -gt 0 ]; do out+='░'; empty=$(( empty - 1 )); done
-    printf '[%s]' "$out"
-}
 
 where=""
 if [ -n "$repo" ] && [ -n "$branch" ]; then
@@ -119,27 +113,27 @@ else
     where="$repo$branch"
 fi
 
+model_value="$model"
+[ -n "$model_value" ] && [ -n "$effort" ] && model_value="$model_value ($effort)"
+
 ctx_value=""
-if [ -n "$ctx" ]; then
-    ctx_value="ctx $ctx"
-    [ -n "$ctx_pct" ] && ctx_value="$ctx_value $(bar "$ctx_pct")"
-fi
+[ -n "$ctx" ] && ctx_value="ctx:$ctx"
 
 # Reset countdowns are only meaningful next to the limit they belong to, so a
 # window with no percentage renders nothing at all.
 window() {
     local label=$1 used=$2 reset=$3
     [ -n "$used" ] || return 0
-    printf '%s %s' "$label" "$used"
+    printf '%s:%s' "$label" "$used"
     [ -n "$reset" ] && printf ' (%s)' "$reset"
 }
 
-u5h=$(window 5h "$limit_5h" "$reset_5h")
-u7d=$(window 7d "$limit_7d" "$reset_7d")
+u5h=$(window u5h "$limit_5h" "$reset_5h")
+u7d=$(window u7d "$limit_7d" "$reset_7d")
 
 # Producers fire far more often than the metadata changes (claude's status line
 # re-renders on every event), so skip the socket round-trip when nothing moved.
-payload="$agent|$model|$effort|$where|$ctx_value|$u5h|$u7d|$spend|$cache"
+payload="$agent|$model_value|$where|$ctx_value|$u5h|$u7d|$spend|$cache"
 if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; then
     exit 0
 fi
@@ -154,8 +148,7 @@ seq=$(perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000' 2>/dev/null) \
 "$HERDR_BIN" pane report-metadata "$pane" \
     --source "$SOURCE" \
     --seq "$seq" \
-    --token "model=$model" \
-    --token "effort=$effort" \
+    --token "model=$model_value" \
     --token "where=$where" \
     --token "ctx=$ctx_value" \
     --token "u5h=$u5h" \

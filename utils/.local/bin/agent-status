@@ -22,7 +22,7 @@
 # of each one exactly once and hands the sinks a normalised envelope, where an
 # absent value is the empty string:
 #
-#   {"agent":"claude","model":"opus-5","effort":"med","repo":"dotfiles",
+#   {"agent":"claude","model":"opus-5","effort":"med","effort_long":"medium","repo":"dotfiles",
 #    "branch":"main","ctx":"42%","ctx_pct":42,"tokens":"i:163 | o:71.8k",
 #    "limit_5h":"8%","reset_5h":"2h55m","limit_7d":"17%","reset_7d":"79h15m"}
 #
@@ -154,7 +154,15 @@ if [ "$cwd" != "-" ] && [ -d "$cwd" ]; then
 fi
 
 if [ "$model" = "-" ]; then model=""; else model=$(short_model "$model"); fi
-if [ "$effort" = "-" ]; then effort=""; else effort=$(short_effort "$effort"); fi
+# Both forms travel: a tmux border is three columns tighter than a sidebar row,
+# so each sink picks the one that fits rather than re-deriving the other.
+if [ "$effort" = "-" ]; then
+    effort=""
+    effort_long=""
+else
+    effort_long=$(printf '%s' "$effort" | tr '[:upper:]' '[:lower:]')
+    effort=$(short_effort "$effort")
+fi
 
 ctx=$(as_pct "$ctx_pct")
 # Rate limits are Claude.ai Pro/Max only, and only after the first API response;
@@ -216,6 +224,7 @@ normalised=$(jq -n \
     --arg agent "$agent" \
     --arg model "$model" \
     --arg effort "$effort" \
+    --arg effort_long "$effort_long" \
     --arg repo "$repo" \
     --arg branch "$branch" \
     --arg ctx "$ctx" \
@@ -227,7 +236,7 @@ normalised=$(jq -n \
     --arg reset_5h "$rst_5h" \
     --arg limit_7d "$limit_7d" \
     --arg reset_7d "$rst_7d" \
-    '{$agent, $model, $effort, $repo, $branch, $ctx,
+    '{$agent, $model, $effort, $effort_long, $repo, $branch, $ctx,
       ctx_pct: (if $ctx_pct == "" then null else ($ctx_pct | tonumber?) end),
       $tokens, $spend, $cache, $limit_5h, $reset_5h, $limit_7d, $reset_7d}' 2>/dev/null)
 [ -n "$normalised" ] || exit 0

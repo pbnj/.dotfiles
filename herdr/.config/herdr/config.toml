@@ -44,8 +44,12 @@ height = "80%"
 show_agent_labels_on_pane_borders = false
 
 # One block per agent, fed by ~/.local/bin/herdr-agent-status. The $tokens are
-# self-labelling because herdr joins tokens with a middle dot and adds no labels,
-# and a row disappears when none of its tokens has a value.
+# self-labelling because herdr adds no labels of its own, and a row disappears
+# when none of its tokens has a value.
+#
+# One token per row: herdr joins the tokens within a row with a middle dot, so
+# anything that should read as a single phrase ("opus-5 (medium)") is assembled
+# in herdr-agent-status instead.
 #
 # The per-agent overrides omit the `agent` built-in because $model already names
 # what is running, more precisely than the agent label does.
@@ -55,14 +59,14 @@ rows = [["state_icon", "workspace", "tab"], ["agent"]]
 [ui.sidebar.agents.rows_by_agent]
 claude = [
   ["state_icon", "workspace", "tab"],
-  [{ token = "$model", bold = true }, "$effort"],
+  [{ token = "$model", bold = true }],
   ["$ctx"],
   ["$u5h"],
   ["$u7d"],
 ]
 pi = [
   ["state_icon", "workspace", "tab"],
-  [{ token = "$model", bold = true }, "$effort"],
+  [{ token = "$model", bold = true }],
   ["$ctx"],
   ["$spend"],
   ["$cache"],
