@@ -106,15 +106,20 @@ macos-disable-keypresshold: ## Disable key press and hold feature
 	defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
 NVIM_GHOSTTY_DIR := $(CURDIR)/macos/.local/share/nvim-ghostty
+GROUPS ?= data
 
 .PHONY: macos-nvim-ghostty
 macos-nvim-ghostty: ## Build ~/Applications/NvimGhostty.app (nvim in Ghostty document handler)
 	$(NVIM_GHOSTTY_DIR)/build.sh
 
 .PHONY: macos-nvim-ghostty-register
-macos-nvim-ghostty-register: ## Build NvimGhostty.app and make it the default JSON handler
+macos-nvim-ghostty-register: ## Build NvimGhostty.app and default-handle GROUPS="data text docs config source"
 	if ! hash duti >/dev/null 2>&1 ; then brew install duti ; fi
-	$(NVIM_GHOSTTY_DIR)/build.sh --register
+	$(NVIM_GHOSTTY_DIR)/build.sh --register $(GROUPS)
+
+.PHONY: macos-nvim-ghostty-status
+macos-nvim-ghostty-status: ## Show which app currently handles each claimed extension
+	$(NVIM_GHOSTTY_DIR)/status.sh
 
 .PHONY: macos-nvim-ghostty-uninstall
 macos-nvim-ghostty-uninstall: ## Remove NvimGhostty.app and reset Launch Services
