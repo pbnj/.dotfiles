@@ -21,7 +21,7 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "JetBrainsMono NFM"
+font-family = "SF Mono"
 font-size = 14
 
 # ghostty +list-themes
