@@ -6,6 +6,7 @@
 	co = checkout
 	cob = checkout -b
 	com = checkout main
+	comp = !git checkout main && git pull origin main
 	contributors = shortlog --summary --numbered --email
 	czc = cz commit
 	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"
@@ -19,6 +20,10 @@
 	undo = !git reset HEAD~1 --mixed
 	unstage = reset
 	whatchanged = log --raw --no-merges
+	; git find [-p] <pattern> -- with -p, print each matching commit's full diff.
+	; The diff is deliberately not narrowed with -G: that would re-filter the list
+	; and silently drop commits that matched only on the message.
+	find = "!f(){ patch=; if [ \"$1\" = \"-p\" ]; then patch=-p; shift; fi; shas=$( { git log --all --format=%H -i -F --grep=\"$1\"; git log --all --format=%H -i -S\"$1\"; } | sort -u ); if [ -z \"$shas\" ]; then echo \"git find: no commits match: $1\" >&2; return 1; fi; printf \"%s\\n\" \"$shas\" | git log --no-walk=sorted --stdin --oneline --date-order $patch; }; f"
 
 [apply]
 	whitespace = fix
