@@ -19,11 +19,7 @@ alias okta='nvim -c Okta'
 # tmux
 alias tm="tmux -u a || tmux -u"
 
-# ai
-alias cl="claude --dangerously-skip-permissions"
-alias cw="claude-work"
-alias co="copilot --yolo"
-alias ca="cursor agent --yolo"
+alias pig="pi --model glean"
 
 # terraform
 alias tfsl="terraform state list"
