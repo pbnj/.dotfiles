@@ -83,7 +83,7 @@ fields=$(printf '%s' "$input" | jq -r '
     def f: if . == null or . == "" then "-" else tostring end;
     [ (.agent | f)
     , (.model | f)
-    , (.effort_long | f)
+    , (.effort | f)
     , (.repo | f)
     , (.branch | f)
     , (.ctx | f)
@@ -106,11 +106,11 @@ done
 
 [ -n "$agent" ] || exit 0
 
-where=""
-if [ -n "$repo" ] && [ -n "$branch" ]; then
-    where="$repo@$branch"
+where="$repo"
+if [ -n "$where" ]; then
+    [ -n "$branch" ] && where="$where ($branch)"
 else
-    where="$repo$branch"
+    where="$branch"
 fi
 
 model_value="$model"

@@ -4,11 +4,11 @@
 # Reads the normalised envelope produced by agent-status on stdin and writes each
 # field as a pane user option that `pane-border-format` reads as #{@agent_*}:
 #
-#   {"agent":"claude","model":"opus-5","effort":"med","repo":"dotfiles",
+#   {"agent":"claude","model":"opus-5","effort":"medium","repo":"dotfiles",
 #    "branch":"main","ctx":"42%","tokens":"i:163 | o:71.8k","limit_5h":"8%",
 #    "reset_5h":"2h55m","limit_7d":"17%","reset_7d":"79h15m"}
 #
-# All formatting decisions - model and effort abbreviation, humanised token
+# All formatting decisions - model abbreviation, effort case, humanised token
 # counts, repo and branch derivation, percentages - live in agent-status, so this
 # and the herdr sink cannot drift apart. Absent fields arrive as empty strings,
 # are written as empty options, and the border format drops their segments.
