@@ -1,0 +1,462 @@
+#!/usr/bin/env python3
+"""Collect cold git worktrees, without ever losing work.
+
+Worktrees pile up. Each one is a full checkout, and the branch you made it for
+was merged weeks ago -- but deleting checkouts by hand is the kind of chore that
+is either never done or done once, catastrophically.
+
+This removes a worktree only when all three of these hold:
+
+  * nobody has touched it for --max-age-days (default 14),
+  * it has no modifications to tracked files, and
+  * every commit on its branch exists somewhere other than that checkout.
+
+The BRANCH is always kept. Collection reclaims disk and nothing else -- a
+collected worktree comes back with `git worktree add <path> <branch>`, commits
+intact. That is what makes it safe to run on a schedule.
+
+    git worktree-gc                      # sweep this repo, 14 day threshold
+    git worktree-gc --dry-run            # say what it would do, touch nothing
+    git worktree-gc --max-age-days 30
+    git worktree-gc -C ~/src/api --json  # machine-readable decisions
+
+Install by putting this file on PATH under this name; git then finds it as the
+`worktree-gc` subcommand. Python 3.9+, stdlib only.
+
+Extracted from linear-delegate's poll.py, which shells out to it for the age
+half of its own worktree GC and keeps only the part that needs an issue tracker.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+VERSION = "1.0.0"
+
+DEFAULT_MAX_AGE_DAYS = 14
+
+
+# --------------------------------------------------------------------------- #
+# git                                                                         #
+# --------------------------------------------------------------------------- #
+
+
+def git(where: str, *args: str) -> Tuple[int, str]:
+    """Run git in `where`, returning (exit code, combined output).
+
+    Arguments are a list, never a shell string: a branch name is attacker-ish
+    input here -- it comes from whatever is checked out -- and quoting is one
+    more thing that can go wrong on a tool whose job is to delete directories.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "-C", where] + list(args),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    except OSError as exc:
+        return 127, str(exc)
+    return proc.returncode, proc.stdout
+
+
+def is_git_worktree(path: str) -> bool:
+    code, out = git(path, "rev-parse", "--is-inside-work-tree")
+    return code == 0 and out.strip() == "true"
+
+
+def default_branch(repo: str) -> Optional[str]:
+    """The repo's default branch, as the fallback ref to prove pushedness against."""
+    code, out = git(repo, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if code == 0 and out.strip():
+        return out.strip().rsplit("/", 1)[-1]
+    for candidate in ("main", "master"):
+        code, _ = git(repo, "rev-parse", "--verify", "--quiet", candidate)
+        if code == 0:
+            return candidate
+    return None
+
+
+def worktrees(repo: str) -> List[Dict[str, Any]]:
+    """Every worktree git knows about, parsed from `worktree list --porcelain`.
+
+    Records are separated by blank lines and the FIRST is always the main
+    worktree -- the repository's own checkout, which is never a candidate here.
+    It is flagged rather than dropped so that a caller printing everything can
+    still say so.
+
+    Porcelain is the stable format; the human `git worktree list` aligns columns
+    and would need re-parsing every time git prettifies it.
+    """
+    code, out = git(repo, "worktree", "list", "--porcelain")
+    if code != 0:
+        return []
+    found: List[Dict[str, Any]] = []
+    current: Dict[str, Any] = {}
+    for line in out.splitlines():
+        line = line.rstrip()
+        if not line:
+            continue
+        if line.startswith("worktree "):
+            if current:
+                found.append(current)
+            current = {
+                "path": line[len("worktree ") :],
+                "main": not found,
+                "branch": None,
+                "detached": False,
+                "bare": False,
+                "locked": False,
+                "prunable": False,
+            }
+        elif not current:
+            continue
+        elif line.startswith("branch "):
+            current["branch"] = line[len("branch ") :].split("refs/heads/")[-1]
+        elif line == "detached":
+            current["detached"] = True
+        elif line == "bare":
+            current["bare"] = True
+        elif line == "locked" or line.startswith("locked "):
+            current["locked"] = True
+        elif line == "prunable" or line.startswith("prunable "):
+            current["prunable"] = True
+    if current:
+        found.append(current)
+    return found
+
+
+# --------------------------------------------------------------------------- #
+# guards                                                                      #
+# --------------------------------------------------------------------------- #
+
+
+def last_activity(path: str) -> Optional[float]:
+    """When this checkout was last worked in, as a unix timestamp.
+
+    The NEWER of HEAD's commit time and the checkout root's own mtime. Neither
+    alone is enough: a worktree branched off a commit from last month reads as a
+    month old the moment it is created, and a root mtime alone misses a week of
+    commits made below it.
+
+    Deliberately not a stored timestamp. There is nothing to backfill, no second
+    write site to forget, and work someone did BY HAND counts exactly like a
+    tool's -- which a "last used" stamp we wrote ourselves could never see.
+
+    None when the path is not readable as a checkout, which the caller must
+    treat as "cannot tell", never as "old".
+    """
+    newest: Optional[float] = None
+    code, out = git(path, "log", "-1", "--format=%ct")
+    if code == 0 and out.strip():
+        try:
+            newest = float(out.strip())
+        except ValueError:
+            newest = None
+    try:
+        mtime = os.stat(path).st_mtime
+    except OSError:
+        return newest
+    return mtime if newest is None else max(newest, mtime)
+
+
+def is_clean(path: str) -> bool:
+    """Whether a checkout holds no modifications to tracked files.
+
+    `--untracked-files=no` is a policy choice, not an oversight: scratch
+    accumulates in a working checkout -- logs, notes, a stray script -- and
+    treating every one of those as work to protect would pin a worktree forever.
+    Anything meant to be kept is a tracked change or a commit, and both block
+    collection.
+    """
+    code, out = git(path, "status", "--porcelain", "--untracked-files=no")
+    return code == 0 and not out.strip()
+
+
+def is_pushed(path: str, branch: str, default: Optional[str]) -> bool:
+    """Whether this branch's commits exist somewhere other than this checkout.
+
+    NEVER `@{upstream}`. That is what made an earlier version of this check keep
+    every worktree forever, and it fails two different ways depending on one
+    setting -- which is the argument for not asking it at all:
+
+    * `branch.autoSetupMerge` at its default (`true`), or `simple`/`false`: a
+      worktree branch started from a LOCAL base gets no upstream, so
+      `@{upstream}` does not resolve and the check errors out. Unprovable, kept.
+    * `always` (or `inherit`): the branch tracks the base branch -- `main`, or
+      `origin/main` under `inherit` -- so every commit on it reads as ahead of
+      upstream no matter how many times it has been pushed.
+
+    Either way the answer is about the base branch, not about origin. The remote
+    branch is named explicitly here instead.
+
+    Two cases, because a branch that was never pushed has no origin ref to
+    compare against, and comparing against nothing would read as "all pushed":
+
+    * `origin/<branch>` exists -- nothing may be ahead of it.
+    * it does not -- then nothing may be ahead of the DEFAULT branch either,
+      which is the same question asked of the only ref we still have.
+
+    Conservative everywhere it cannot tell: no default branch, or a git call
+    that fails, answers False and the worktree is kept. No fetch either -- a
+    stale origin ref can only make commits look unpushed, which keeps the
+    checkout.
+    """
+    code, _ = git(
+        path, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + branch
+    )
+    against = "origin/" + branch if code == 0 else default
+    if not against:
+        return False
+    code, out = git(path, "rev-list", "--count", against + "..HEAD")
+    return code == 0 and out.strip() == "0"
+
+
+def decide(
+    entry: Dict[str, Any],
+    max_age_days: int,
+    keep: Sequence[str],
+    now: float,
+    default: Optional[str],
+) -> Dict[str, Any]:
+    """Whether this worktree may be collected, and why -- always with a reason.
+
+    A reason rather than a bool, because it is the whole of what the caller
+    prints: "removed worktree X" without "untouched for 22 days" is
+    indistinguishable from a sweep that has gone wrong.
+
+    `stale` separates the two ways a worktree is kept. "Too young" is the
+    ordinary case and is boring; "old enough, but it still has uncommitted
+    changes" is the one worth looking at, and without the flag a caller cannot
+    tell them apart from the reason string alone.
+
+    Checks run cheapest-first, and every one of them KEEPS the worktree when it
+    cannot answer.
+    """
+    out = {
+        "path": entry["path"],
+        "branch": entry.get("branch"),
+        "collect": False,
+        "stale": False,
+        "reason": "",
+        "removed": False,
+        "error": None,
+    }
+
+    def keep_it(reason: str, stale: bool = False) -> Dict[str, Any]:
+        out["reason"], out["stale"] = reason, stale
+        return out
+
+    if entry.get("main"):
+        return keep_it("the repository's own checkout")
+    if entry.get("bare"):
+        return keep_it("bare")
+    if entry.get("locked"):
+        # An explicit "do not touch" from whoever locked it. git would refuse
+        # the remove anyway; saying so beats reporting a failure.
+        return keep_it("locked")
+    if entry.get("prunable"):
+        # Its directory is already gone. `git worktree prune` is the command for
+        # that, and quietly doing its job here would hide a half-removed state.
+        return keep_it("prunable -- run `git worktree prune`")
+    if os.path.realpath(entry["path"]) in keep:
+        return keep_it("protected by --keep")
+    if entry.get("detached") or not entry.get("branch"):
+        # No branch means no `origin/<branch>` to prove the commits exist
+        # anywhere else, so the pushed guard can never pass. Kept, explicitly.
+        return keep_it("detached HEAD -- nothing to prove its commits against")
+
+    # Not `if not max_age_days`: a negative is truthy, and would slip past a
+    # falsiness check into an age comparison that nothing can fail -- every
+    # cold, clean, pushed worktree collected at once, from a typo.
+    if max_age_days <= 0:
+        return keep_it("the age sweep is off (--max-age-days {})".format(max_age_days))
+
+    last = last_activity(entry["path"])
+    if last is None:
+        return keep_it("cannot tell when it was last touched")
+    age = (now - last) / 86400.0
+    if age <= max_age_days:
+        return keep_it("touched {:.0f} day(s) ago".format(age))
+
+    if not is_clean(entry["path"]):
+        return keep_it(
+            "untouched for {:.0f} days but has uncommitted changes".format(age),
+            stale=True,
+        )
+    if not is_pushed(entry["path"], entry["branch"], default):
+        return keep_it(
+            "untouched for {:.0f} days but has commits that are not on origin".format(
+                age
+            ),
+            stale=True,
+        )
+
+    out["collect"], out["stale"] = True, True
+    out["reason"] = "untouched for {:.0f} days, clean and pushed".format(age)
+    return out
+
+
+def remove(repo: str, path: str) -> Tuple[bool, str]:
+    """Remove a worktree checkout, keeping its branch.
+
+    Forced even though the guards have already proved the checkout clean: git's
+    own bar for an unforced remove is "no untracked files AND no modification to
+    tracked files", which is stricter than the policy here -- scratch left
+    behind would refuse the remove forever. The guards above are the safety net,
+    not git's.
+
+    `worktree prune` afterwards clears the administrative entry under
+    .git/worktrees, which a remove can leave behind if the directory was already
+    partly gone.
+    """
+    code, out = git(repo, "worktree", "remove", "--force", path)
+    if code != 0:
+        return False, out.strip()[:200]
+    git(repo, "worktree", "prune")
+    return True, ""
+
+
+# --------------------------------------------------------------------------- #
+# cli                                                                         #
+# --------------------------------------------------------------------------- #
+
+
+def sweep(
+    repo: str, max_age_days: int, keep: Sequence[str], now: float, dry_run: bool
+) -> List[Dict[str, Any]]:
+    """Decide on every worktree in `repo`, and remove the ones that qualify.
+
+    `default_branch` is resolved ONCE for the repo rather than per worktree: it
+    is two git calls answering a question about the repository, and asking it
+    per candidate scales the cost with a number that has nothing to do with it.
+    """
+    default = default_branch(repo)
+    decisions = []
+    for entry in worktrees(repo):
+        decision = decide(entry, max_age_days, keep, now, default)
+        if decision["collect"] and not dry_run:
+            ok, detail = remove(repo, decision["path"])
+            decision["removed"] = ok
+            if not ok:
+                decision["error"] = detail
+        decisions.append(decision)
+    return decisions
+
+
+def report(decisions: Sequence[Dict[str, Any]], dry_run: bool, verbose: bool) -> None:
+    """One line per interesting worktree, then a count.
+
+    A young worktree is the normal case and printing it every time is how a
+    scheduled run becomes noise nobody reads -- so by default only the collected
+    ones and the stale-but-kept ones are shown. `-v` prints everything, which is
+    what you want when the question is "why did it not take THAT one".
+    """
+    for d in decisions:
+        if not (verbose or d["collect"] or d["stale"]):
+            continue
+        if d["error"]:
+            verb = "FAILED "
+        elif d["collect"]:
+            verb = "would remove" if dry_run else "removed"
+        else:
+            verb = "keeping"
+        print("{:<12} {}  ({})".format(verb, d["path"], d["error"] or d["reason"]))
+    collected = [d for d in decisions if d["collect"]]
+    failed = [d for d in decisions if d["error"]]
+    print(
+        "{} {} of {} worktree(s){}".format(
+            "would remove" if dry_run else "removed",
+            len(collected) - len(failed),
+            len(decisions),
+            "; {} failed".format(len(failed)) if failed else "",
+        )
+    )
+
+
+def parse_args(argv: Sequence[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="git worktree-gc",
+        description="Remove worktrees nobody has touched, that are clean and "
+        "fully pushed. The branch is always kept.",
+    )
+    parser.add_argument(
+        "-C",
+        dest="repo",
+        default=".",
+        metavar="<repo>",
+        help="repository to sweep (default: the current directory)",
+    )
+    parser.add_argument(
+        "--max-age-days",
+        type=int,
+        default=DEFAULT_MAX_AGE_DAYS,
+        metavar="N",
+        help="collect a worktree untouched for longer than this "
+        "(default: {}; 0 or less collects nothing)".format(DEFAULT_MAX_AGE_DAYS),
+    )
+    parser.add_argument(
+        "--keep",
+        action="append",
+        default=[],
+        metavar="<path>",
+        help="never collect this worktree (repeatable)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what would be removed, and remove nothing",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="print the decisions as JSON instead of text",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="also report the worktrees that are simply too young",
+    )
+    # Testing seam: the age threshold is the whole of this tool, and driving it
+    # by back-dating commits and mtimes is far more fragile than saying what
+    # time it is. Not in --help, because it is not an operator's option.
+    parser.add_argument("--now", type=float, default=None, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--version", action="version", version="git-worktree-gc {}".format(VERSION)
+    )
+    return parser.parse_args(list(argv))
+
+
+def main(argv: Sequence[str]) -> int:
+    args = parse_args(argv)
+
+    repo = os.path.abspath(os.path.expanduser(args.repo))
+    if not os.path.isdir(repo) or not is_git_worktree(repo):
+        print("not a git repository: {}".format(repo), file=sys.stderr)
+        return 2
+
+    decisions = sweep(
+        repo,
+        args.max_age_days,
+        [os.path.realpath(os.path.expanduser(k)) for k in args.keep],
+        args.now if args.now is not None else time.time(),
+        args.dry_run,
+    )
+
+    if args.json:
+        print(json.dumps(decisions, indent=2, sort_keys=True))
+    else:
+        report(decisions, args.dry_run, args.verbose)
+
+    # A removal that failed is the one outcome a scheduled caller wants to hear
+    # about; everything else -- including "nothing was old enough" -- is fine.
+    return 1 if any(d["error"] for d in decisions) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
