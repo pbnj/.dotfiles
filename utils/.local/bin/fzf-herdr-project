@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
 # Author: Peter Benjamin
-# Description: Fuzzy-find git projects and open each selection in a new Herdr workspace
-# Dependencies: brew install fd fzf herdr
+# Description: Fuzzy-find git projects and open each selection in a new Herdr workspace.
+#              A project that is not cloned yet can be cloned from GitHub into
+#              ~/Projects/github.com/<org>/<repo> with <CTRL-Y>.
+# Dependencies: brew install fd fzf gh herdr jq
 # Usage: fzf-herdr-project [initial query]
 #        Bind to prefix+ctrl+f via [[keys.command]] type = "popup" in herdr config.toml
 
@@ -14,6 +16,7 @@ SEARCH_ROOTS=(
   "${HOME}/Projects"
   "${HOME}/.dotfiles"
 )
+CLONE_ROOT="${HOME}/Projects/github.com"
 MAX_DEPTH="${HERDR_PROJECT_DEPTH:-5}"
 
 project_list() {
@@ -37,48 +40,136 @@ project_pull() {
   done
 }
 
+# Reduce anything that names a GitHub repo -- org/repo, a clone URL, an https
+# URL -- to the bare "org/repo" the clone path is built from. Prints nothing when
+# the input is not a fully qualified repo, which is the signal to fall back to a
+# GitHub search.
+normalize_spec() {
+  local spec="${1:-}"
+  spec="${spec#git@github.com:}"
+  spec="${spec#https://github.com/}"
+  spec="${spec#github.com/}"
+  spec="${spec%.git}"
+  spec="${spec%/}"
+  [[ "${spec}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || return 0
+  printf '%s\n' "${spec}"
+}
+
+# Literal first: an exact org/repo clones without a network round-trip. Anything
+# else goes through `gh search repos` so the repo is confirmed to exist before
+# git touches the disk.
+resolve_spec() {
+  local query="${1:-}" spec
+  if [[ -z "${query}" ]]; then
+    echo "Nothing to clone: type an org/repo (or a repo name to search) first." >&2
+    return 1
+  fi
+
+  spec="$(normalize_spec "${query}")"
+  if [[ -n "${spec}" ]]; then
+    printf '%s\n' "${spec}"
+    return 0
+  fi
+
+  spec="$(gh search repos --limit 30 --json fullName --jq '.[].fullName' "${query}" 2>/dev/null |
+    fzf --reverse \
+      --prompt="GitHub repo> " \
+      --header='<ENTER>: clone into '"${CLONE_ROOT}"'/<org>/<repo>' \
+      --preview='gh repo view {}' \
+      --preview-window='bottom,60%' || true)"
+
+  if [[ -z "${spec}" ]]; then
+    echo "No GitHub repo matched '${query}'." >&2
+    return 1
+  fi
+  printf '%s\n' "${spec}"
+}
+
+# Prints the project directory on success so the caller can hand it to
+# open_workspaces. Already-cloned repos short-circuit instead of erroring.
+clone_repo() {
+  local spec="${1:-}" dir="${CLONE_ROOT}/${1:-}"
+
+  if [[ -d "${dir}/.git" ]]; then
+    echo "Already cloned: ${dir}" >&2
+    printf '%s\n' "${dir}"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${dir}")"
+  if ! gh repo clone "${spec}" "${dir}"; then
+    echo "Failed to clone ${spec} into ${dir}." >&2
+    return 1
+  fi
+  printf '%s\n' "${dir}"
+}
+
+open_workspaces() {
+  local dirs=("$@")
+  local last_index=$((${#dirs[@]} - 1))
+  local i dir label existing
+
+  for i in "${!dirs[@]}"; do
+    dir="${dirs[$i]}"
+    [[ -d "${dir}" ]] || continue
+    label="$(basename "${dir}")"
+
+    # Reuse an existing workspace with the same label instead of duplicating it.
+    existing="$(herdr workspace list 2>/dev/null |
+      jq -r --arg label "${label}" '.result.workspaces[]? | select(.label == $label) | .workspace_id' |
+      head -1)"
+
+    if [[ -n "${existing}" ]]; then
+      if [[ "${i}" -eq "${last_index}" ]]; then
+        herdr workspace focus "${existing}" >/dev/null
+      fi
+      continue
+    fi
+
+    if [[ "${i}" -eq "${last_index}" ]]; then
+      herdr workspace create --cwd "${dir}" --label "${label}" --focus >/dev/null
+    else
+      herdr workspace create --cwd "${dir}" --label "${label}" --no-focus >/dev/null
+    fi
+  done
+}
+
 export -f project_preview project_pull
 
-SELECTED=()
+# --print-query and --expect make the first two output lines the typed query and
+# the key that closed fzf; the selections follow.
+OUTPUT=()
 while IFS= read -r line; do
-  SELECTED+=("${line}")
+  OUTPUT+=("${line}")
 done < <(
   project_list | fzf \
     --multi \
     --reverse \
     --prompt="Project> " \
     --query="${QUERY}" \
-    --header='<TAB>: multi-select / <CTRL-G>: git pull --rebase --autostash / <ENTER>: open in new Herdr workspace' \
+    --header='<TAB>: multi-select / <CTRL-G>: git pull --rebase --autostash / <CTRL-Y>: clone from GitHub / <ENTER>: open in new Herdr workspace' \
     --preview='project_preview {}' \
     --preview-window='right,50%' \
     --bind='ctrl-g:execute-silent(project_pull {+})+refresh-preview' \
     --with-nth=-2.. \
-    --delimiter=/ || true
+    --delimiter=/ \
+    --print-query \
+    --expect=ctrl-y || true
 )
+
+[[ ${#OUTPUT[@]} -eq 0 ]] && exit 0
+
+TYPED_QUERY="${OUTPUT[0]}"
+KEY="${OUTPUT[1]:-}"
+SELECTED=("${OUTPUT[@]:2}")
+
+if [[ "${KEY}" == "ctrl-y" ]]; then
+  SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
+  DIR="$(clone_repo "${SPEC}")" || exit 1
+  open_workspaces "${DIR}"
+  exit 0
+fi
 
 [[ ${#SELECTED[@]} -eq 0 ]] && exit 0
 
-LAST_INDEX=$((${#SELECTED[@]} - 1))
-for i in "${!SELECTED[@]}"; do
-  DIR="${SELECTED[$i]}"
-  [[ -d "${DIR}" ]] || continue
-  LABEL="$(basename "${DIR}")"
-
-  # Reuse an existing workspace with the same label instead of duplicating it.
-  EXISTING="$(herdr workspace list 2>/dev/null |
-    jq -r --arg label "${LABEL}" '.result.workspaces[]? | select(.label == $label) | .workspace_id' |
-    head -1)"
-
-  if [[ -n "${EXISTING}" ]]; then
-    if [[ "${i}" -eq "${LAST_INDEX}" ]]; then
-      herdr workspace focus "${EXISTING}" >/dev/null
-    fi
-    continue
-  fi
-
-  if [[ "${i}" -eq "${LAST_INDEX}" ]]; then
-    herdr workspace create --cwd "${DIR}" --label "${LABEL}" --focus >/dev/null
-  else
-    herdr workspace create --cwd "${DIR}" --label "${LABEL}" --no-focus >/dev/null
-  fi
-done
+open_workspaces "${SELECTED[@]}"
