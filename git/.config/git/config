@@ -132,3 +132,9 @@
 [url "work:komodohealth/"]
 	insteadOf = https://github.com/komodohealth/
 	insteadOf = git@github.com:komodohealth/
+[credential "https://github.com"]
+	helper =
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/opt/homebrew/bin/gh auth git-credential
