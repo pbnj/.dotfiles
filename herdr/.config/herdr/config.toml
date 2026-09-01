@@ -60,6 +60,7 @@ rows = [["state_icon", "workspace", "tab"], ["agent"]]
 claude = [
   ["state_icon", "workspace", "tab"],
   [{ token = "$model", bold = true }],
+  ["$where"],
   ["$ctx"],
   ["$u5h"],
   ["$u7d"],
@@ -67,6 +68,7 @@ claude = [
 pi = [
   ["state_icon", "workspace", "tab"],
   [{ token = "$model", bold = true }],
+  ["$where"],
   ["$ctx"],
   ["$spend"],
   ["$cache"],
