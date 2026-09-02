@@ -69,11 +69,21 @@ def is_git_worktree(path: str) -> bool:
     return code == 0 and out.strip() == "true"
 
 
+ORIGIN_PREFIX = "refs/remotes/origin/"
+HEADS_PREFIX = "refs/heads/"
+
+
 def default_branch(repo: str) -> Optional[str]:
     """The repo's default branch, as the fallback ref to prove pushedness against."""
     code, out = git(repo, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
-    if code == 0 and out.strip():
-        return out.strip().rsplit("/", 1)[-1]
+    ref = out.strip() if code == 0 else ""
+    # The fixed prefix, not the last path component. A branch name may contain
+    # slashes -- `refs/remotes/origin/release/2026` -- and taking what follows
+    # the final one leaves `2026`, a ref that does not exist. Every comparison
+    # against it then fails, and since a failed comparison keeps the worktree,
+    # such a repo would never collect anything and never say why.
+    if ref.startswith(ORIGIN_PREFIX):
+        return ref[len(ORIGIN_PREFIX) :] or None
     for candidate in ("main", "master"):
         code, _ = git(repo, "rev-parse", "--verify", "--quiet", candidate)
         if code == 0:
@@ -116,7 +126,16 @@ def worktrees(repo: str) -> List[Dict[str, Any]]:
         elif not current:
             continue
         elif line.startswith("branch "):
-            current["branch"] = line[len("branch ") :].split("refs/heads/")[-1]
+            # The porcelain field's fixed prefix, not every occurrence of it.
+            # `topic/refs/heads/v2` is a legal branch name (verified), and
+            # splitting on the string leaves `v2` -- a branch that does not
+            # exist, so the pushed check asks about the wrong `origin/<branch>`
+            # and keeps the worktree forever without saying why. Same trap as
+            # `default_branch`, one ref namespace over.
+            ref = line[len("branch ") :]
+            current["branch"] = (
+                ref[len(HEADS_PREFIX) :] if ref.startswith(HEADS_PREFIX) else ref
+            )
         elif line == "detached":
             current["detached"] = True
         elif line == "bare":
@@ -218,6 +237,7 @@ def is_pushed(path: str, branch: str, default: Optional[str]) -> bool:
 
 def decide(
     entry: Dict[str, Any],
+    selected: str,
     max_age_days: int,
     keep: Sequence[str],
     now: float,
@@ -253,6 +273,14 @@ def decide(
 
     if entry.get("main"):
         return keep_it("the repository's own checkout")
+    if os.path.realpath(entry["path"]) == selected:
+        # `-C` may name a LINKED worktree -- or you may simply be standing in
+        # one, since the default is `.`. `git worktree list` still reports the
+        # primary first, so without this the checkout the command is being run
+        # against is an ordinary candidate: git removes the worktree you are
+        # standing in without complaint (verified), and every later `git -C
+        # <repo>` in the same sweep then fails against a directory that is gone.
+        return keep_it("the checkout this sweep was run against")
     if entry.get("bare"):
         return keep_it("bare")
     if entry.get("locked"):
@@ -304,17 +332,37 @@ def decide(
 def remove(repo: str, path: str) -> Tuple[bool, str]:
     """Remove a worktree checkout, keeping its branch.
 
-    Forced even though the guards have already proved the checkout clean: git's
-    own bar for an unforced remove is "no untracked files AND no modification to
-    tracked files", which is stricter than the policy here -- scratch left
-    behind would refuse the remove forever. The guards above are the safety net,
-    not git's.
+    UNFORCED first, then forced -- not because the second is a fallback for the
+    first, but because they check different things and only git's check is
+    atomic with the removal itself.
+
+    `decide` looked at the worktree some moments ago. Someone can start editing
+    it in the window between then and here, and `--force` on its own would
+    delete those edits while reporting a routine collection. An unforced remove
+    cannot: git re-reads the worktree and refuses, as one operation, so there is
+    no window at all in the ordinary case.
+
+    Forced is still needed when git refuses, because its bar is "no untracked
+    files AND no modification to tracked files" -- stricter than the policy
+    here, which treats scratch as scratch, and under which an agent's leftover
+    log would block collection forever. So the refusal is re-examined: if there
+    are tracked changes, they are work that appeared since the decision and the
+    worktree is kept, saying so. If there are only untracked files, the force is
+    what the policy always intended.
+
+    That leaves a much smaller window -- a tracked edit landing between the
+    re-check and the force -- which cannot be closed while `--force` is
+    reachable at all. It is the price of not pinning worktrees on scratch.
 
     `worktree prune` afterwards clears the administrative entry under
     .git/worktrees, which a remove can leave behind if the directory was already
     partly gone.
     """
-    code, out = git(repo, "worktree", "remove", "--force", path)
+    code, out = git(repo, "worktree", "remove", path)
+    if code != 0:
+        if not is_clean(path):
+            return False, "tracked changes appeared after the sweep decided"
+        code, out = git(repo, "worktree", "remove", "--force", path)
     if code != 0:
         return False, out.strip()[:200]
     git(repo, "worktree", "prune")
@@ -334,11 +382,16 @@ def sweep(
     `default_branch` is resolved ONCE for the repo rather than per worktree: it
     is two git calls answering a question about the repository, and asking it
     per candidate scales the cost with a number that has nothing to do with it.
+
+    `repo` may itself be a linked worktree -- `-C` accepts one, and the default
+    of `.` means simply standing in one. It is passed down resolved so that
+    `decide` can protect it; see the guard there.
     """
     default = default_branch(repo)
+    selected = os.path.realpath(repo)
     decisions = []
     for entry in worktrees(repo):
-        decision = decide(entry, max_age_days, keep, now, default)
+        decision = decide(entry, selected, max_age_days, keep, now, default)
         if decision["collect"] and not dry_run:
             ok, detail = remove(repo, decision["path"])
             decision["removed"] = ok
@@ -404,7 +457,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         action="append",
         default=[],
         metavar="<path>",
-        help="never collect this worktree (repeatable)",
+        help="never collect this worktree; a relative path is "
+        "read against the repository, as git reads -C "
+        "(repeatable)",
     )
     parser.add_argument(
         "--dry-run",
@@ -432,6 +487,22 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     return parser.parse_args(list(argv))
 
 
+def keep_path(repo: str, keep: str) -> str:
+    """A `--keep` value as a resolved path, relative ones read against `repo`.
+
+    Against the REPOSITORY, not the process's working directory, because `-C`
+    is what this invocation is about: `git worktree-gc -C /src/api --keep
+    .worktrees/topic` obviously means that repo's `.worktrees/topic`, and
+    resolving it against wherever the shell happened to be would protect a path
+    that does not exist -- silently, and while removing the one it was meant to
+    save. It is also how git itself reads `-C`.
+
+    `~` is expanded first, so an absolute or home-relative value is unaffected:
+    `os.path.join` returns the second argument whenever it is absolute.
+    """
+    return os.path.realpath(os.path.join(repo, os.path.expanduser(keep)))
+
+
 def main(argv: Sequence[str]) -> int:
     args = parse_args(argv)
 
@@ -443,7 +514,7 @@ def main(argv: Sequence[str]) -> int:
     decisions = sweep(
         repo,
         args.max_age_days,
-        [os.path.realpath(os.path.expanduser(k)) for k in args.keep],
+        [keep_path(repo, k) for k in args.keep],
         args.now if args.now is not None else time.time(),
         args.dry_run,
     )
