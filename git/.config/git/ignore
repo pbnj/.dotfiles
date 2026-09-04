@@ -1,4 +1,5 @@
 .git/
+.worktrees/
 *.ipynb
 *.spl
 __pycache__/
