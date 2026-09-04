@@ -6,8 +6,6 @@
 #              ~/Projects/github.com/<org>/<repo> with <CTRL-Y>.
 #              <ALT-ENTER> opens the workspace and starts a coding agent in it,
 #              picked from the AGENT_KINDS below that are actually installed.
-#              `herdr agent start` blocks until the agent answers, so a
-#              multi-select starts them serially, a few seconds apiece.
 # Dependencies: brew install fd fzf gh herdr jq
 # Usage: fzf-herdr-project [initial query]
 #        Bind to prefix+ctrl+f via [[keys.command]] type = "popup" in herdr config.toml
@@ -20,8 +18,8 @@ SEARCH_ROOTS=(
   "${HOME}/Projects"
   "${HOME}/.dotfiles"
 )
-# Offered by <ALT-ENTER>, in this order. Each must be a `herdr agent start
-# --kind` value whose canonical executable is the same name.
+# Offered by <ALT-ENTER>, in this order. Each entry is run as a command in the
+# new pane, so it must be the executable's own name.
 AGENT_KINDS=(claude pi copilot)
 CLONE_ROOT="${HOME}/Projects/github.com"
 MAX_DEPTH="${HERDR_PROJECT_DEPTH:-5}"
@@ -144,47 +142,28 @@ pick_agent_kind() {
     true
 }
 
-# herdr requires [a-z][a-z0-9_-]{0,31}, unique among live agents, so a raw
-# basename like ".dotfiles" or "Hardened-Base-Images" cannot be used as-is.
-agent_name_for() {
-  local base name candidate suffix=2
-  base="$(basename "${1:-}")"
-  name="$(printf '%s' "${base}" |
-    tr '[:upper:]' '[:lower:]' |
-    sed -e 's/[^a-z0-9_-]/-/g' -e 's/-\{2,\}/-/g' -e 's/^[^a-z]*//')"
-  [[ -n "${name}" ]] || name="agent"
-  name="${name:0:32}"
-
-  candidate="${name}"
-  while herdr agent list 2>/dev/null |
-    jq -e --arg name "${candidate}" 'any(.result.agents[]?; .name == $name)' >/dev/null; do
-    candidate="${name:0:$((32 - ${#suffix} - 1))}-${suffix}"
-    suffix=$((suffix + 1))
-  done
-  printf '%s\n' "${candidate}"
-}
-
-# Non-fatal by design: under `set -e` one agent that refuses to come up must not
-# abort the rest of a multi-select.
+# `pane run`, not `agent start`, because this runs inside a herdr popup and the
+# popup lives exactly as long as this script. `agent start` blocks until herdr
+# has detected the agent and calls it interactive-ready -- measured at 3s for pi
+# and longer for claude, with a floor of 3s since it rejects any --timeout below
+# 3000ms -- so the picker sat on screen for the whole startup.
 #
-# `agent_not_ready` is not a failure: the agent did start and keeps its name, it
-# is just sitting on a startup dialog -- Claude's "do you trust this folder?" on
-# a directory it has not seen before, say -- so say so and move on.
-start_agent_in_pane() {
-  local kind="${1}" pane="${2}" dir="${3}" name err
-  name="$(agent_name_for "${dir}")"
-
-  if err="$(herdr agent start "${name}" --kind "${kind}" --pane "${pane}" 2>&1 >/dev/null)"; then
-    return 0
+# Its return value is the only thing that wait buys: a validated agent identity
+# and a CLI-targetable name. Neither survives the trade. Detaching the call into
+# its own session does close the popup at once (verified), but then nothing is
+# left to read the result it waited for. So send the command the way it would be
+# typed by hand and let herdr's ordinary detection pick the agent up -- verified
+# to work with no sleep between `workspace create` and this call.
+#
+# This makes installed_agent_kinds' `command -v` gate load-bearing: a missing
+# binary now surfaces as `command not found` in the pane rather than an error
+# here.
+launch_agent_in_pane() {
+  local kind="${1}" pane="${2}" dir="${3}"
+  if ! herdr pane run "${pane}" "${kind}" >/dev/null 2>&1; then
+    echo "Could not run ${kind} in ${pane} for ${dir}." >&2
+    return 1
   fi
-
-  if [[ "${err}" == *agent_not_ready* ]]; then
-    echo "${kind} (${name}) started in ${pane} but is waiting on a prompt." >&2
-    return 0
-  fi
-
-  echo "Could not start ${kind} in ${pane} for ${dir}: ${err}" >&2
-  return 1
 }
 
 # The first pane of the active tab that has no agent in it, so an already-busy
@@ -226,7 +205,7 @@ open_workspaces() {
       if [[ -n "${kind}" ]] && ! workspace_has_agent "${existing}"; then
         pane="$(free_pane_in_workspace "${existing}")"
         if [[ -n "${pane}" ]]; then
-          start_agent_in_pane "${kind}" "${pane}" "${dir}" || true
+          launch_agent_in_pane "${kind}" "${pane}" "${dir}" || true
         else
           echo "No free pane in ${label}; skipping ${kind}." >&2
         fi
@@ -239,7 +218,7 @@ open_workspaces() {
 
     pane="$(printf '%s' "${created}" | jq -r '.result.root_pane.pane_id // empty')"
     if [[ -n "${pane}" ]]; then
-      start_agent_in_pane "${kind}" "${pane}" "${dir}" || true
+      launch_agent_in_pane "${kind}" "${pane}" "${dir}" || true
     else
       echo "Could not read the new pane id for ${label}; skipping ${kind}." >&2
     fi
