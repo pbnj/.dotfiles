@@ -4,6 +4,10 @@
 # Description: Fuzzy-find git projects and open each selection in a new Herdr workspace.
 #              A project that is not cloned yet can be cloned from GitHub into
 #              ~/Projects/github.com/<org>/<repo> with <CTRL-Y>.
+#              <ALT-ENTER> opens the workspace and starts a coding agent in it,
+#              picked from the AGENT_KINDS below that are actually installed.
+#              `herdr agent start` blocks until the agent answers, so a
+#              multi-select starts them serially, a few seconds apiece.
 # Dependencies: brew install fd fzf gh herdr jq
 # Usage: fzf-herdr-project [initial query]
 #        Bind to prefix+ctrl+f via [[keys.command]] type = "popup" in herdr config.toml
@@ -16,6 +20,9 @@ SEARCH_ROOTS=(
   "${HOME}/Projects"
   "${HOME}/.dotfiles"
 )
+# Offered by <ALT-ENTER>, in this order. Each must be a `herdr agent start
+# --kind` value whose canonical executable is the same name.
+AGENT_KINDS=(claude pi copilot)
 CLONE_ROOT="${HOME}/Projects/github.com"
 MAX_DEPTH="${HERDR_PROJECT_DEPTH:-5}"
 
@@ -104,15 +111,108 @@ clone_repo() {
   printf '%s\n' "${dir}"
 }
 
+installed_agent_kinds() {
+  local kind
+  for kind in "${AGENT_KINDS[@]}"; do
+    command -v "${kind}" >/dev/null 2>&1 && printf '%s\n' "${kind}"
+  done
+}
+
+# Prints the chosen `--kind`, or nothing when the user escapes out -- which the
+# callers read as "just open the shell", not as an error.
+pick_agent_kind() {
+  local kinds=()
+  while IFS= read -r kind; do
+    kinds+=("${kind}")
+  done < <(installed_agent_kinds)
+
+  case "${#kinds[@]}" in
+  0)
+    echo "No agent from '${AGENT_KINDS[*]}' is installed; opening a shell." >&2
+    return 0
+    ;;
+  1)
+    printf '%s\n' "${kinds[0]}"
+    return 0
+    ;;
+  esac
+
+  printf '%s\n' "${kinds[@]}" |
+    fzf --reverse \
+      --prompt="Agent> " \
+      --header='<ENTER>: start this agent in the workspace / <ESC>: shell only' ||
+    true
+}
+
+# herdr requires [a-z][a-z0-9_-]{0,31}, unique among live agents, so a raw
+# basename like ".dotfiles" or "Hardened-Base-Images" cannot be used as-is.
+agent_name_for() {
+  local base name candidate suffix=2
+  base="$(basename "${1:-}")"
+  name="$(printf '%s' "${base}" |
+    tr '[:upper:]' '[:lower:]' |
+    sed -e 's/[^a-z0-9_-]/-/g' -e 's/-\{2,\}/-/g' -e 's/^[^a-z]*//')"
+  [[ -n "${name}" ]] || name="agent"
+  name="${name:0:32}"
+
+  candidate="${name}"
+  while herdr agent list 2>/dev/null |
+    jq -e --arg name "${candidate}" 'any(.result.agents[]?; .name == $name)' >/dev/null; do
+    candidate="${name:0:$((32 - ${#suffix} - 1))}-${suffix}"
+    suffix=$((suffix + 1))
+  done
+  printf '%s\n' "${candidate}"
+}
+
+# Non-fatal by design: under `set -e` one agent that refuses to come up must not
+# abort the rest of a multi-select.
+#
+# `agent_not_ready` is not a failure: the agent did start and keeps its name, it
+# is just sitting on a startup dialog -- Claude's "do you trust this folder?" on
+# a directory it has not seen before, say -- so say so and move on.
+start_agent_in_pane() {
+  local kind="${1}" pane="${2}" dir="${3}" name err
+  name="$(agent_name_for "${dir}")"
+
+  if err="$(herdr agent start "${name}" --kind "${kind}" --pane "${pane}" 2>&1 >/dev/null)"; then
+    return 0
+  fi
+
+  if [[ "${err}" == *agent_not_ready* ]]; then
+    echo "${kind} (${name}) started in ${pane} but is waiting on a prompt." >&2
+    return 0
+  fi
+
+  echo "Could not start ${kind} in ${pane} for ${dir}: ${err}" >&2
+  return 1
+}
+
+# The first pane of the active tab that has no agent in it, so an already-busy
+# workspace is never typed over. Prints nothing when every pane is taken.
+free_pane_in_workspace() {
+  local workspace="${1}"
+  herdr pane list --workspace "${workspace}" 2>/dev/null |
+    jq -r '[.result.panes[]? | select(has("agent") | not)] | .[0].pane_id // empty'
+}
+
+workspace_has_agent() {
+  herdr pane list --workspace "${1}" 2>/dev/null |
+    jq -e 'any(.result.panes[]?; has("agent"))' >/dev/null
+}
+
+# open_workspaces <agent-kind> <dir>... -- an empty kind opens a bare shell.
 open_workspaces() {
+  local kind="${1}"
+  shift
   local dirs=("$@")
   local last_index=$((${#dirs[@]} - 1))
-  local i dir label existing
+  local i dir label existing focus created pane
 
   for i in "${!dirs[@]}"; do
     dir="${dirs[$i]}"
     [[ -d "${dir}" ]] || continue
     label="$(basename "${dir}")"
+    if [[ "${i}" -eq "${last_index}" ]]; then focus="--focus"; else focus="--no-focus"; fi
 
     # Reuse an existing workspace with the same label instead of duplicating it.
     existing="$(herdr workspace list 2>/dev/null |
@@ -120,16 +220,28 @@ open_workspaces() {
       head -1)"
 
     if [[ -n "${existing}" ]]; then
-      if [[ "${i}" -eq "${last_index}" ]]; then
-        herdr workspace focus "${existing}" >/dev/null
+      [[ "${focus}" == "--focus" ]] && herdr workspace focus "${existing}" >/dev/null
+
+      # An agent is already at work here -- focusing it is the whole job.
+      if [[ -n "${kind}" ]] && ! workspace_has_agent "${existing}"; then
+        pane="$(free_pane_in_workspace "${existing}")"
+        if [[ -n "${pane}" ]]; then
+          start_agent_in_pane "${kind}" "${pane}" "${dir}" || true
+        else
+          echo "No free pane in ${label}; skipping ${kind}." >&2
+        fi
       fi
       continue
     fi
 
-    if [[ "${i}" -eq "${last_index}" ]]; then
-      herdr workspace create --cwd "${dir}" --label "${label}" --focus >/dev/null
+    created="$(herdr workspace create --cwd "${dir}" --label "${label}" "${focus}")" || continue
+    [[ -n "${kind}" ]] || continue
+
+    pane="$(printf '%s' "${created}" | jq -r '.result.root_pane.pane_id // empty')"
+    if [[ -n "${pane}" ]]; then
+      start_agent_in_pane "${kind}" "${pane}" "${dir}" || true
     else
-      herdr workspace create --cwd "${dir}" --label "${label}" --no-focus >/dev/null
+      echo "Could not read the new pane id for ${label}; skipping ${kind}." >&2
     fi
   done
 }
@@ -147,14 +259,14 @@ done < <(
     --reverse \
     --prompt="Project> " \
     --query="${QUERY}" \
-    --header='<TAB>: multi-select / <CTRL-G>: git pull --rebase --autostash / <CTRL-Y>: clone from GitHub / <ENTER>: open in new Herdr workspace' \
+    --header='<TAB>: multi-select / <CTRL-G>: git pull --rebase --autostash / <CTRL-Y>: clone from GitHub / <ENTER>: open in new Herdr workspace / <ALT-ENTER>: open and start an agent' \
     --preview='project_preview {}' \
     --preview-window='right,50%' \
     --bind='ctrl-g:execute-silent(project_pull {+})+refresh-preview' \
     --with-nth=-2.. \
     --delimiter=/ \
     --print-query \
-    --expect=ctrl-y || true
+    --expect=ctrl-y,alt-enter || true
 )
 
 [[ ${#OUTPUT[@]} -eq 0 ]] && exit 0
@@ -166,10 +278,13 @@ SELECTED=("${OUTPUT[@]:2}")
 if [[ "${KEY}" == "ctrl-y" ]]; then
   SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
   DIR="$(clone_repo "${SPEC}")" || exit 1
-  open_workspaces "${DIR}"
+  open_workspaces "" "${DIR}"
   exit 0
 fi
 
 [[ ${#SELECTED[@]} -eq 0 ]] && exit 0
 
-open_workspaces "${SELECTED[@]}"
+KIND=""
+[[ "${KEY}" == "alt-enter" ]] && KIND="$(pick_agent_kind)"
+
+open_workspaces "${KIND}" "${SELECTED[@]}"
