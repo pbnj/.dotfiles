@@ -17,7 +17,6 @@ require("plugins.vim-startuptime")
 require("plugins.tmux-complete")
 
 -- folke plugins
-require("plugins.sidekick")
 require("plugins.todo-comments")
 require("plugins.trouble")
 require("plugins.which-key")
