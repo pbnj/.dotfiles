@@ -15,6 +15,12 @@ previous_agent = "alt+["
 focus_agent = "alt+1..9"
 next_workspace = ["prefix+ctrl+n"]
 previous_workspace = ["prefix+ctrl+p"]
+# prefix+1..9 goes to workspaces, not tabs; tabs stay on prefix+n / prefix+p.
+switch_workspace = "prefix+1..9"
+switch_tab = ""
+# Closest thing to tmux's prefix+l: jumps to the last focused pane, across
+# workspaces and tabs. prefix+l itself is focus_pane_right.
+last_pane = "prefix+tab"
 
 [[keys.command]]
 key = "prefix+g"
