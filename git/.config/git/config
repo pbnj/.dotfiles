@@ -17,6 +17,8 @@
 	s = status
 	tags = tag --list
 	top = !git log --format=format:%an | sort | uniq -c | sort -r | head -n 20
+	; short form of the git-unresolved script on PATH (unresolved PR review threads)
+	uc = unresolved
 	undo = !git reset HEAD~1 --mixed
 	unstage = reset
 	whatchanged = log --raw --no-merges

@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+#
+# git unresolved [-R OWNER/REPO] [--all] [--json] [<pr-number>]
+#
+# Lists the unresolved review threads on a pull request — the conversations that
+# still block "all comments resolved" — as file:line, author, the opening
+# comment, and a link to the thread.
+#
+# The PR defaults to the one for the current branch, in the current repo. Pass a
+# number and/or -R to pick another. --all also prints resolved threads (marked
+# as such); --json emits the raw thread objects for scripting.
+#
+# Note: `git unresolved --help` is hijacked by git's man lookup — use -h.
+#
+# Only review threads are shown: issue-style PR comments and review summaries
+# are not resolvable on GitHub, so they can never be "unresolved".
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+show_all=false
+as_json=false
+pr=""
+repo=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -a | --all) show_all=true; shift ;;
+    -R | --repo) repo="${2:?--repo needs OWNER/REPO}"; shift 2 ;;
+    --json) as_json=true; shift ;;
+    -h | --help) sed -n "2,16p" "$0" | cut -c 3-; exit 0 ;;
+    --) shift; break ;;
+    -*) echo "git unresolved: unknown flag: $1" >&2; exit 2 ;;
+    *) pr="$1"; shift ;;
+  esac
+done
+[ -n "${1:-}" ] && pr="$1"
+
+command -v gh >/dev/null || { echo "git unresolved: gh is not installed" >&2; exit 1; }
+command -v jq >/dev/null || { echo "git unresolved: jq is not installed" >&2; exit 1; }
+
+repo_args=()
+[ -n "$repo" ] && repo_args=(--repo "$repo")
+
+if [ -z "$pr" ]; then
+  pr=$(gh pr view ${repo_args[@]+"${repo_args[@]}"} --json number --jq .number) ||
+    { echo "git unresolved: no PR for the current branch — pass a PR number." >&2; exit 1; }
+fi
+
+# gh repo view takes the repo positionally, not as --repo.
+read -r owner name < <(gh repo view ${repo:+"$repo"} --json owner,name --jq '"\(.owner.login) \(.name)"')
+
+# --paginate needs $endCursor and the pageInfo it feeds; it emits one JSON
+# document per page, which jq consumes as a stream.
+# shellcheck disable=SC2016 # $owner/$name/$number/$endCursor are GraphQL
+# variables — the query must reach the API unexpanded.
+raw=$(gh api graphql --paginate \
+  -F owner="$owner" -F name="$name" -F number="$pr" \
+  -f query='
+    query($owner:String!,$name:String!,$number:Int!,$endCursor:String) {
+      repository(owner:$owner, name:$name) {
+        pullRequest(number:$number) {
+          reviewThreads(first:100, after:$endCursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes {
+              isResolved
+              isOutdated
+              path
+              line
+              originalLine
+              comments(first:1) {
+                totalCount
+                nodes { author { login } body url }
+              }
+            }
+          }
+        }
+      }
+    }')
+
+threads=$(jq -s '[ .[].data.repository.pullRequest.reviewThreads.nodes[] ]' <<< "$raw")
+
+if [ "$show_all" = false ]; then
+  threads=$(jq '[ .[] | select(.isResolved | not) ]' <<< "$threads")
+fi
+
+if [ "$as_json" = true ]; then
+  jq . <<< "$threads"
+  exit 0
+fi
+
+count=$(jq length <<< "$threads")
+if [ "$count" -eq 0 ]; then
+  if [ "$show_all" = true ]; then
+    echo "PR #${pr}: no review threads."
+  else
+    echo "PR #${pr}: no unresolved review threads."
+  fi
+  exit 0
+fi
+
+echo "PR #${pr}: ${count} thread(s)"
+jq -r '
+  def flag: [ (if .isResolved then "resolved" else empty end),
+              (if .isOutdated then "outdated" else empty end) ]
+            | if length == 0 then "" else " [" + join(", ") + "]" end;
+  .[] | .comments.nodes[0] as $c |
+  "\n\(.path // "(no file)"):\(.line // .originalLine // "?")  @\($c.author.login // "ghost")\(flag)"
+  + "\n" + ( ($c.body // "") | split("\n")[0:3] | map("    " + .) | join("\n") )
+  + ( if .comments.totalCount > 1 then "\n    … \(.comments.totalCount - 1) more comment(s)" else "" end )
+  + "\n    \($c.url)"
+' <<< "$threads"
