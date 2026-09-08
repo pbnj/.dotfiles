@@ -8,14 +8,51 @@ brew() {
         arch -arm64 brew "$@"
 }
 
-paws() {
-        AWS_CONFIG_FILE="$(mktemp)"
+paws() (
+        # run in a subshell so the exported config, the trap, and the
+        # temp file never leak into the interactive shell
+        _paws_home="$(mktemp -d)"
+        AWS_CONFIG_FILE="${_paws_home}/config"
+
+        # shellcheck disable=SC2329  # invoked indirectly, via the traps below
+        _paws_cleanup() {
+                # `aws sso logout` is global -- it sweeps every token in
+                # $HOME/.aws/sso/cache and calls the SSO Logout API on each.
+                # Because HOME is the sandbox, the only token it can see is
+                # the privileged one, so real ~/.aws/sso/cache is untouched.
+                HOME="$_paws_home" command aws sso logout >/dev/null 2>&1
+                rm -rf "$_paws_home"
+        }
+        trap '_paws_cleanup' EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+
+        # read the config before HOME is redirected -- op needs the real one
+        (umask 077 && : >"${AWS_CONFIG_FILE}") || exit 1
+        op read "op://Employee/aws/config" >"${AWS_CONFIG_FILE}" || exit 1
+
+        # sandbox HOME so the privileged SSO token and any credentials it
+        # mints land in $_paws_home/.aws/{sso,cli}/cache instead of ~/.aws
+        export HOME="$_paws_home"
         export AWS_CONFIG_FILE
-        op read "op://Employee/aws/config" >"${AWS_CONFIG_FILE}"
+
+        # honor an explicit --profile so the login targets the same profile
+        # the command will use
+        _paws_profile=()
+        _paws_prev=""
+        for _paws_arg in "$@"; do
+                case "$_paws_prev" in
+                --profile) _paws_profile=(--profile "$_paws_arg") ;;
+                esac
+                case "$_paws_arg" in
+                --profile=*) _paws_profile=(--profile "${_paws_arg#--profile=}") ;;
+                esac
+                _paws_prev="$_paws_arg"
+        done
+
+        command aws sso login "${_paws_profile[@]}" || exit 1
         command aws "$@"
-        unset AWS_CONFIG_FILE
-        rm -f "$AWS_CONFIG_FILE"
-}
+)
 complete -C 'aws_completer' paws # for shell tab-completion
 
 
