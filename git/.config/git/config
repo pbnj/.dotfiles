@@ -6,7 +6,12 @@
 	co = checkout
 	cob = checkout -b
 	com = checkout main
-	comp = !git checkout main && git pull origin main
+	; --git-common-dir resolves to the *main* worktree's .git even from inside a
+	; linked worktree, so this walks out to the original checkout rather than
+	; stopping at the worktree root. An alias runs in a subprocess and so cannot
+	; move the calling shell: it prints the root, for use as `cd "$(git cdroot)"`.
+	cdroot = "!f(){ gitdir=$(git rev-parse --path-format=absolute --git-common-dir) || return 1; cd -- \"$(dirname \"$gitdir\")\" && pwd; }; f"
+	comp = "!f(){ unset GIT_DIR GIT_WORK_TREE; root=$(git cdroot) || return 1; cd -- \"$root\" || return 1; def=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null); def=${def#origin/}; git checkout \"${def:-main}\" && git pull origin \"${def:-main}\"; }; f"
 	contributors = shortlog --summary --numbered --email
 	czc = cz commit
 	graph = log --graph --color --pretty=format:"%C(yellow)%H%C(green)%d%C(reset)%n%x20%cd%n%x20%cn%x20(%ce)%n%x20%s%n"

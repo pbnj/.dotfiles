@@ -10,6 +10,7 @@ files=(
   ${HOME}/.*aliases
   ${HOME}/.*functions
   ${HOME}/.cargo/env
+  ${HOME}/.work.profile
   "/opt/homebrew/etc/profile.d/bash_completion.sh"
 )
 for file in "${files[@]}"; do
