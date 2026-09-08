@@ -24,7 +24,13 @@
 #
 #   {"agent":"claude","model":"opus-5","effort":"medium","repo":"dotfiles",
 #    "branch":"main","ctx":"42%","ctx_pct":42,"tokens":"i:163 | o:71.8k",
-#    "limit_5h":"8%","reset_5h":"2h55m","limit_7d":"17%","reset_7d":"79h15m"}
+#    "limit_5h":"8%","limit_5h_pct":8,"reset_5h":"2h55m",
+#    "limit_7d":"17%","limit_7d_pct":17,"reset_7d":"79h15m"}
+#
+# Each percentage appears twice: once rendered ("8%") for sinks that draw it as
+# text, and once as a bare number for sinks that compare it against thresholds.
+# herdr's sidebar value rules are the latter -- they only match values that parse
+# completely as finite numbers, so "8%" would never cross one.
 #
 # Sinks own only their transport: tmux-agent-status writes @agent_* pane options
 # read by pane-border-format, herdr-agent-status reports pane metadata read by
@@ -125,6 +131,13 @@ as_pct() {
     awk -v p="$1" 'BEGIN{printf "%.0f%%", p}' 2>/dev/null
 }
 
+# The same rounding without the unit, for threshold-matching sinks. Rounded
+# rather than passed through so "42.7" reads as the same 43 both sinks show.
+as_num() {
+    [ "$1" = "-" ] && return 0
+    awk -v p="$1" 'BEGIN{printf "%.0f", p}' 2>/dev/null
+}
+
 # Same derivation as ~/.config/tmux/scripts/git-cwd.sh: repo root basename plus
 # the branch, falling back to a short SHA on a detached HEAD.
 repo=""
@@ -157,11 +170,13 @@ ctx=$(as_pct "$ctx_pct")
 # parenthetical belongs to.
 limit_5h=$(as_pct "$lim_5h")
 limit_7d=$(as_pct "$lim_7d")
+limit_5h_pct=$(as_num "$lim_5h")
+limit_7d_pct=$(as_num "$lim_7d")
 [ "$rst_5h" = "-" ] && rst_5h=""
 [ "$rst_7d" = "-" ] && rst_7d=""
 rst_5h=${rst_5h// /}
 rst_7d=${rst_7d// /}
-[ "$ctx_pct" = "-" ] && ctx_pct=""
+ctx_pct=$(as_num "$ctx_pct")
 
 # Session-cumulative tokens as in / out / cache read / cache write, pipe-joined
 # to match the tmux border's other separators. Split into spend and cache so a
@@ -217,12 +232,17 @@ normalised=$(jq -n \
     --arg spend "$spend" \
     --arg cache "$cache" \
     --arg limit_5h "$limit_5h" \
+    --arg limit_5h_pct "$limit_5h_pct" \
     --arg reset_5h "$rst_5h" \
     --arg limit_7d "$limit_7d" \
+    --arg limit_7d_pct "$limit_7d_pct" \
     --arg reset_7d "$rst_7d" \
-    '{$agent, $model, $effort, $repo, $branch, $ctx,
-      ctx_pct: (if $ctx_pct == "" then null else ($ctx_pct | tonumber?) end),
-      $tokens, $spend, $cache, $limit_5h, $reset_5h, $limit_7d, $reset_7d}' 2>/dev/null)
+    'def n: if . == "" then null else (. | tonumber?) end;
+     {$agent, $model, $effort, $repo, $branch, $ctx,
+      ctx_pct: ($ctx_pct | n),
+      $tokens, $spend, $cache,
+      $limit_5h, limit_5h_pct: ($limit_5h_pct | n), $reset_5h,
+      $limit_7d, limit_7d_pct: ($limit_7d_pct | n), $reset_7d}' 2>/dev/null)
 [ -n "$normalised" ] || exit 0
 
 publish "$normalised"

@@ -4,7 +4,8 @@
 # Reads the normalised envelope produced by agent-status on stdin and reports it
 # with `herdr pane report-metadata` as custom pane tokens:
 #
-#   $model $where $ctx $u5h $u7d $spend $cache
+#   $model $effort $repo $branch $ctxl $ctx $u5hl $u5h $u5hr
+#   $u7dl $u7d $u7dr $spend $cache
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml as
 # one block per agent in the sidebar.
@@ -12,15 +13,20 @@
 # Deliberately no --display-agent: the reported agent label is what split pane
 # borders render, and a usage line there is more clutter than signal.
 #
-# Values are self-labelling ("ctx:42%") because herdr adds no labels of its own,
-# and short because the expanded sidebar is 18-36 columns wide. An empty token
-# value clears that key, so a row whose tokens are all absent disappears rather
-# than rendering a bare label.
+# Values are short because the expanded sidebar is 18-36 columns wide. An empty
+# token value clears that key, and a row disappears when every token in it is
+# empty, which is what keeps absent facts from leaving bare labels behind.
 #
-# Each row is a single token: herdr joins the tokens within a row with a middle
-# dot, and "opus-5 · (medium)" reads as two facts where "opus-5 (medium)" reads
-# as one. So $model carries the effort and the label:value cells are pre-joined
-# here rather than left for the row layout to punctuate.
+# Nothing is pre-joined here. herdr separates the tokens within a row with a
+# middle dot, so a row is assembled from its parts -- "opus-5 · medium",
+# "dotfiles · main", "u5h · 8 · 2h55m" -- and the dot is the one separator the
+# whole sidebar uses.
+#
+# The percentages are reported as bare integers because herdr's value rules
+# (0.9.0) only compare `gt`/`lt` against values that parse completely as finite
+# numbers: "42" thresholds, "42%" never matches. That is why the unit is gone
+# and why each label is its own token: the number has to stand alone to be
+# colored as it climbs.
 #
 # Usage:
 #   agent-status | herdr-agent-status   publish (not called directly)
@@ -43,9 +49,10 @@ pane=$HERDR_PANE_ID
 # constant rather than anything per-session.
 SOURCE=dotfiles.agent-status
 
-# `effort` is no longer reported - it lives inside $model now - but stays in the
+# `where` is no longer reported - it is $repo and $branch now - but stays in the
 # clear list so panes annotated by an older version of this script lose it too.
-TOKENS=(model effort where ctx u5h u7d spend cache)
+TOKENS=(model effort where repo branch ctxl ctx u5hl u5h u5hr u7dl u7d u7dr
+    spend cache)
 
 # Keyed by socket as well as pane id: pane ids restart at w1:p1 when the server
 # does, and a stale cache entry would otherwise suppress a new pane's first
@@ -86,12 +93,12 @@ fields=$(printf '%s' "$input" | jq -r '
     , (.effort | f)
     , (.repo | f)
     , (.branch | f)
-    , (.ctx | f)
+    , (.ctx_pct | f)
     , (.spend | f)
     , (.cache | f)
-    , (.limit_5h | f)
+    , (.limit_5h_pct | f)
     , (.reset_5h | f)
-    , (.limit_7d | f)
+    , (.limit_7d_pct | f)
     , (.reset_7d | f)
     ] | @tsv' 2>/dev/null)
 [ -n "$fields" ] || exit 0
@@ -106,34 +113,25 @@ done
 
 [ -n "$agent" ] || exit 0
 
-where="$repo"
-if [ -n "$where" ]; then
-    [ -n "$branch" ] && where="$where ($branch)"
-else
-    where="$branch"
-fi
-
-model_value="$model"
-[ -n "$model_value" ] && [ -n "$effort" ] && model_value="$model_value ($effort)"
-
-ctx_value=""
-[ -n "$ctx" ] && ctx_value="ctx:$ctx"
-
-# Reset countdowns are only meaningful next to the limit they belong to, so a
-# window with no percentage renders nothing at all.
-window() {
-    local label=$1 used=$2 reset=$3
-    [ -n "$used" ] || return 0
-    printf '%s:%s' "$label" "$used"
-    [ -n "$reset" ] && printf ' (%s)' "$reset"
-}
-
-u5h=$(window u5h "$limit_5h" "$reset_5h")
-u7d=$(window u7d "$limit_7d" "$reset_7d")
+# A label only means anything beside the number it introduces, and a row only
+# disappears once every token in it is empty. So each label is cleared with its
+# value: otherwise a claude session that has not had an API response yet renders
+# a row containing nothing but a dim "u5h". The reset countdowns are dropped the
+# same way, for the same reason.
+ctx_label=""
+[ -n "$ctx" ] && ctx_label="ctx"
+u5h_label=""
+[ -n "$limit_5h" ] && u5h_label="u5h"
+[ -n "$limit_5h" ] || reset_5h=""
+u7d_label=""
+[ -n "$limit_7d" ] && u7d_label="u7d"
+[ -n "$limit_7d" ] || reset_7d=""
 
 # Producers fire far more often than the metadata changes (claude's status line
 # re-renders on every event), so skip the socket round-trip when nothing moved.
-payload="$agent|$model_value|$where|$ctx_value|$u5h|$u7d|$spend|$cache"
+# The labels are derived from the values beside them, so they add nothing here.
+payload="$agent|$model|$effort|$repo|$branch|$ctx|$limit_5h|$reset_5h"
+payload="$payload|$limit_7d|$reset_7d|$spend|$cache"
 if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; then
     exit 0
 fi
@@ -148,11 +146,18 @@ seq=$(perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000' 2>/dev/null) \
 "$HERDR_BIN" pane report-metadata "$pane" \
     --source "$SOURCE" \
     --seq "$seq" \
-    --token "model=$model_value" \
-    --token "where=$where" \
-    --token "ctx=$ctx_value" \
-    --token "u5h=$u5h" \
-    --token "u7d=$u7d" \
+    --token "model=$model" \
+    --token "effort=$effort" \
+    --token "repo=$repo" \
+    --token "branch=$branch" \
+    --token "ctxl=$ctx_label" \
+    --token "ctx=$ctx" \
+    --token "u5hl=$u5h_label" \
+    --token "u5h=$limit_5h" \
+    --token "u5hr=$reset_5h" \
+    --token "u7dl=$u7d_label" \
+    --token "u7d=$limit_7d" \
+    --token "u7dr=$reset_7d" \
     --token "spend=$spend" \
     --token "cache=$cache" \
     >/dev/null 2>&1 \

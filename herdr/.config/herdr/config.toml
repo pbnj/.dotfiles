@@ -49,13 +49,21 @@ height = "80%"
 [ui]
 show_agent_labels_on_pane_borders = false
 
-# One block per agent, fed by ~/.local/bin/herdr-agent-status. The $tokens are
-# self-labelling because herdr adds no labels of its own, and a row disappears
-# when none of its tokens has a value.
+# One block per agent, fed by ~/.local/bin/herdr-agent-status. A row disappears
+# when none of its tokens has a value, so an absent fact costs no line.
 #
-# One token per row: herdr joins the tokens within a row with a middle dot, so
-# anything that should read as a single phrase ("opus-5 (medium)") is assembled
-# in herdr-agent-status instead.
+# herdr separates the tokens within a row with a middle dot, and every row here
+# is assembled from its parts rather than pre-joined by the producer, so one
+# separator punctuates the whole sidebar: "opus-5 · medium", "dotfiles · main",
+# "u5h · 8 · 2h55m". The dim tokens are chrome -- the label that says which
+# number this is, the branch, the reset countdown -- and the undimmed one is
+# the fact.
+#
+# The percentages carry no "%": value rules only compare against values that
+# parse completely as finite numbers, so the unit has to go for the number to
+# redden as it climbs. Rules are ordered and the first match wins, so the
+# thresholds run high to low. `fg` is a literal hex and does not follow
+# theme.auto_switch, so these are mid-tones that hold up on both themes.
 #
 # The per-agent overrides omit the `agent` built-in because $model already names
 # what is running, more precisely than the agent label does.
@@ -66,20 +74,46 @@ rows = [["state_icon", "workspace", "tab"], ["agent"]]
 [ui.sidebar.agents.rows_by_agent]
 claude = [
   ["state_icon", "workspace", "tab"],
-  [{ token = "$model", bold = true }],
-  ["$where"],
-  ["$ctx"],
-  ["$u5h"],
-  ["$u7d"],
+  [{ token = "$model", bold = true }, { token = "$effort", dim = true }],
+  ["$repo", { token = "$branch", dim = true }],
+  [
+    { token = "$ctxl", dim = true },
+    { token = "$ctx", rules = [
+      { gt = 90, fg = "#db4b4b", bold = true },
+      { gt = 75, fg = "#c07617" },
+    ] },
+  ],
+  [
+    { token = "$u5hl", dim = true },
+    { token = "$u5h", rules = [
+      { gt = 90, fg = "#db4b4b", bold = true },
+      { gt = 75, fg = "#c07617" },
+    ] },
+    { token = "$u5hr", dim = true },
+  ],
+  [
+    { token = "$u7dl", dim = true },
+    { token = "$u7d", rules = [
+      { gt = 90, fg = "#db4b4b", bold = true },
+      { gt = 75, fg = "#c07617" },
+    ] },
+    { token = "$u7dr", dim = true },
+  ],
 ]
 pi = [
   ["state_icon", "workspace", "tab"],
-  [{ token = "$model", bold = true }],
-  ["$where"],
-  ["$ctx"],
+  [{ token = "$model", bold = true }, { token = "$effort", dim = true }],
+  ["$repo", { token = "$branch", dim = true }],
+  [
+    { token = "$ctxl", dim = true },
+    { token = "$ctx", rules = [
+      { gt = 90, fg = "#db4b4b", bold = true },
+      { gt = 75, fg = "#c07617" },
+    ] },
+  ],
   ["$spend"],
   ["$cache"],
 ]
 
 [ui.toast]
-delivery = "herdr"
+delivery = "terminal"
