@@ -49,6 +49,10 @@ height = "80%"
 [ui]
 show_agent_labels_on_pane_borders = false
 
+# A single-tab workspace has nothing to switch between, so the row is only
+# chrome. It comes back the moment a second tab exists.
+hide_tab_bar_when_single_tab = true
+
 # One block per agent, fed by ~/.local/bin/herdr-agent-status. A row disappears
 # when none of its tokens has a value, so an absent fact costs no line.
 #
