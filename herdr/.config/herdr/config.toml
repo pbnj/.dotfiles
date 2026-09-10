@@ -56,12 +56,17 @@ hide_tab_bar_when_single_tab = true
 # One block per agent, fed by ~/.local/bin/herdr-agent-status. A row disappears
 # when none of its tokens has a value, so an absent fact costs no line.
 #
-# herdr separates the tokens within a row with a middle dot, and every row here
-# is assembled from its parts rather than pre-joined by the producer, so one
+# herdr separates the tokens within a row with a middle dot, and the rows here
+# are assembled from their parts rather than pre-joined by the producer, so one
 # separator punctuates the whole sidebar: "opus-5 · medium", "dotfiles · main",
 # "u5h · 8 · 2h55m". The dim tokens are chrome -- the label that says which
 # number this is, the branch, the reset countdown -- and the undimmed one is
 # the fact.
+#
+# The token-count rows are the one place a row holds more than one label/value
+# pair, so they need a second separator between the pairs that herdr does not
+# supply. They arrive from the producer already joined -- "i · 163 | o · 71.8k"
+# -- with the same dot binding label to value and a pipe between the groups.
 #
 # The percentages carry no "%": value rules only compare against values that
 # parse completely as finite numbers, so the unit has to go for the number to
@@ -116,7 +121,18 @@ pi = [
     ] },
   ],
   ["$spend"],
-  ["$cache"],
+  # The hit ratio shares the row with the read/write counts it qualifies. Its "h"
+  # label is the tail of $cache rather than a token here, so that the pipe before
+  # it comes from inside a value -- herdr joins these two with the middle dot,
+  # giving "r · 11.8M | w · 197.8k | h · 98". Its thresholds are inverted against
+  # ctx/u5h/u7d above: those are bad as they climb, this one is bad as it falls.
+  [
+    "$cache",
+    { token = "$hit", rules = [
+      { lt = 50, fg = "#db4b4b", bold = true },
+      { lt = 75, fg = "#c07617" },
+    ] },
+  ],
 ]
 
 [ui.toast]
