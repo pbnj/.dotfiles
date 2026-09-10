@@ -5,7 +5,7 @@
 # with `herdr pane report-metadata` as custom pane tokens:
 #
 #   $model $effort $repo $branch $ctxl $ctx $u5hl $u5h $u5hr
-#   $u7dl $u7d $u7dr $spend $cache $hitl $hit
+#   $u7dl $u7d $u7dr $spend $cache $hit
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml as
 # one block per agent in the sidebar.
@@ -17,10 +17,15 @@
 # token value clears that key, and a row disappears when every token in it is
 # empty, which is what keeps absent facts from leaving bare labels behind.
 #
-# Nothing is pre-joined here. herdr separates the tokens within a row with a
-# middle dot, so a row is assembled from its parts -- "opus-5 · medium",
-# "dotfiles · main", "u5h · 8 · 2h55m" -- and the dot is the one separator the
-# whole sidebar uses.
+# Rows are assembled from their parts rather than pre-joined here. herdr
+# separates the tokens within a row with a middle dot, so "opus-5 · medium",
+# "dotfiles · main", "u5h · 8 · 2h55m" all fall out of handing it the pieces --
+# and the dot is the one separator the whole sidebar uses.
+#
+# $spend and $cache are the exception: they arrive already carrying the dot,
+# because a group of label/value pairs needs a second separator between the
+# groups and herdr only supplies the one. They are built in agent-status, which
+# owns every formatting decision either sink makes.
 #
 # The percentages are reported as bare integers because herdr's value rules
 # (0.9.0) only compare `gt`/`lt` against values that parse completely as finite
@@ -52,7 +57,7 @@ SOURCE=dotfiles.agent-status
 # `where` is no longer reported - it is $repo and $branch now - but stays in the
 # clear list so panes annotated by an older version of this script lose it too.
 TOKENS=(model effort where repo branch ctxl ctx u5hl u5h u5hr u7dl u7d u7dr
-    spend cache hitl hit)
+    spend cache hit)
 
 # Keyed by socket as well as pane id: pane ids restart at w1:p1 when the server
 # does, and a stale cache entry would otherwise suppress a new pane's first
@@ -127,11 +132,9 @@ u5h_label=""
 u7d_label=""
 [ -n "$limit_7d" ] && u7d_label="u7d"
 [ -n "$limit_7d" ] || reset_7d=""
-# "h" rather than "hit": the hit ratio shares its row with $cache, which is
-# already about 19 columns of a sidebar that can be 18, so the label is cut to
-# the width the r: and w: prefixes beside it already established.
-hit_label=""
-[ -n "$hit" ] && hit_label="h"
+# $hit needs no label cleared alongside it: its label is the trailing "h" of
+# $cache, which agent-status appends only when the ratio exists, so the two
+# already appear and disappear together.
 
 # Producers fire far more often than the metadata changes (claude's status line
 # re-renders on every event), so skip the socket round-trip when nothing moved.
@@ -166,7 +169,6 @@ seq=$(perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000' 2>/dev/null) \
     --token "u7dr=$reset_7d" \
     --token "spend=$spend" \
     --token "cache=$cache" \
-    --token "hitl=$hit_label" \
     --token "hit=$hit" \
     >/dev/null 2>&1 \
     && { mkdir -p "$cache_dir" 2>/dev/null && printf '%s' "$payload" >"$cache_file" 2>/dev/null; }

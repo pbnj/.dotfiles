@@ -24,13 +24,19 @@
 #
 #   {"agent":"claude","model":"opus-5","effort":"medium","repo":"dotfiles",
 #    "branch":"main","ctx":"42%","ctx_pct":42,"tokens":"i:163 | o:71.8k",
+#    "spend":"i · 163 | o · 71.8k","cache":"r · 11.8M | w · 197.8k | h",
 #    "hit":"98%","hit_pct":98,
 #    "limit_5h":"8%","limit_5h_pct":8,"reset_5h":"2h55m",
 #    "limit_7d":"17%","limit_7d_pct":17,"reset_7d":"79h15m"}
 #
 # `hit` is the only derived field rather than a reformatted one: it is the prompt
 # cache hit ratio, computed from the token counts a producer reports rather than
-# sent by one.
+# sent by one. Its label is the "h" on the end of `cache`, for the reason given
+# where it is appended.
+#
+# `tokens` is the tmux border's single-line form of the same counts; `spend` and
+# `cache` are the herdr sidebar's, punctuated the way that sidebar punctuates
+# everything else.
 #
 # Each percentage appears twice: once rendered ("8%") for sinks that draw it as
 # text, and once as a bare number for sinks that compare it against thresholds.
@@ -183,20 +189,40 @@ rst_5h=${rst_5h// /}
 rst_7d=${rst_7d// /}
 ctx_pct=$(as_num "$ctx_pct")
 
-# Session-cumulative tokens as in / out / cache read / cache write, pipe-joined
-# to match the tmux border's other separators. Split into spend and cache so a
-# sink too narrow for both can render them on separate lines.
+# Session-cumulative tokens as in / out / cache read / cache write. Two levels of
+# separator, and they are not interchangeable: one binds a label to the single
+# value it introduces, the other separates one label/value group from the next.
+#
+# Which character does the binding depends on where the string lands, which is
+# why it is decided here rather than in a sink. The herdr sidebar joins the tokens
+# within a row with a middle dot, so every row it draws already reads
+# "opus-5 · medium", "u5h · 8 · 2h55m" - and `spend` and `cache` sit in that
+# sidebar, so they bind with the same dot. The tmux border binds with a colon,
+# because there the neighbours are "ctx:42%" and "5h:8%". Same numbers, punctuated
+# for wherever they are going.
+#
+# The group separator is a pipe in both, which is already the tmux border's
+# separator between segments and is distinct enough from the dot that the two
+# levels do not read as one flat list.
+#
+# `spend` and `cache` are split so a sink too narrow for both can render them on
+# separate lines; `tokens` is the combined single-line form the tmux border has
+# always used.
 #
 # Labels are plain ASCII rather than arrows and symbols: the glyphs that fit this
 # job semantically (up/down arrows, and the rotation arrows for cache) are
 # East-Asian Ambiguous width, so a terminal advances one cell while the font
-# draws nearly two and the glyph bleeds into the digits beside it.
+# draws nearly two and the glyph bleeds into the digits beside it. The middle dot
+# is ambiguous-width too, but herdr is already drawing it between every token in
+# the sidebar, so it is not a new risk there - and it is kept off the tmux border,
+# which has no such precedent.
 #
 # A session that has not made an API call yet reports zeroes rather than absent
 # fields; "i:0 | o:0 | r:0 | w:0" takes up the border while saying nothing, so
 # the whole group is dropped until something has actually been spent.
 spend=""
 cache=""
+tokens=""
 any_spend=0
 for value in "$tok_in" "$tok_out" "$tok_cr" "$tok_cw"; do
     case $value in
@@ -212,10 +238,11 @@ if [ "$any_spend" = 1 ]; then
         value=${rest#*:}
         [ "$value" = "-" ] && continue
         formatted=$(human "$value") || continue
+        tokens="${tokens:+$tokens | }$label:$formatted"
         if [ "$group" = spend ]; then
-            spend="${spend:+$spend | }$label:$formatted"
+            spend="${spend:+$spend | }$label · $formatted"
         else
-            cache="${cache:+$cache | }$label:$formatted"
+            cache="${cache:+$cache | }$label · $formatted"
         fi
     done
 fi
@@ -249,13 +276,20 @@ if [ "$any_spend" = 1 ]; then
         share=$(awk -v r="$tok_cr" -v d="$denom" 'BEGIN{printf "%.4f", 100 * r / d}')
         hit=$(as_pct "$share")
         hit_pct=$(as_num "$share")
+        # The "h" label rides on the end of `cache` instead of travelling as a
+        # sidebar token of its own, because the pipe that has to precede a new
+        # group can only come from inside a token value - herdr joins the tokens
+        # it is given with the middle dot and nothing else. The ratio itself
+        # stays a separate token so it remains a bare number for herdr's value
+        # rules to compare, and herdr's own dot binds the two:
+        #
+        #   "r · 11.8M | w · 197.8k" + "h"  ·  "98"
+        #
+        # renders as "r · 11.8M | w · 197.8k | h · 98", which is the same
+        # two-level punctuation as every other row.
+        cache="${cache:+$cache | }h"
     fi
 fi
-
-# `tokens` is the combined form the tmux border has always rendered; sinks with
-# room for only one line keep using it, narrower ones use spend and cache.
-tokens="$spend"
-[ -n "$cache" ] && tokens="${tokens:+$tokens | }$cache"
 
 normalised=$(jq -n \
     --arg agent "$agent" \
