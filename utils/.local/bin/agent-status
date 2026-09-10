@@ -24,8 +24,13 @@
 #
 #   {"agent":"claude","model":"opus-5","effort":"medium","repo":"dotfiles",
 #    "branch":"main","ctx":"42%","ctx_pct":42,"tokens":"i:163 | o:71.8k",
+#    "hit":"98%","hit_pct":98,
 #    "limit_5h":"8%","limit_5h_pct":8,"reset_5h":"2h55m",
 #    "limit_7d":"17%","limit_7d_pct":17,"reset_7d":"79h15m"}
+#
+# `hit` is the only derived field rather than a reformatted one: it is the prompt
+# cache hit ratio, computed from the token counts a producer reports rather than
+# sent by one.
 #
 # Each percentage appears twice: once rendered ("8%") for sinks that draw it as
 # text, and once as a bare number for sinks that compare it against thresholds.
@@ -215,6 +220,38 @@ if [ "$any_spend" = 1 ]; then
     done
 fi
 
+# Cache read tokens as a share of every input token the session has paid for:
+# reads, writes, and uncached input. Same denominator as claude's own
+# prompt_cache.hit_ratio, so the number means what /usage means by it.
+#
+# The read/write counts above say how much the cache moved, which climbs whether
+# a prefix is being reused or rebuilt. This says which of the two is happening,
+# and it is the one of the pair worth a threshold: a ratio that falls is a
+# session re-paying for context it already had.
+#
+# Derived inside the same any_spend guard, and only when the denominator is
+# positive: a session with no token fields at all (claude reports rate limits
+# instead) leaves it empty, and so leaves the sinks nothing to render.
+hit=""
+hit_pct=""
+if [ "$any_spend" = 1 ]; then
+    denom=0
+    for value in "$tok_in" "$tok_cr" "$tok_cw"; do
+        case $value in
+            '' | '-' | *[!0-9]*) continue ;;
+        esac
+        denom=$(( denom + value ))
+    done
+    case $tok_cr in
+        '' | '-' | *[!0-9]*) denom=0 ;;
+    esac
+    if [ "$denom" -gt 0 ]; then
+        share=$(awk -v r="$tok_cr" -v d="$denom" 'BEGIN{printf "%.4f", 100 * r / d}')
+        hit=$(as_pct "$share")
+        hit_pct=$(as_num "$share")
+    fi
+fi
+
 # `tokens` is the combined form the tmux border has always rendered; sinks with
 # room for only one line keep using it, narrower ones use spend and cache.
 tokens="$spend"
@@ -231,6 +268,8 @@ normalised=$(jq -n \
     --arg tokens "$tokens" \
     --arg spend "$spend" \
     --arg cache "$cache" \
+    --arg hit "$hit" \
+    --arg hit_pct "$hit_pct" \
     --arg limit_5h "$limit_5h" \
     --arg limit_5h_pct "$limit_5h_pct" \
     --arg reset_5h "$rst_5h" \
@@ -241,6 +280,7 @@ normalised=$(jq -n \
      {$agent, $model, $effort, $repo, $branch, $ctx,
       ctx_pct: ($ctx_pct | n),
       $tokens, $spend, $cache,
+      $hit, hit_pct: ($hit_pct | n),
       $limit_5h, limit_5h_pct: ($limit_5h_pct | n), $reset_5h,
       $limit_7d, limit_7d_pct: ($limit_7d_pct | n), $reset_7d}' 2>/dev/null)
 [ -n "$normalised" ] || exit 0

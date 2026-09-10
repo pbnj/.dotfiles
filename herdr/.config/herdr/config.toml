@@ -116,7 +116,17 @@ pi = [
     ] },
   ],
   ["$spend"],
-  ["$cache"],
+  # The hit ratio shares the row with the read/write counts it qualifies, and its
+  # thresholds are inverted against ctx/u5h/u7d above: those are bad as they
+  # climb, this one is bad as it falls.
+  [
+    "$cache",
+    { token = "$hitl", dim = true },
+    { token = "$hit", rules = [
+      { lt = 50, fg = "#db4b4b", bold = true },
+      { lt = 75, fg = "#c07617" },
+    ] },
+  ],
 ]
 
 [ui.toast]

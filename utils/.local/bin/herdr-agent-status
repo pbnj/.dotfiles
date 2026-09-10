@@ -5,7 +5,7 @@
 # with `herdr pane report-metadata` as custom pane tokens:
 #
 #   $model $effort $repo $branch $ctxl $ctx $u5hl $u5h $u5hr
-#   $u7dl $u7d $u7dr $spend $cache
+#   $u7dl $u7d $u7dr $spend $cache $hitl $hit
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml as
 # one block per agent in the sidebar.
@@ -52,7 +52,7 @@ SOURCE=dotfiles.agent-status
 # `where` is no longer reported - it is $repo and $branch now - but stays in the
 # clear list so panes annotated by an older version of this script lose it too.
 TOKENS=(model effort where repo branch ctxl ctx u5hl u5h u5hr u7dl u7d u7dr
-    spend cache)
+    spend cache hitl hit)
 
 # Keyed by socket as well as pane id: pane ids restart at w1:p1 when the server
 # does, and a stale cache entry would otherwise suppress a new pane's first
@@ -100,14 +100,15 @@ fields=$(printf '%s' "$input" | jq -r '
     , (.reset_5h | f)
     , (.limit_7d_pct | f)
     , (.reset_7d | f)
+    , (.hit_pct | f)
     ] | @tsv' 2>/dev/null)
 [ -n "$fields" ] || exit 0
 
 IFS=$'\t' read -r agent model effort repo branch ctx spend cache \
-    limit_5h reset_5h limit_7d reset_7d <<<"$fields"
+    limit_5h reset_5h limit_7d reset_7d hit <<<"$fields"
 
 for var in agent model effort repo branch ctx spend cache \
-    limit_5h reset_5h limit_7d reset_7d; do
+    limit_5h reset_5h limit_7d reset_7d hit; do
     [ "${!var}" = "-" ] && declare "$var="
 done
 
@@ -126,12 +127,17 @@ u5h_label=""
 u7d_label=""
 [ -n "$limit_7d" ] && u7d_label="u7d"
 [ -n "$limit_7d" ] || reset_7d=""
+# "h" rather than "hit": the hit ratio shares its row with $cache, which is
+# already about 19 columns of a sidebar that can be 18, so the label is cut to
+# the width the r: and w: prefixes beside it already established.
+hit_label=""
+[ -n "$hit" ] && hit_label="h"
 
 # Producers fire far more often than the metadata changes (claude's status line
 # re-renders on every event), so skip the socket round-trip when nothing moved.
 # The labels are derived from the values beside them, so they add nothing here.
 payload="$agent|$model|$effort|$repo|$branch|$ctx|$limit_5h|$reset_5h"
-payload="$payload|$limit_7d|$reset_7d|$spend|$cache"
+payload="$payload|$limit_7d|$reset_7d|$spend|$cache|$hit"
 if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; then
     exit 0
 fi
@@ -160,6 +166,8 @@ seq=$(perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000' 2>/dev/null) \
     --token "u7dr=$reset_7d" \
     --token "spend=$spend" \
     --token "cache=$cache" \
+    --token "hitl=$hit_label" \
+    --token "hit=$hit" \
     >/dev/null 2>&1 \
     && { mkdir -p "$cache_dir" 2>/dev/null && printf '%s' "$payload" >"$cache_file" 2>/dev/null; }
 
