@@ -21,6 +21,9 @@ switch_tab = ""
 # Closest thing to tmux's prefix+l: jumps to the last focused pane, across
 # workspaces and tabs. prefix+l itself is focus_pane_right.
 last_pane = "prefix+tab"
+# prefix+shift+w is a new workspace rooted at the komodohealth org dir (below);
+# renaming a workspace is rare enough to live in the workspace picker instead.
+rename_workspace = ""
 
 [[keys.command]]
 key = "prefix+g"
@@ -45,6 +48,15 @@ command = "fzf-herdr-project"
 description = "Fuzzy-find or clone projects"
 width = "80%"
 height = "80%"
+
+# prefix+shift+n keeps inheriting the current workspace's cwd; this is the
+# escape hatch for starting somewhere unrelated to what is already open. `shell`
+# runs detached, so nothing flashes a pane on the way past.
+[[keys.command]]
+key = "prefix+shift+w"
+type = "shell"
+command = "herdr workspace create --cwd \"$HOME/Projects/github.com/komodohealth\" --focus"
+description = "New workspace in komodohealth"
 
 [ui]
 show_agent_labels_on_pane_borders = false
