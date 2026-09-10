@@ -34,5 +34,3 @@ fi
 if [[ "$(uname)" == "Darwin" ]] && [[ -S "${SSH_AUTH_SOCK:-}" ]]; then
   ssh-add -l >/dev/null 2>&1 || ssh-add --apple-load-keychain -q 2>/dev/null
 fi
-
-eval "$(direnv hook bash)"

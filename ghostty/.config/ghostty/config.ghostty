@@ -21,7 +21,7 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "IosevkaTerm NFM"
+font-family = "JetBrainsMono"
 
 # ghostty +list-themes
 theme = "light:TokyoNight Day,dark:TokyoNight Moon"
