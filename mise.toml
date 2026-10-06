@@ -1,0 +1,4 @@
+[tools]
+betterleaks = "1.9.0"
+"pipx:commitizen" = "4.19.1"
+prek = "0.5.5"

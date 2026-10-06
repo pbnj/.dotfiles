@@ -32,8 +32,11 @@ spell/*
 ssh/.ssh/*
 tags*
 tmp/
+utils/.local/bin/claude
 utils/.local/bin/custodian
 utils/.local/bin/devpod
+utils/.local/bin/pre-commit
+utils/.local/bin/twg
 utils/.local/share/
 node_modules/
 pi/.pi/agent/models-store.json
