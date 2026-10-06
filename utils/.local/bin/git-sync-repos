@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+# git sync-repos — find every git clone under ~/Projects and fast-forward it onto
+# the latest default branch.
+#
+#   git sync-repos [-n] [-v] [-k] [-o OWNER] [-j N] [ROOT ...]
+#
+#   -n          dry run: discover, fetch nothing, change nothing
+#   -v          verbose: print each repo as it is processed
+#   -k          keep the current branch: repos on a feature branch are fetched
+#               only, never switched (the pre-switch behaviour)
+#   -o OWNER    only sync repos whose origin URL is under this owner, e.g.
+#               `-o komodohealth`. Repeatable. Default: no filter, every repo.
+#   -j N        run N repos concurrently (default 4)
+#   ROOT        directories to search (default: $SYNC_REPOS_ROOT, else
+#               ~/Projects). Pass $HOME to sweep everything.
+#
+# A repo is anything with an `origin` remote — any host, any owner. Clones with
+# no origin (purely local repos) are left alone, since there is nothing to sync.
+#
+# Per repo: `git fetch origin --prune`, check out <default-branch> if the repo is
+# sitting on some other branch, then `git pull --rebase origin <default-branch>`.
+# <default-branch> is read from `origin/HEAD` per repo, never assumed to be
+# `main` — plenty of repos are still `master`, and some use `develop` or `dev`.
+#
+# The branch switch is a pointer move on an already-clean tree, so it cannot lose
+# work: the branch you were on keeps its ref and every unpushed commit, and
+# `git checkout -` puts you back. The report names the branch it left, and `-k`
+# turns switching off entirely.
+#
+# What it still refuses to do, because a sweep that runs unattended over every
+# clone you own must never be able to lose work:
+#
+#   * dirty worktree            -> fetch only, reported DIRTY. Checked BEFORE the
+#                                  switch, since checkout would otherwise drag
+#                                  the changes onto the default branch.
+#   * default branch is held by -> fetch only, reported SWITCHFAIL. git refuses
+#     a linked worktree            the checkout and that refusal is correct.
+#   * rebase leaves conflicts   -> `git rebase --abort`, reported CONFLICT
+#   * unpushed commits on the   -> still rebases (that is what --rebase is for),
+#     default branch               but never pushes and never force-pushes
+#
+# It never runs `reset --hard`, `clean`, `stash`, `branch -d`, or any push. Every
+# repo it declines to touch is printed, so nothing fails silently.
+#
+# Linked worktrees under `.worktrees/` are skipped: their `.git` is a file, not
+# a directory, and their branch is by definition not the default branch.
+#
+# Note: `git sync-repos --help` is hijacked by git's man lookup — use -h.
+set -uo pipefail
+
+# Invoked as `git sync-repos` from inside a repo, git exports these into the
+# subcommand — and they take precedence over `git -C <path>`, so every operation
+# below would silently retarget the repo you happened to run it from. Unset them
+# before touching anything.
+unset GIT_DIR GIT_WORK_TREE GIT_PREFIX GIT_INDEX_FILE
+
+ORGS=()
+DRY_RUN=0
+VERBOSE=0
+SWITCH=1
+JOBS=4
+
+while getopts ':nvko:j:h' opt; do
+  case "$opt" in
+    n) DRY_RUN=1 ;;
+    v) VERBOSE=1 ;;
+    k) SWITCH=0 ;;
+    o) ORGS+=("$OPTARG") ;;
+    j) JOBS="$OPTARG" ;;
+    # Print the header block itself rather than a hardcoded line range, which
+    # goes stale the moment the header grows. Stops at the first non-comment.
+    h) awk 'NR>1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
+    \?) echo "git sync-repos: unknown flag -$OPTARG" >&2; exit 2 ;;
+    :) echo "git sync-repos: -$OPTARG needs an argument" >&2; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+ROOTS=("$@")
+[ ${#ROOTS[@]} -eq 0 ] && ROOTS=("${SYNC_REPOS_ROOT:-$HOME/Projects}")
+
+for root in "${ROOTS[@]}"; do
+  [ -d "$root" ] || { echo "git sync-repos: no such directory: $root" >&2; exit 2; }
+done
+
+# Owner filter, only when -o was given. Matches both remote forms —
+# git@host:owner/x.git and https://host/owner/x — hence the [:/] before the
+# owner. Host-agnostic on purpose: GitHub, GitLab and internal hosts all match.
+ORG_RE=""
+[ ${#ORGS[@]} -gt 0 ] && ORG_RE="[:/]($(IFS='|'; echo "${ORGS[*]}"))/"
+
+vlog() { [ "$VERBOSE" -eq 1 ] && printf '  %s\n' "$*" >&2; return 0; }
+
+# --- discover -----------------------------------------------------------------
+# Prune the directories that make a wide find slow or wrong: vendored checkouts
+# and dependency trees are full of .git dirs that are not your clones, and
+# Library/.Trash are neither.
+printf 'Scanning %s for clones …\n' "${ROOTS[*]}"
+mapfile -t CANDIDATES < <(
+  find "${ROOTS[@]}" \
+    \( -name node_modules -o -name .venv -o -name venv -o -name vendor \
+       -o -name .worktrees -o -name Library -o -name .Trash -o -name .cache \
+       -o -name .terraform -o -name Caches -o -name target \
+       -o -name .bundle -o -name Pods -o -name .tox \) -prune -o \
+    -type d -name .git -print 2>/dev/null | sort
+)
+
+REPOS=()
+for gitdir in "${CANDIDATES[@]}"; do
+  repo="${gitdir%/.git}"
+  # No origin means nothing to sync against — a purely local repo, left alone.
+  url="$(git -C "$repo" config --get remote.origin.url 2>/dev/null)" || continue
+  [ -z "$url" ] && continue
+  if [ -n "$ORG_RE" ]; then
+    [[ "$url" =~ $ORG_RE ]] || continue
+  fi
+  REPOS+=("$repo")
+done
+
+if [ ${#REPOS[@]} -eq 0 ]; then
+  echo "git sync-repos: no clones found under ${ROOTS[*]}" >&2
+  exit 1
+fi
+
+if [ ${#ORGS[@]} -gt 0 ]; then
+  printf 'Found %d repo(s) under %s for owner(s): %s\n\n' "${#REPOS[@]}" "${ROOTS[*]}" "${ORGS[*]}"
+else
+  printf 'Found %d repo(s) under %s\n\n' "${#REPOS[@]}" "${ROOTS[*]}"
+fi
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  printf '%s\n' "${REPOS[@]}"
+  echo
+  echo "(dry run — nothing fetched, nothing changed)"
+  exit 0
+fi
+
+# --- sync one repo ------------------------------------------------------------
+# Prints one tab-separated result line: <STATUS>\t<repo>\t<detail>
+sync_one() {
+  local repo="$1" name branch head_ref before after note=""
+  # Escape the tilde: an unescaped ~/ in the replacement is tilde-expanded back
+  # to $HOME, so the substitution silently becomes a no-op.
+  name="${repo/#$HOME\//\~/}"
+
+  vlog "→ $name"
+
+  # `--prune` and the fetch itself fail independently. A repo carrying a stale
+  # packed ref that git cannot lock ("cannot lock ref ... File exists", with no
+  # .lock actually on disk) fails prune on every run while fetching perfectly —
+  # treating that as a dead remote would permanently skip a healthy repo. So
+  # fall back to a plain fetch and only give up if that fails too.
+  if ! git -C "$repo" fetch --prune --quiet origin 2>/dev/null; then
+    if git -C "$repo" fetch --quiet origin 2>/dev/null; then
+      note=" [prune failed: stale ref, run \`git remote prune origin\`]"
+    else
+      printf 'FETCHFAIL\t%s\t%s\n' "$name" "origin unreachable or auth failed"
+      return
+    fi
+  fi
+
+  # Default branch from the remote itself. A clone made with --single-branch, or
+  # an older one, can have no origin/HEAD; set it once rather than assuming main.
+  head_ref="$(git -C "$repo" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)"
+  if [ -z "$head_ref" ]; then
+    git -C "$repo" remote set-head origin --auto >/dev/null 2>&1
+    head_ref="$(git -C "$repo" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)"
+  fi
+  if [ -z "$head_ref" ]; then
+    printf 'NODEFAULT\t%s\t%s%s\n' "$name" "cannot determine origin default branch" "$note"
+    return
+  fi
+  local default="${head_ref#origin/}"
+
+  # The dirty check comes BEFORE any branch switch: `git checkout` drags
+  # uncommitted changes across to the new branch when it can, and refuses when it
+  # cannot. Neither belongs in an unattended sweep, so a dirty repo is never
+  # switched and never rebased.
+  if [ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]; then
+    printf 'DIRTY\t%s\t%s%s\n' "$name" "uncommitted changes (fetched only)" "$note"
+    return
+  fi
+
+  branch="$(git -C "$repo" symbolic-ref --quiet --short HEAD 2>/dev/null)"
+
+  # A detached HEAD has no branch name to name in the report, so record the sha:
+  # once HEAD moves, that is the only breadcrumb back to the commit.
+  if [ -z "$branch" ]; then
+    if [ "$SWITCH" -eq 0 ]; then
+      printf 'DETACHED\t%s\t%s%s\n' "$name" "detached HEAD (fetched only)" "$note"
+      return
+    fi
+    branch="detached @ $(git -C "$repo" rev-parse --short HEAD)"
+  fi
+
+  local switched_from=""
+  if [ "$branch" != "$default" ]; then
+    if [ "$SWITCH" -eq 0 ]; then
+      printf 'OFFBRANCH\t%s\ton %s, default is %s (fetched only)%s\n' "$name" "$branch" "$default" "$note"
+      return
+    fi
+    # Safe here precisely because the tree is already clean: the branch ref
+    # survives untouched, unpushed commits and all, so the switch is a pointer
+    # move you can undo with `git checkout -`. The one failure mode is a linked
+    # worktree already holding the default branch — git refuses, and that refusal
+    # is correct, so report it instead of forcing past it.
+    if ! git -C "$repo" checkout --quiet "$default" 2>/dev/null; then
+      printf 'SWITCHFAIL\t%s\tcannot check out %s from %s (fetched only)%s\n' \
+        "$name" "$default" "$branch" "$note"
+      return
+    fi
+    switched_from=" (was on $branch)"
+  fi
+
+  before="$(git -C "$repo" rev-parse --short HEAD)"
+  if ! git -C "$repo" pull --rebase --quiet origin "$default" >/dev/null 2>&1; then
+    # A failed pull can leave the repo mid-rebase; leaving it there would break
+    # the next run too. Abort and report — never resolve conflicts unattended.
+    git -C "$repo" rebase --abort >/dev/null 2>&1
+    printf 'CONFLICT\t%s\t%s%s\n' "$name" "rebase onto origin/$default failed; aborted" "$note"
+    return
+  fi
+  after="$(git -C "$repo" rev-parse --short HEAD)"
+
+  if [ -n "$switched_from" ]; then
+    printf 'SWITCHED\t%s\t%s%s%s\n' "$name" "$default $before -> $after" "$switched_from" "$note"
+  elif [ "$before" = "$after" ]; then
+    printf 'CURRENT\t%s\t%s%s\n' "$name" "$default @ $after" "$note"
+  else
+    printf 'UPDATED\t%s\t%s%s\n' "$name" "$default $before -> $after" "$note"
+  fi
+}
+export -f sync_one vlog
+export HOME SWITCH VERBOSE
+
+RAW="$(mktemp -t git-sync-repos.XXXXXX)"
+trap 'rm -f "$RAW"' EXIT
+
+printf 'Syncing %d repo(s), %d at a time …\n\n' "${#REPOS[@]}" "$JOBS"
+
+# Results stream out as each repo finishes rather than landing in one dump at the
+# end — on a sweep this size the run is minutes long, and silence for all of it
+# looks like a hang.
+#
+# xargs -P gives concurrency; each sync_one writes exactly one line, and a single
+# write under the pipe buffer is atomic, so lines do not interleave. `tee` keeps
+# the raw lines for the summary; awk numbers them as they arrive, and fflush
+# keeps the counter live when stdout is a pipe rather than a terminal.
+printf '%s\n' "${REPOS[@]}" \
+  | xargs -P "$JOBS" -I{} bash -c 'sync_one "$@"' _ {} \
+  | tee "$RAW" \
+  | awk -F'\t' -v total="${#REPOS[@]}" \
+      '{ printf "[%*d/%d] %-10s %-55s %s\n", length(total), ++n, total, $1, $2, $3; fflush() }'
+
+# --- summary ------------------------------------------------------------------
+# The stream above is in completion order, which is arbitrary. Repos that need a
+# human are easy to lose in it, so re-print just those, grouped.
+if grep -qvE '^(CURRENT|UPDATED)' "$RAW"; then
+  echo
+  echo "Needs attention:"
+  grep -vE '^(CURRENT|UPDATED)' "$RAW" \
+    | sort \
+    | awk -F'\t' '{ printf "  %-10s %-55s %s\n", $1, $2, $3 }'
+fi
+
+echo
+awk -F'\t' '{ c[$1]++ } END { for (s in c) printf "%s=%d ", s, c[s]; print "" }' "$RAW"
+
+# Non-zero only for states that need a human: everything else is a normal
+# outcome of a sweep and should not fail a cron job.
+if grep -qE '^(CONFLICT|FETCHFAIL|NODEFAULT)' "$RAW"; then
+  exit 1
+fi

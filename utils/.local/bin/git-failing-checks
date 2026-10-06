@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+#
+# git failing-checks [-R OWNER/REPO] [-n LINES] [--no-log] [--json] [<pr>]
+#
+# Lists the failing and cancelled CI checks on a pull request — workflow, job,
+# and a link — and, for GitHub Actions jobs, an excerpt of the failed log: the
+# LINES (default 10) lines ending at the last ##[error], which is where the job
+# says why it failed, rather than the post-job cleanup that follows it.
+#
+# <pr> is as for git unresolved: omitted for the current branch's PR, 123, #123,
+# OWNER/REPO#123, or a PR URL. --no-log skips the log fetches; --json emits the
+# failing check objects from `gh pr checks` for scripting.
+#
+# Checks posted by other apps (Snyk, Cursor, …) have no job log, so they show
+# their description and link instead.
+#
+# Note: `git failing-checks --help` is hijacked by git's man lookup — use -h.
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+lines=10
+show_log=true
+as_json=false
+pr=""
+repo=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -R | --repo) repo="${2:?--repo needs OWNER/REPO}"; shift 2 ;;
+    -n | --lines) lines="${2:?--lines needs a number}"; shift 2 ;;
+    --no-log) show_log=false; shift ;;
+    --json) as_json=true; shift ;;
+    -h | --help) sed -n "2,17p" "$0" | cut -c 3-; exit 0 ;;
+    --) shift; break ;;
+    -*) echo "git failing-checks: unknown flag: $1" >&2; exit 2 ;;
+    *) pr="$1"; shift ;;
+  esac
+done
+[ -n "${1:-}" ] && pr="$1"
+[[ $lines =~ ^[0-9]+$ ]] || { echo "git failing-checks: --lines needs a number: $lines" >&2; exit 2; }
+
+# shellcheck source=git-pr-arg.sh disable=SC1091
+source "${BASH_SOURCE[0]%/*}/git-pr-arg.sh"
+pr_arg_resolve "git failing-checks"
+
+command -v jq >/dev/null || { echo "git failing-checks: jq is not installed" >&2; exit 1; }
+
+# With --json, gh pr checks exits 0 whatever the check states; it fails only on
+# real errors, and on a PR with no checks at all, which is not an error here.
+if ! checks=$(gh pr checks "$pr" ${repo:+--repo "$repo"} \
+    --json name,workflow,state,bucket,link,description 2>&1); then
+  if [[ $checks == "no checks reported"* ]]; then
+    if [ "$as_json" = true ]; then echo "[]"; else echo "PR #${pr}: no checks."; fi
+    exit 0
+  fi
+  echo "git failing-checks: $checks" >&2
+  exit 1
+fi
+
+# bucket is gh's own grouping of state: pass, fail, pending, skipping, cancel.
+failing=$(jq '[ .[] | select(.bucket == "fail" or .bucket == "cancel") ]' <<< "$checks")
+
+if [ "$as_json" = true ]; then
+  jq . <<< "$failing"
+  exit 0
+fi
+
+summary=$(jq -r '
+  group_by(.bucket) | map({ key: .[0].bucket, value: length }) | from_entries as $n
+  | [ "\($n.fail // 0) failing",
+      (if $n.cancel then "\($n.cancel) cancelled" else empty end),
+      (if $n.pending then "\($n.pending) pending" else empty end),
+      "\($n.pass // 0) passed" ] | join(", ")' <<< "$checks")
+echo "PR #${pr}: ${summary}"
+
+count=$(jq length <<< "$failing")
+[ "$count" -eq 0 ] && exit 0
+
+# Fetch the failed-step logs concurrently — each is a ~2s round trip — into one
+# file per check, printed in order below. Only failed Actions jobs have one: a
+# cancelled job never reached a failed step, and other apps' links are not jobs.
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+excerpt() {
+  # --log-failed lines are "job<TAB>step<TAB><timestamp> message"; keep the
+  # message, strip colour codes (gh writes ESC as a literal "^[" when piped),
+  # drop the ##[group] markers, and end the window at the last ##[error].
+  cut -f 3- |
+    sed -E $'s/^[0-9-]+T[0-9:.]+Z ?//; s/(\x1b|\\^\\[)\\[[0-9;]*m//g; /^##\\[endgroup\\]$/d; s/^##\\[group\\]//' |
+    awk -v n="$lines" '
+      { line[NR] = $0; if ($0 ~ /##\[error\]/) last = NR }
+      END { end = last ? last : NR; for (i = (end > n ? end - n + 1 : 1); i <= end; i++) print line[i] }'
+}
+
+if [ "$show_log" = true ] && [ "$lines" -gt 0 ]; then
+  i=0
+  while IFS=$'\t' read -r bucket link; do
+    i=$((i + 1))
+    [ "$bucket" = fail ] || continue
+    [[ $link =~ /actions/runs/[0-9]+/job/([0-9]+) ]] || continue
+    job="${BASH_REMATCH[1]}"
+    { gh run view --job "$job" ${repo:+--repo "$repo"} --log-failed 2>/dev/null | excerpt > "$tmp/$i" || true; } &
+  done < <(jq -r '.[] | [.bucket, .link] | @tsv' <<< "$failing")
+  wait
+fi
+
+i=0
+while IFS=$'\t' read -r bucket label link description; do
+  i=$((i + 1))
+  flag=""
+  [ "$bucket" = cancel ] && flag=" [cancelled]"
+  printf '\n%s%s\n' "$label" "$flag"
+  if [ -s "$tmp/$i" ]; then
+    sed 's/^/    /' "$tmp/$i"
+  elif [ -n "$description" ]; then
+    printf '    %s\n' "$description"
+  fi
+  printf '    %s\n' "$link"
+done < <(jq -r '.[] | [ .bucket,
+                        (if (.workflow // "") == "" then .name else "\(.workflow) / \(.name)" end),
+                        .link, (.description // "") ] | @tsv' <<< "$failing")

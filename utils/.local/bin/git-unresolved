@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 #
-# git unresolved [-R OWNER/REPO] [--all] [--json] [<pr-number>]
+# git unresolved [-R OWNER/REPO] [--all] [--json] [<pr>]
 #
 # Lists the unresolved review threads on a pull request — the conversations that
 # still block "all comments resolved" — as file:line, author, the opening
-# comment, and a link to the thread.
+# comment, and a link to the thread. Copilot findings also show their
+# high/medium/low severity (in --json, as .severity; null for other reviewers).
 #
-# The PR defaults to the one for the current branch, in the current repo. Pass a
-# number and/or -R to pick another. --all also prints resolved threads (marked
-# as such); --json emits the raw thread objects for scripting.
+# The PR defaults to the one for the current branch, in the current repo. <pr>
+# picks another: a number (123 or #123), OWNER/REPO#123, or a PR URL
+# (https://github.com/OWNER/REPO/pull/123, any /files or #discussion suffix
+# included). The last two carry the repo; otherwise -R sets it. --all also
+# prints resolved threads (marked as such); --json emits the raw thread objects
+# for scripting.
 #
 # Note: `git unresolved --help` is hijacked by git's man lookup — use -h.
 #
@@ -28,7 +32,7 @@ while [ $# -gt 0 ]; do
     -a | --all) show_all=true; shift ;;
     -R | --repo) repo="${2:?--repo needs OWNER/REPO}"; shift 2 ;;
     --json) as_json=true; shift ;;
-    -h | --help) sed -n "2,16p" "$0" | cut -c 3-; exit 0 ;;
+    -h | --help) sed -n "2,20p" "$0" | cut -c 3-; exit 0 ;;
     --) shift; break ;;
     -*) echo "git unresolved: unknown flag: $1" >&2; exit 2 ;;
     *) pr="$1"; shift ;;
@@ -36,16 +40,11 @@ while [ $# -gt 0 ]; do
 done
 [ -n "${1:-}" ] && pr="$1"
 
-command -v gh >/dev/null || { echo "git unresolved: gh is not installed" >&2; exit 1; }
+# shellcheck source=git-pr-arg.sh disable=SC1091
+source "${BASH_SOURCE[0]%/*}/git-pr-arg.sh"
+pr_arg_resolve "git unresolved"
+
 command -v jq >/dev/null || { echo "git unresolved: jq is not installed" >&2; exit 1; }
-
-repo_args=()
-[ -n "$repo" ] && repo_args=(--repo "$repo")
-
-if [ -z "$pr" ]; then
-  pr=$(gh pr view ${repo_args[@]+"${repo_args[@]}"} --json number --jq .number) ||
-    { echo "git unresolved: no PR for the current branch — pass a PR number." >&2; exit 1; }
-fi
 
 # gh repo view takes the repo positionally, not as --repo.
 read -r owner name < <(gh repo view ${repo:+"$repo"} --json owner,name --jq '"\(.owner.login) \(.name)"')
@@ -80,6 +79,18 @@ raw=$(gh api graphql --paginate \
 
 threads=$(jq -s '[ .[].data.repository.pullRequest.reviewThreads.nodes[] ]' <<< "$raw")
 
+# Copilot rates each finding High/Medium/Low, but only in its review summary: a
+# list item per finding, "<img alt="High severity" …> [title](#discussion_r<id>)".
+# The inline comment carries no rating, so map discussion id → severity from the
+# summaries and join on the id at the end of each thread's first comment URL.
+severity=$(gh api --paginate "repos/$owner/$name/pulls/$pr/reviews" \
+  --jq '.[] | select(.user.login | test("copilot"; "i")) | .body' |
+  jq -Rs '[ scan("alt=\"([A-Za-z]+) severity\"[^\n]*?\\(#discussion_r([0-9]+)\\)")
+            | { (.[1]): (.[0] | ascii_downcase) } ] | add // {}')
+threads=$(jq --argjson sev "$severity" '[ .[] |
+  ((.comments.nodes[0].url // "" | capture("#discussion_r(?<id>[0-9]+)$") | .id) // null) as $id
+  | . + { severity: (if $id then $sev[$id] else null end) } ]' <<< "$threads")
+
 if [ "$show_all" = false ]; then
   threads=$(jq '[ .[] | select(.isResolved | not) ]' <<< "$threads")
 fi
@@ -101,7 +112,8 @@ fi
 
 echo "PR #${pr}: ${count} thread(s)"
 jq -r '
-  def flag: [ (if .isResolved then "resolved" else empty end),
+  def flag: [ (.severity // empty),
+              (if .isResolved then "resolved" else empty end),
               (if .isOutdated then "outdated" else empty end) ]
             | if length == 0 then "" else " [" + join(", ") + "]" end;
   .[] | .comments.nodes[0] as $c |
