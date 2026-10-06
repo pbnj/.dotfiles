@@ -4,6 +4,9 @@
 # BREW
 [[ -d "/opt/homebrew/bin" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
+# GNU coreutils, unprefixed (ls, timeout, date, ...) ahead of the BSD originals
+[[ -d "/opt/homebrew/opt/coreutils/libexec/gnubin" && ":${PATH}:" != *":/opt/homebrew/opt/coreutils/libexec/gnubin:"* ]] && PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:${PATH}"
+
 # General
 export EDITOR=nvim
 export GIT_TERMINAL_PROMPT=1
