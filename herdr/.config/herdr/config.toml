@@ -148,4 +148,4 @@ pi = [
 ]
 
 [ui.toast]
-delivery = "terminal"
+delivery = "herdr"
