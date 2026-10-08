@@ -4,3 +4,5 @@
 .pi/agent/git/
 .pi/agent/npm/
 .pi/agent/tmp/
+.pi/agent/bin/
+.pi/agent/install/

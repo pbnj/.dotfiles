@@ -35,6 +35,7 @@ tmp/
 utils/.local/bin/claude
 utils/.local/bin/custodian
 utils/.local/bin/devpod
+utils/.local/bin/pi
 utils/.local/bin/pre-commit
 utils/.local/bin/twg
 utils/.local/share/
