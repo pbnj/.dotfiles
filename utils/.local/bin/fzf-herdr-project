@@ -2,10 +2,14 @@
 
 # Author: Peter Benjamin
 # Description: Fuzzy-find git projects and open each selection in a new Herdr workspace.
-#              A project that is not cloned yet can be cloned from GitHub into
-#              ~/Projects/github.com/<org>/<repo> with <CTRL-Y>.
-#              <ALT-ENTER> opens the workspace and starts a coding agent in it,
-#              picked from the AGENT_KINDS below that are actually installed.
+#              Pasting a GitHub URL -- a pull request, issue, file, or the repo
+#              itself -- narrows the list to the org/repo it points at.
+#              A project that is not cloned yet is cloned from GitHub into
+#              ~/Projects/github.com/<org>/<repo> by <ENTER> (and then opened
+#              with the agent), or by <CTRL-Y> (opened with a bare shell).
+#              <ENTER> opens the workspace and starts DEFAULT_AGENT in it;
+#              <ALT-ENTER> picks the agent instead, from the AGENT_KINDS below
+#              that are actually installed.
 #              <ALT-O>/<ALT-P>/<ALT-A> open the highlighted project's GitHub
 #              repo, pull request, or Actions page in the browser.
 # Dependencies: brew install fd fzf gh herdr jq
@@ -20,8 +24,10 @@ SEARCH_ROOTS=(
   "${HOME}/Projects"
   "${HOME}/.dotfiles"
 )
-# Offered by <ALT-ENTER>, in this order. Each entry is run as a command in the
-# new pane, so it must be the executable's own name.
+# DEFAULT_AGENT is what <ENTER> starts; AGENT_KINDS are offered by <ALT-ENTER>,
+# in this order. Each entry is run as a command in the new pane, so it must be
+# the executable's own name.
+DEFAULT_AGENT=claude
 AGENT_KINDS=(claude pi copilot)
 CLONE_ROOT="${HOME}/Projects/github.com"
 MAX_DEPTH="${HERDR_PROJECT_DEPTH:-5}"
@@ -85,18 +91,45 @@ project_pull() {
 }
 
 # Reduce anything that names a GitHub repo -- org/repo, a clone URL, an https
-# URL -- to the bare "org/repo" the clone path is built from. Prints nothing when
-# the input is not a fully qualified repo, which is the signal to fall back to a
-# GitHub search.
+# URL, including deep links into one such as a pull request, issue, or file -- to
+# the bare "org/repo" the clone path is built from. Prints nothing when the input
+# is not a fully qualified repo, which is the signal to fall back to a GitHub
+# search.
 normalize_spec() {
-  local spec="${1:-}"
+  local spec="${1:-}" url=""
+  spec="${spec#"${spec%%[![:space:]]*}"}"
+  spec="${spec%"${spec##*[![:space:]]}"}"
   spec="${spec#git@github.com:}"
-  spec="${spec#https://github.com/}"
-  spec="${spec#github.com/}"
+  spec="${spec#http://}"
+  spec="${spec#https://}"
+  spec="${spec#www.}"
+  if [[ "${spec}" == github.com/* ]]; then
+    url=1
+    spec="${spec#github.com/}"
+  fi
+  spec="${spec%%[?#]*}"
   spec="${spec%.git}"
   spec="${spec%/}"
+  # Only a URL may carry a path past the repo: /pull/123, /issues/4, /blob/...
+  # A bare "a/b/c" is left alone, so it still searches rather than guessing.
+  if [[ -n "${url}" && "${spec}" =~ ^([^/]+/[^/]+)/ ]]; then
+    spec="${BASH_REMATCH[1]}"
+    spec="${spec%.git}"
+  fi
   [[ "${spec}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || return 0
   printf '%s\n' "${spec}"
+}
+
+# Bound to fzf's change event: a pasted GitHub URL becomes the "org/repo" it
+# names, which fuzzy-matches the org/repo column the picker displays. Anything
+# that is not a URL is echoed back untouched, so typing is unaffected.
+query_from_url() {
+  local query="${1:-}" spec
+  if [[ "${query}" == *github.com[/:]* ]]; then
+    spec="$(normalize_spec "${query}")"
+    [[ -n "${spec}" ]] && query="${spec}"
+  fi
+  printf '%s\n' "${query}"
 }
 
 # Literal first: an exact org/repo clones without a network round-trip. Anything
@@ -264,7 +297,14 @@ open_workspaces() {
   done
 }
 
-export -f project_preview project_pull project_browse open_url
+export -f project_preview project_pull project_browse open_url normalize_spec query_from_url
+
+QUERY="$(query_from_url "${QUERY}")"
+
+# One binding group per line: a single line overflows the popup and gets cut off.
+HEADER="<ENTER>: open/clone with ${DEFAULT_AGENT}  <ALT-ENTER>: pick ${AGENT_KINDS[*]}
+<TAB>: multi-select  <CTRL-G>: git pull  <CTRL-Y>: clone from GitHub
+<ALT-O>: repo  <ALT-P>: pull request  <ALT-A>: actions (in browser)"
 
 # --print-query and --expect make the first two output lines the typed query and
 # the key that closed fzf; the selections follow.
@@ -277,13 +317,14 @@ done < <(
     --reverse \
     --prompt="Project> " \
     --query="${QUERY}" \
-    --header='<TAB>: multi-select / <CTRL-G>: git pull --rebase --autostash / <CTRL-Y>: clone from GitHub / <ALT-O>: repo in browser / <ALT-P>: pull request / <ALT-A>: actions / <ENTER>: open in new Herdr workspace / <ALT-ENTER>: open and start an agent' \
+    --header="${HEADER}" \
     --preview='project_preview {}' \
     --preview-window='bottom,60%' \
     --bind='ctrl-g:execute-silent(project_pull {+})+refresh-preview' \
     --bind='alt-o:execute-silent(project_browse repo {})+abort' \
     --bind='alt-p:execute-silent(project_browse pr {})+abort' \
     --bind='alt-a:execute-silent(project_browse actions {})+abort' \
+    --bind='change:transform-query(query_from_url {q})' \
     --with-nth=-2.. \
     --delimiter=/ \
     --print-query \
@@ -303,9 +344,34 @@ if [[ "${KEY}" == "ctrl-y" ]]; then
   exit 0
 fi
 
-[[ ${#SELECTED[@]} -eq 0 ]] && exit 0
+# A query naming a repo that is not cloned -- typically a pasted GitHub URL --
+# can still fuzzy-match a different local project, so the highlighted line is
+# not trusted then: <ENTER> clones the named repo instead. `gh repo view` keeps
+# a partly typed "org/repo" that happens to look qualified from turning into a
+# clone of nothing, and it only runs in this not-cloned case.
+if [[ ${#SELECTED[@]} -le 1 ]]; then
+  SPEC="$(normalize_spec "${TYPED_QUERY}")"
+  if [[ -n "${SPEC}" && ! -d "${CLONE_ROOT}/${SPEC}/.git" && "${SELECTED[0]:-}" != */"${SPEC}" ]] &&
+    gh repo view "${SPEC}" --json name >/dev/null 2>&1; then
+    SELECTED=()
+  fi
+fi
 
-KIND=""
-[[ "${KEY}" == "alt-enter" ]] && KIND="$(pick_agent_kind)"
+# Nothing matched: clone what the query names, then open it like any other pick.
+if [[ ${#SELECTED[@]} -eq 0 ]]; then
+  [[ -n "${TYPED_QUERY}" ]] || exit 0
+  SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
+  DIR="$(clone_repo "${SPEC}")" || exit 1
+  SELECTED=("${DIR}")
+fi
+
+if [[ "${KEY}" == "alt-enter" ]]; then
+  KIND="$(pick_agent_kind)"
+elif command -v "${DEFAULT_AGENT}" >/dev/null 2>&1; then
+  KIND="${DEFAULT_AGENT}"
+else
+  echo "${DEFAULT_AGENT} is not installed; opening a shell." >&2
+  KIND=""
+fi
 
 open_workspaces "${KIND}" "${SELECTED[@]}"
