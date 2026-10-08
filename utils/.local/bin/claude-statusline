@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Claude Code status line command, kept as the producer of pane decoration only:
-# it prints nothing, so the TUI renders no status line, and instead feeds
-# agent-status, which publishes these fields to the tmux pane border and the
-# herdr sidebar. Those already sit beside every agent pane, so a per-pane status
-# line repeated the same numbers one row lower.
+# Claude Code status line. Renders one line under the prompt:
+#
+#   opus-5.5 medium · dotfiles main · ctx 42% · 5h 8% 2h55m · 7d 17% 79h15m
+#
+# The same facts used to go to the herdr sidebar instead, with this script
+# printing nothing; they live here now so they sit in the session they describe.
+# The labels and reset countdowns are dim, the model is bold, and each
+# percentage turns orange past 75 and red past 90 -- the thresholds the sidebar
+# used.
 #
 # Field docs: https://code.claude.com/docs/en/statusline
 # Every field except the model is optional and is omitted when absent:
@@ -11,16 +15,21 @@
 #   rate_limits - only for Claude.ai Pro/Max, after the first API response
 #   context_window.used_percentage - null early in a session and after /compact
 #
-# ~/.claude/statusline.sh is a thin wrapper around this script.
+# The reset countdowns only advance when the status line runs, so an idle
+# session can show a stale one; deliberately not papered over with
+# statusLine.refreshInterval.
 
 input=$(cat)
 
 j() { printf '%s' "$input" | jq -r "$1 // empty"; }
 
-# The percentages travel to the sinks inside the payload; only the reset
-# timestamps need work here, because they arrive as epochs and every sink renders
-# them as a countdown.
+model=$(j '.model.display_name // .model.id')
+effort=$(j '.effort.level')
+cwd=$(j '.workspace.current_dir // .cwd')
+ctx=$(j '.context_window.used_percentage')
+five=$(j '.rate_limits.five_hour.used_percentage')
 five_reset=$(j '.rate_limits.five_hour.resets_at')
+week=$(j '.rate_limits.seven_day.used_percentage')
 week_reset=$(j '.rate_limits.seven_day.resets_at')
 
 # resets_at is documented as Unix epoch seconds; ISO 8601 is handled defensively
@@ -39,7 +48,7 @@ to_epoch() {
     printf '%s' "$epoch"
 }
 
-# Renders the time remaining until a reset epoch, e.g. "2h 14m" or "38m".
+# Renders the time remaining until a reset epoch, e.g. "2h14m" or "38m".
 fmt_remaining() {
     local epoch=$1 now diff h m
     [ -n "$epoch" ] || return 0
@@ -49,46 +58,81 @@ fmt_remaining() {
     h=$(( diff / 3600 ))
     m=$(( (diff % 3600) / 60 ))
     if [ "$h" -gt 0 ]; then
-        printf '%dh %dm' "$h" "$m"
+        printf '%dh%dm' "$h" "$m"
     else
         printf '%dm' "$m"
     fi
 }
 
-# Reset countdowns for the pane decoration.
-five_remaining=$(fmt_remaining "$(to_epoch "$five_reset")")
-week_remaining=$(fmt_remaining "$(to_epoch "$week_reset")")
+DIM=$'\033[2m'
+BOLD=$'\033[1m'
+ORANGE=$'\033[38;2;192;118;23m'
+RED=$'\033[1;38;2;219;75;75m'
+RESET=$'\033[0m'
 
-# Publishes to the pane decoration of whichever workspace manager is running;
-# agent-status decides which transports are live. Backgrounded and silenced: a
-# slow or missing transport must never delay or corrupt the status line itself.
-#
-# The decoration carries rate limits rather than token counts: what constrains
-# the next hour of work is how much of the window is left, and per-turn token
-# counts in that slot read as session figures while describing a single response.
-# Countdowns only advance when the status line runs, so an idle session's border
-# can show a stale "resets in" - the same staleness the status line itself has,
-# and deliberately not papered over with statusLine.refreshInterval.
-publish_status() {
-    local writer=${HOME}/.local/bin/agent-status
-    [ -x "$writer" ] || return 0
-    printf '%s' "$input" | jq -c \
-        --arg five_reset "$five_remaining" \
-        --arg week_reset "$week_remaining" '{
-        agent: "claude",
-        model: (.model.display_name // .model.id),
-        effort: .effort.level,
-        cwd: (.workspace.current_dir // .cwd),
-        ctx_pct: .context_window.used_percentage,
-        limit_5h: .rate_limits.five_hour.used_percentage,
-        reset_5h: (if $five_reset == "" then null else $five_reset end),
-        limit_7d: .rate_limits.seven_day.used_percentage,
-        reset_7d: (if $week_reset == "" then null else $week_reset end)
-    }' 2>/dev/null | "$writer" >/dev/null 2>&1 &
+# A percentage, rounded, colored by how close it is to the limit. Literal RGB
+# rather than palette colors, as mid-tones that hold up on light and dark themes.
+pct() {
+    local p
+    p=$(awk -v p="$1" 'BEGIN{printf "%.0f", p}')
+    if [ "$p" -gt 90 ]; then
+        printf '%s%s%%%s' "$RED" "$p" "$RESET"
+    elif [ "$p" -gt 75 ]; then
+        printf '%s%s%%%s' "$ORANGE" "$p" "$RESET"
+    else
+        printf '%s%%' "$p"
+    fi
 }
 
-publish_status
+dim() { printf '%s%s%s' "$DIM" "$1" "$RESET"; }
 
-# No output: empty stdout leaves the TUI without a status line, which is the
-# point - the same fields are already on the pane border and in the sidebar.
-exit 0
+# "Opus 5.5" -> "opus-5.5"
+model=${model// /-}
+model=$(printf '%s' "$model" | tr '[:upper:]' '[:lower:]')
+effort=$(printf '%s' "$effort" | tr '[:upper:]' '[:lower:]')
+
+# Repo root basename plus the branch, falling back to a short SHA on a detached
+# HEAD.
+repo=""
+branch=""
+if [ -n "$cwd" ] && [ -d "$cwd" ]; then
+    root=$(git -C "$cwd" --no-optional-locks rev-parse --show-toplevel 2>/dev/null)
+    if [ -n "$root" ]; then
+        repo=$(basename "$root")
+        branch=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null)
+        [ -n "$branch" ] || branch=$(git -C "$cwd" --no-optional-locks rev-parse --short HEAD 2>/dev/null)
+    else
+        repo=$(basename "$cwd")
+    fi
+fi
+
+segments=()
+
+seg="$BOLD$model$RESET"
+[ -n "$effort" ] && seg="$seg $(dim "$effort")"
+segments+=("$seg")
+
+if [ -n "$repo" ]; then
+    seg=$repo
+    [ -n "$branch" ] && seg="$seg $(dim "$branch")"
+    segments+=("$seg")
+fi
+
+[ -n "$ctx" ] && segments+=("$(dim ctx) $(pct "$ctx")")
+
+for window in "5h|$five|$five_reset" "7d|$week|$week_reset"; do
+    IFS='|' read -r label used reset <<<"$window"
+    [ -n "$used" ] || continue
+    seg="$(dim "$label") $(pct "$used")"
+    remaining=$(fmt_remaining "$(to_epoch "$reset")")
+    [ -n "$remaining" ] && seg="$seg $(dim "$remaining")"
+    segments+=("$seg")
+done
+
+sep=" $(dim '·') "
+out=${segments[0]}
+for seg in "${segments[@]:1}"; do
+    out="$out$sep$seg"
+done
+
+printf '%s' "$out"
