@@ -66,12 +66,13 @@ G_OPEN=$'\xef\x90\x87'
 G_DRAFT=$'\xef\x93\x9d'
 G_MERGED=$'\xef\x90\x99'
 G_CLOSED=$'\xef\x93\x9c'
-# nf-fa-check U+F00C, nf-fa-xmark U+F00D, nf-fa-clock U+F017
-G_PASS=$'\xef\x80\x8c'
-G_FAIL=$'\xef\x80\x8d'
+# nf-fa-circle_check U+F058, nf-fa-circle_xmark U+F057, nf-fa-clock U+F017: the
+# circled set, so a passing CI never reads as the plain check of an approval
+G_PASS=$'\xef\x81\x98'
+G_FAIL=$'\xef\x81\x97'
 G_PENDING=$'\xef\x80\x97'
-# nf-fa-thumbs_up U+F164, nf-fa-pen_to_square U+F044, nf-fa-eye U+F06E
-G_APPROVED=$'\xef\x85\xa4'
+# nf-fa-check U+F00C, nf-fa-pen_to_square U+F044, nf-fa-eye U+F06E
+G_APPROVED=$'\xef\x80\x8c'
 G_CHANGES=$'\xef\x81\x84'
 G_REVIEW=$'\xef\x81\xae'
 # nf-fa-comments U+F086
