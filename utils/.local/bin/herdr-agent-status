@@ -6,13 +6,15 @@
 #
 #   $pr       state glyph and number: " #7"
 #   $prstate  "draft", "merged" or "closed"; empty while the PR is open
-#   $prci     check rollup glyph: pass, fail or pending
+#   $prci     check rollup glyph, with the jobs behind it while pending or
+#             failing: "<clock> 2" running, "<xmark> 3" failed, "<check>" passed
 #   $prrev    review glyph: approved, changes requested or review required
 #   $prthl    comments glyph, present only beside a count
 #   $prth     number of unresolved review threads; empty at zero
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml,
-# which colors $prci and $prrev by matching the glyphs below with `equals` rules.
+# which colors $prci and $prrev by matching the glyphs below with `starts_with`
+# and `equals` rules.
 # A glyph changed here has to change there too. The thread count travels apart
 # from its glyph because herdr's `gt` rules only compare values that parse
 # completely as numbers.
@@ -82,18 +84,47 @@ cache_dir="${TMPDIR:-/tmp}/herdr-agent-status"
 cache_key=$(printf '%s' "${HERDR_SOCKET_PATH:-default}|$pane" | tr -c '[:alnum:]._-' '-')
 cache_file="$cache_dir/$cache_key"
 
+# Publishes are backgrounded by their producers and can overlap, so every report
+# is sequenced and herdr drops any that arrives out of order. Time::HiRes keeps
+# the sequence monotonic at sub-second resolution; the fallback loses ordering
+# within a second, which is the same resolution as no sequencing at all. A run
+# that sends several reports numbers them up from this base.
+next_seq() {
+    perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000' 2>/dev/null \
+        || printf '%s' "$(($(date '+%s') * 1000))"
+}
+seq=$(next_seq)
+
+# herdr rejects a whole report that updates more than 16 tokens ("a metadata
+# report may update at most 16 tokens"), and TOKENS is longer than that, so
+# clears go out in batches. 15 rather than 16 leaves room for
+# --clear-display-agent, in case herdr counts it against the same limit.
+#
+# --clear-display-agent covers panes still carrying a label from before this
+# script stopped reporting one.
+clear_tokens() {
+    local args=() name
+    for name in "$@"; do
+        args+=(--clear-token "$name")
+        if [ ${#args[@]} -ge 30 ]; then
+            "$HERDR_BIN" pane report-metadata "$pane" --source "$SOURCE" \
+                --seq "$seq" --clear-display-agent "${args[@]}" >/dev/null 2>&1 \
+                || return 1
+            seq=$((seq + 1))
+            args=()
+        fi
+    done
+    [ ${#args[@]} -gt 0 ] || return 0
+    "$HERDR_BIN" pane report-metadata "$pane" --source "$SOURCE" \
+        --seq "$seq" --clear-display-agent "${args[@]}" >/dev/null 2>&1 || return 1
+    seq=$((seq + 1))
+}
+
 clear_pane() {
-    # --clear-display-agent covers panes still carrying a label from before this
-    # script stopped reporting one.
-    local args=(pane report-metadata "$pane" --source "$SOURCE" --clear-display-agent)
-    local name
     # Remove the cache entry first: on a shutdown path the agent may not outlive
     # this process long enough for the socket round-trip to finish.
     rm -f "$cache_file" 2>/dev/null
-    for name in "${TOKENS[@]}"; do
-        args+=(--clear-token "$name")
-    done
-    "$HERDR_BIN" "${args[@]}" >/dev/null 2>&1
+    clear_tokens "${TOKENS[@]}"
     exit 0
 }
 
@@ -113,14 +144,15 @@ fields=$(printf '%s' "$input" | jq -r '
     , (.pr | f)
     , (.pr_state | f)
     , (.pr_ci | f)
+    , (.pr_ci_count | f)
     , (.pr_review | f)
     , (.pr_threads | f)
     ] | @tsv' 2>/dev/null)
 [ -n "$fields" ] || exit 0
 
-IFS=$'\t' read -r agent pr state ci review threads <<<"$fields"
+IFS=$'\t' read -r agent pr state ci ci_count review threads <<<"$fields"
 
-for var in agent pr state ci review threads; do
+for var in agent pr state ci ci_count review threads; do
     [ "${!var}" = "-" ] && declare "$var="
 done
 
@@ -140,6 +172,12 @@ case $ci in
     fail) ci=$G_FAIL ;;
     pending) ci=$G_PENDING ;;
     *) ci="" ;;
+esac
+# The count shares the glyph's token, so herdr draws "<clock> 2" rather than
+# putting its separator dot between them; the rules color by the leading glyph.
+case $ci_count in
+    '' | *[!0-9]*) ;;
+    *) [ -n "$ci" ] && ci="$ci $ci_count" ;;
 esac
 
 case $review in
@@ -175,12 +213,13 @@ if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; 
     exit 0
 fi
 
-# Publishes are backgrounded by their producers and can overlap, so every report
-# is sequenced and herdr drops any that arrives out of order. Time::HiRes keeps
-# the sequence monotonic at sub-second resolution; the fallback loses ordering
-# within a second, which is the same resolution as no sequencing at all.
-seq=$(perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000' 2>/dev/null) \
-    || seq=$(($(date '+%s') * 1000))
+# The first publish from this pane also clears what an older version of this
+# script left behind, which the pr* tokens alone would not overwrite. It goes
+# first, in reports of its own, so the PR report after it stays under herdr's
+# token limit; if it fails, so does this publish, and the next one retries.
+if [ ! -e "$cache_file" ]; then
+    clear_tokens "${TOKENS[@]:6}" || exit 0
+fi
 
 args=(pane report-metadata "$pane"
     --source "$SOURCE"
@@ -191,13 +230,6 @@ args=(pane report-metadata "$pane"
     --token "prrev=$review"
     --token "prthl=$threads_label"
     --token "prth=$threads")
-# The first publish from this pane also clears what an older version of this
-# script left behind, which the pr* tokens alone would not overwrite.
-if [ ! -e "$cache_file" ]; then
-    for name in "${TOKENS[@]:6}"; do
-        args+=(--clear-token "$name")
-    done
-fi
 
 "$HERDR_BIN" "${args[@]}" >/dev/null 2>&1 \
     && { mkdir -p "$cache_dir" 2>/dev/null && printf '%s' "$payload" >"$cache_file" 2>/dev/null; }

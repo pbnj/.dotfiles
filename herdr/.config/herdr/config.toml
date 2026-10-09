@@ -87,7 +87,11 @@ hide_tab_bar_when_single_tab = true
 #
 # herdr joins the tokens in a row with a middle dot:
 #
-#   <PR glyph> #7 · draft · <CI glyph> · <review glyph> · <comments glyph> · 3
+#   <PR glyph> #7 · draft · <CI glyph> 2 · <review glyph> · <comments glyph> · 3
+#
+# The number beside the CI glyph is how many jobs are still running (pending)
+# or have failed (failing); it shares the glyph's token, so $prci is colored with
+# `starts_with` rather than `equals`.
 #
 # The trailing pair is the count of unresolved review threads, orange from one
 # and red past four; it travels as a bare number apart from its glyph because
@@ -106,9 +110,9 @@ rows = [
       { equals = "closed", fg = "#db4b4b", dim = false },
     ] },
     { token = "$prci", rules = [
-      { equals = "\uF00D", fg = "#db4b4b", bold = true },
-      { equals = "\uF017", fg = "#c07617" },
-      { equals = "\uF00C", fg = "#41a35b" },
+      { starts_with = "\uF00D", fg = "#db4b4b", bold = true },
+      { starts_with = "\uF017", fg = "#c07617" },
+      { starts_with = "\uF00C", fg = "#41a35b" },
     ] },
     { token = "$prrev", rules = [
       { equals = "\uF044", fg = "#db4b4b", bold = true },
