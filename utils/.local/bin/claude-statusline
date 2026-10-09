@@ -5,6 +5,7 @@
 #
 # The same facts used to go to the herdr sidebar instead, with this script
 # printing nothing; they live here now so they sit in the session they describe.
+# The sidebar carries the branch's pull request instead, published below.
 # The labels and reset countdowns are dim, the model is bold, and each
 # percentage turns orange past 75 and red past 90 -- the thresholds the sidebar
 # used.
@@ -31,6 +32,19 @@ five=$(j '.rate_limits.five_hour.used_percentage')
 five_reset=$(j '.rate_limits.five_hour.resets_at')
 week=$(j '.rate_limits.seven_day.used_percentage')
 week_reset=$(j '.rate_limits.seven_day.resets_at')
+
+# Publishes the branch's pull request to the herdr sidebar; agent-status does the
+# lookup and is a no-op outside a herdr pane. Backgrounded and silenced: a slow
+# `gh` or a missing transport must never delay or corrupt the status line itself.
+# Like the countdowns, the PR only refreshes when the status line runs.
+publish_status() {
+    local writer=${HOME}/.local/bin/agent-status
+    [ -n "${HERDR_PANE_ID:-}" ] && [ -x "$writer" ] || return 0
+    jq -nc --arg cwd "$cwd" '{agent: "claude", cwd: $cwd}' 2>/dev/null \
+        | "$writer" >/dev/null 2>&1 &
+}
+
+publish_status
 
 # resets_at is documented as Unix epoch seconds; ISO 8601 is handled defensively
 # so a future format change degrades to a missing reset time rather than garbage.

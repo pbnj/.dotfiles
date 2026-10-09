@@ -73,9 +73,55 @@ show_agent_labels_on_pane_borders = false
 # chrome. It comes back the moment a second tab exists.
 hide_tab_bar_when_single_tab = true
 
+# The third row is the agent's pull request, fed by ~/.local/bin/herdr-agent-status
+# from claude's status line and pi's agent-pane-status extension. A row
+# disappears when none of its tokens has a value, so a pane on a branch with no
+# PR costs no line.
+#
+# The tokens are Nerd Font glyphs, and the rules here match the exact glyph that
+# script sends - "\uF00C" is the same nf-fa-check it writes as UTF-8 bytes - so
+# a glyph changed in one place has to change in the other. Rules are ordered and
+# the first match wins. `fg` is a literal hex and does not follow
+# theme.auto_switch, so these are mid-tones that hold up on both themes: red
+# needs action, orange is waiting, green is done.
+#
+# herdr joins the tokens in a row with a middle dot:
+#
+#   <PR glyph> #7 · draft · <CI glyph> · <review glyph> · <comments glyph> · 3
+#
+# The trailing pair is the count of unresolved review threads, orange from one
+# and red past four; it travels as a bare number apart from its glyph because
+# `gt` only compares values that parse completely as numbers, and both vanish at
+# zero. $prstate is empty while the PR is open, and $prci, $prrev and the thread
+# count are cleared once it is merged or closed.
 agent_panel_sort = "priority"
 [ui.sidebar.agents]
-rows = [["state_icon", "workspace", "tab"], ["agent"]]
+rows = [
+  ["state_icon", "workspace", "tab"],
+  ["agent"],
+  [
+    { token = "$pr", bold = true },
+    { token = "$prstate", dim = true, rules = [
+      { equals = "merged", fg = "#9d7cd8", dim = false },
+      { equals = "closed", fg = "#db4b4b", dim = false },
+    ] },
+    { token = "$prci", rules = [
+      { equals = "\uF00D", fg = "#db4b4b", bold = true },
+      { equals = "\uF017", fg = "#c07617" },
+      { equals = "\uF00C", fg = "#41a35b" },
+    ] },
+    { token = "$prrev", rules = [
+      { equals = "\uF044", fg = "#db4b4b", bold = true },
+      { equals = "\uF06E", fg = "#c07617" },
+      { equals = "\uF164", fg = "#41a35b" },
+    ] },
+    { token = "$prthl", dim = true },
+    { token = "$prth", rules = [
+      { gt = 4, fg = "#db4b4b", bold = true },
+      { gt = 0, fg = "#c07617" },
+    ] },
+  ],
+]
 
 [ui.toast]
 delivery = "herdr"
