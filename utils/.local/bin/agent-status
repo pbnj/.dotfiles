@@ -1,23 +1,34 @@
 #!/usr/bin/env bash
-# Looks up the pull request for a coding agent's branch and hands it to the
-# herdr sidebar, so a pane whose PR is waiting on CI or review says so beside
-# the agent instead of only inside it.
+# Shows the pull request for a coding agent's branch in the herdr sidebar, so a
+# pane whose PR is waiting on CI or review says so beside the agent instead of
+# only inside it.
 #
 # Producers (claude's status line, pi's agent-pane-status extension) pipe one
 # JSON envelope on stdin naming the agent and where it is working:
 #
 #   {"agent":"claude","cwd":"/path"}
 #
-# This script resolves the repo, branch and PR exactly once and hands the sink a
+# This script makes no GitHub calls. The PR comes from the snapshot gh-pr-watch
+# (the gh skill's PR watch, in komodohealth/Security-Automation) keeps while it
+# watches an open PR, and deletes once the PR merges or closes:
+#
+#   ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>.json
+#
+# So a branch shows a PR only while some agent is watching it. A snapshot whose
+# watch stopped updating it more than AGENT_STATUS_PR_MAX_AGE seconds ago
+# (default 900) is ignored, since a watch that died before the merge never
+# deletes it.
+#
+# This script resolves the repo and branch exactly once and hands the sink a
 # normalised envelope, where an absent value is the empty string:
 #
 #   {"agent":"claude","repo":"dotfiles","branch":"herdr-pr-status",
 #    "pr":"#7","pr_state":"","pr_ci":"pending","pr_ci_count":"2","pr_review":"review",
 #    "pr_threads":"3"}
 #
-#   pr         "#<number>" of the open, draft, merged or closed PR for the branch
-#   pr_state   "draft", "merged" or "closed"; empty for an open PR, which is
-#              the case worth the least ink
+#   pr         "#<number>" of the branch's open or draft PR
+#   pr_state   "draft"; empty for an open PR, which is the case worth the
+#              least ink
 #   pr_ci_count  jobs behind pr_ci: still running for "pending", failed for
 #              "fail"; empty for "pass", where skipped jobs would make a total
 #              misleading
@@ -30,26 +41,14 @@
 # The values are bare words rather than glyphs so the sink decides how they are
 # drawn and herdr's text rules can match them.
 #
-# Producers fire far more often than a PR changes - claude's status line runs on
-# every event - and `gh` is a network round-trip, so lookups are cached per
-# repo and branch for PR_TTL seconds. An expired entry is touched before the
-# lookup starts, so the concurrent publishes a burst of events produces reuse
-# the old answer instead of each starting their own `gh`.
-#
-# The default branch is never looked up: it has no PR of its own, and it is
-# where most idle panes sit.
-#
-# The sidebar only has room for glyphs, so the full answer - PR title and URL,
-# every check with its link, each unresolved review thread with its first
-# comment - is also written as one JSON record per pane, for readers that have
-# the room (the herdr-bridge native messaging host behind the browser
-# extension):
+# It also records which repo and branch each pane is on, for readers that join
+# panes to the gh-pr snapshots themselves (the herdr-bridge native messaging
+# host behind the browser extension):
 #
 #   $XDG_CACHE_HOME/agent-status/panes/<socket>--<pane>.json
 #
-#   {"v":1,"socket":"...","pane":"w1:p1","agent":"claude","cwd":"...",
-#    "root":"...","repo":"dotfiles","slug":"pbnj/dotfiles","branch":"...",
-#    "fetched_at":1760000000,"pr":{...}|null}
+#   {"v":2,"socket":"...","pane":"w1:p1","agent":"claude","cwd":"...",
+#    "root":"...","repo":"dotfiles","slug":"pbnj/dotfiles","branch":"..."}
 #
 # where <socket>--<pane> is "$HERDR_SOCKET_PATH|$HERDR_PANE_ID" with every
 # character outside [A-Za-z0-9._-] replaced by "-". It is keyed by socket as
@@ -72,10 +71,10 @@ SINK=${HOME}/.local/bin/herdr-agent-status
 [ -n "${HERDR_PANE_ID:-}" ] || exit 0
 [ -x "$SINK" ] || exit 0
 
-state_dir="${XDG_CACHE_HOME:-$HOME/.cache}/agent-status"
+cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
 socket=${HERDR_SOCKET_PATH:-default}
 pane_key=$(printf '%s' "$socket|$HERDR_PANE_ID" | tr -c '[:alnum:]._-' '-')
-pane_dir="$state_dir/panes"
+pane_dir="$cache_home/agent-status/panes"
 pane_file="$pane_dir/$pane_key.json"
 
 if [ "${1:-}" = "--clear" ]; then
@@ -86,10 +85,7 @@ fi
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-# An open PR moves on the scale of CI runs and reviews; a merged or closed one
-# only changes if it is reopened.
-PR_TTL=${AGENT_STATUS_PR_TTL:-60}
-PR_TTL_SETTLED=600
+PR_MAX_AGE=${AGENT_STATUS_PR_MAX_AGE:-900}
 
 input=$(cat)
 [ -n "$input" ] || exit 0
@@ -108,197 +104,39 @@ if [ -n "$cwd" ] && [ -d "$cwd" ]; then
         repo=$(basename "$root")
         # Empty on a detached HEAD, which has no PR to find.
         branch=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null)
-        # owner/name from origin's last two path segments, so a reader can link
-        # the repo without asking gh. Not anchored on github.com: an SSH host
+        # owner/name from origin's last two path segments, which is how the
+        # gh-pr snapshots are filed. Not anchored on github.com: an SSH host
         # alias such as "personal:pbnj/.dotfiles" names no host at all.
         slug=$(git -C "$cwd" --no-optional-locks remote get-url origin 2>/dev/null \
             | sed -E 's#\.git$##; s#/+$##' | sed -nE 's#^.*[:/]([^/:]+/[^/:]+)$#\1#p')
     fi
 fi
 
-default_branch() {
-    local ref
-    ref=$(git -C "$root" --no-optional-locks symbolic-ref --quiet --short \
-        refs/remotes/origin/HEAD 2>/dev/null) && {
-        printf '%s' "${ref#origin/}"
-        return
-    }
-    printf 'main'
-}
-
-# Seconds since a file was last modified; perl because stat's flags differ
-# between macOS and Linux.
-age() {
-    perl -e 'my @s = stat shift or exit 1; print time - $s[9]' "$1" 2>/dev/null
-}
-
-# Prints the PR as one compact JSON record, or "{}" when the branch has none:
-#
-#   {"number":7,"title":"...","url":"...","author":"pbnj","head":"...",
-#    "base":"main","updated_at":"...","state":"open|draft|merged|closed",
-#    "review":"approved|changes|review|","ci":"pass|fail|pending|",
-#    "ci_counts":{"pending":2,"fail":0},
-#    "checks":[{"name":"...","workflow":"...","state":"...","url":"..."}],
-#    "threads":[{"path":"...","line":12,"outdated":false,"comments":3,
-#                "author":"...","body":"...","url":"..."}]}
-#
-# One GraphQL query rather than `gh pr view`, because review threads are only
-# exposed there; {owner} and {repo} are filled in by gh from the checkout's
-# remote. With several PRs from one branch, the newest wins.
-#
-# The CI state is GitHub's own rollup across every check run and commit status,
-# under which a check that did not run (skipped, neutral) counts as passing.
-# ci_counts come from GitHub's per-state totals, so they stay right past the
-# first 100 checks that are listed individually.
-#
-# Threads count as unaddressed while unresolved, outdated or not: a reply that
-# leaves the thread open has not closed it. Only the first 100 are read, and
-# only unresolved ones are kept, each with its opening comment cut to 500
-# characters.
-lookup_pr() {
-    local json
-    # shellcheck disable=SC2016 # $owner etc. are GraphQL variables, not shell
-    json=$(cd "$root" && gh api graphql \
-        -F owner='{owner}' -F repo='{repo}' -f branch="$branch" -f query='
-        query($owner: String!, $repo: String!, $branch: String!) {
-          repository(owner: $owner, name: $repo) {
-            pullRequests(headRefName: $branch, first: 1,
-                         orderBy: {field: CREATED_AT, direction: DESC}) {
-              nodes {
-                number title url state isDraft reviewDecision
-                headRefName baseRefName updatedAt
-                author { login }
-                commits(last: 1) { nodes { commit { statusCheckRollup {
-                  state
-                  contexts(first: 100) {
-                    checkRunCountsByState { state count }
-                    statusContextCountsByState { state count }
-                    nodes {
-                      __typename
-                      ... on CheckRun {
-                        name status conclusion detailsUrl
-                        checkSuite { workflowRun { workflow { name } } }
-                      }
-                      ... on StatusContext { context state targetUrl }
-                    }
-                  }
-                } } } }
-                reviewThreads(first: 100) { nodes {
-                  isResolved isOutdated path line
-                  comments(first: 1) {
-                    totalCount
-                    nodes { author { login } body url }
-                  }
-                } }
-              }
-            }
-          }
-        }' 2>/dev/null) || {
-        # gh exits 1 on a network failure and on GraphQL errors alike,
-        # including rate limits, and this reports that as "no PR": the row
-        # vanishes until the next lookup succeeds, and the "{}" overwrites a
-        # good cached answer. A possible improvement is to keep the cached
-        # answer on failure, publish it marked as stale (dimmed, or with a
-        # warning glyph), and retry sooner than PR_TTL.
-        printf '{}'
-        return
-    }
-    printf '%s' "$json" | jq -c '
-        def run_state:
-          if .status != "COMPLETED" then "pending"
-          else { SUCCESS: "pass", FAILURE: "fail", TIMED_OUT: "fail",
-                 CANCELLED: "fail", ACTION_REQUIRED: "fail",
-                 STARTUP_FAILURE: "fail", SKIPPED: "skipped", STALE: "skipped",
-                 NEUTRAL: "neutral" }[.conclusion // ""] // "neutral" end;
-        def status_state:
-          { SUCCESS: "pass", FAILURE: "fail", ERROR: "fail",
-            PENDING: "pending", EXPECTED: "pending" }[.state // ""] // "pending";
-        .data.repository.pullRequests.nodes[0]
-        | if . == null then {} else
-          (.commits.nodes[0].commit.statusCheckRollup // {}) as $rollup
-          | { number, title, url,
-              author: (.author.login // ""),
-              head: .headRefName, base: .baseRefName,
-              updated_at: .updatedAt,
-              state: (if .state == "MERGED" then "merged"
-                      elif .state == "CLOSED" then "closed"
-                      elif .isDraft then "draft"
-                      else "open" end),
-              review: ({ APPROVED: "approved",
-                         CHANGES_REQUESTED: "changes",
-                         REVIEW_REQUIRED: "review" }[.reviewDecision // ""] // ""),
-              ci: ({ SUCCESS: "pass", FAILURE: "fail", ERROR: "fail",
-                     PENDING: "pending", EXPECTED: "pending" }
-                   [$rollup.state // ""] // ""),
-              # Check runs are GitHub Actions jobs and other app checks;
-              # status contexts are external services. Both count as jobs here.
-              ci_counts: (($rollup.contexts // {})
-                          | [ (.checkRunCountsByState // [])[],
-                              (.statusContextCountsByState // [])[] ]
-                          | { pending: (map(select(.state | IN("IN_PROGRESS",
-                                  "QUEUED", "PENDING", "WAITING", "REQUESTED",
-                                  "EXPECTED"))) | map(.count) | add // 0),
-                              fail: (map(select(.state | IN("FAILURE", "ERROR",
-                                  "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
-                                  "STARTUP_FAILURE"))) | map(.count) | add // 0) }),
-              checks: [ ($rollup.contexts.nodes // [])[]
-                        | if .__typename == "CheckRun" then
-                            { name,
-                              workflow: (.checkSuite.workflowRun.workflow.name // ""),
-                              state: run_state, url: (.detailsUrl // "") }
-                          else
-                            { name: .context, workflow: "",
-                              state: status_state, url: (.targetUrl // "") }
-                          end ],
-              threads: [ .reviewThreads.nodes[] | select(.isResolved | not)
-                         | (.comments.nodes[0] // {}) as $first
-                         | { path, line, outdated: .isOutdated,
-                             comments: .comments.totalCount,
-                             author: ($first.author.login // ""),
-                             body: (($first.body // "") | .[0:500]),
-                             url: ($first.url // "") } ]
-            } end' 2>/dev/null || printf '{}'
-}
-
+# The branch's snapshot, or "{}" when there is none or it has gone stale. The
+# file name is lossy (a/b and a-b share one), so its own repo and branch fields
+# have to match too.
 pr_json='{}'
-if [ -n "$branch" ] && [ "$branch" != "$(default_branch)" ] \
-    && command -v gh >/dev/null 2>&1; then
-    # pr.v2 rather than pr: entries there hold the earlier, summary-only shape.
-    cache_dir="$state_dir/pr.v2"
-    cache_key=$(printf '%s' "$root|$branch" | tr -c '[:alnum:]._-' '-')
-    cache_file="$cache_dir/$cache_key"
-
-    ttl=$PR_TTL
-    if [ -r "$cache_file" ]; then
-        pr_json=$(cat "$cache_file" 2>/dev/null)
-        case $(printf '%s' "$pr_json" | jq -r '.state // empty' 2>/dev/null) in
-            merged | closed) ttl=$PR_TTL_SETTLED ;;
-        esac
+if [ -n "$slug" ] && [ -n "$branch" ]; then
+    snapshot="$cache_home/gh-pr/$slug/$(printf '%s' "$branch" | tr -c '[:alnum:]._-' '-').json"
+    if [ -r "$snapshot" ]; then
+        pr_json=$(jq -c --arg slug "$slug" --arg branch "$branch" \
+            --argjson max_age "$PR_MAX_AGE" '
+            if .repo == $slug and .branch == $branch
+               and (now - (.fetched_at // 0)) <= $max_age
+            then . else {} end' "$snapshot" 2>/dev/null) || pr_json='{}'
+        [ -n "$pr_json" ] || pr_json='{}'
     fi
-
-    elapsed=$(age "$cache_file") || elapsed=""
-    if [ -z "$elapsed" ] || [ "$elapsed" -ge "$ttl" ]; then
-        mkdir -p "$cache_dir" 2>/dev/null
-        touch "$cache_file" 2>/dev/null
-        pr_json=$(lookup_pr)
-        printf '%s' "$pr_json" >"$cache_file" 2>/dev/null
-    fi
-    [ -n "$pr_json" ] || pr_json='{}'
-    fetched_at=$(perl -e 'my @s = stat shift or exit 1; print $s[9]' "$cache_file" 2>/dev/null)
 fi
 
 # Rewritten only when it changes, and swapped in with a rename so a reader never
 # sees a half-written record.
 write_pane_record() {
     local record tmp
-    record=$(printf '%s' "$pr_json" | jq -c \
+    record=$(jq -nc \
         --arg socket "$socket" --arg pane "$HERDR_PANE_ID" \
         --arg agent "$agent" --arg cwd "$cwd" --arg root "$root" \
         --arg repo "$repo" --arg slug "$slug" --arg branch "$branch" \
-        --arg fetched_at "${fetched_at:-}" \
-        '{ v: 1, $socket, $pane, $agent, $cwd, $root, $repo, $slug, $branch,
-           fetched_at: ($fetched_at | tonumber? // null),
-           pr: (if . == {} then null else . end) }' 2>/dev/null) || return
+        '{ v: 2, $socket, $pane, $agent, $cwd, $root, $repo, $slug, $branch }' 2>/dev/null) || return
     [ -n "$record" ] || return
     if [ -r "$pane_file" ] && [ "$(cat "$pane_file" 2>/dev/null)" = "$record" ]; then
         return
@@ -317,7 +155,7 @@ normalised=$(printf '%s' "$pr_json" | jq -c \
     --arg branch "$branch" \
     '{ $agent, $repo, $branch,
        pr: (if .number then "#\(.number)" else "" end),
-       pr_state: (if .state == "open" then "" else .state // "" end),
+       pr_state: (if .state == "draft" then "draft" else "" end),
        pr_ci: (.ci // ""), pr_review: (.review // ""),
        pr_ci_count: ((.ci_counts[.ci // ""]? // 0)
                      | if . > 0 then tostring else "" end),
