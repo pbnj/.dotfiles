@@ -1,324 +1,174 @@
 #!/usr/bin/env bash
-# Normalises coding-agent metadata and fans it out to every live pane-decoration
-# transport, so one producer feeds both tmux pane borders and the herdr sidebar.
+# Looks up the pull request for a coding agent's branch and hands it to the
+# herdr sidebar, so a pane whose PR is waiting on CI or review says so beside
+# the agent instead of only inside it.
 #
 # Producers (claude's status line, pi's agent-pane-status extension) pipe one
-# JSON envelope on stdin:
+# JSON envelope on stdin naming the agent and where it is working:
 #
-#   {"agent":"claude","model":"Opus 5","effort":"medium","cwd":"/path","ctx_pct":42,
-#    "limit_5h":8,"reset_5h":"2h 55m","limit_7d":17,"reset_7d":"79h 15m"}
-#   {"agent":"pi","model":"gpt-5.6-luna","effort":"max","cwd":"/path","ctx_pct":1,
-#    "input":163,"output":71828,"cache_read":11846398,"cache_write":197812}
+#   {"agent":"claude","cwd":"/path"}
 #
-# A producer fills whichever usage fields it has: claude reports rate limits,
-# which is what actually constrains the next hour of work, while pi has none and
-# reports session token totals instead. Each sink picks by which arrived.
+# This script resolves the repo, branch and PR exactly once and hands the sink a
+# normalised envelope, where an absent value is the empty string:
 #
-# The token fields are session totals, not per-turn values: ctx_pct already
-# covers the live context, so the counts are only worth the space if they say
-# what the session as a whole has spent.
+#   {"agent":"claude","repo":"dotfiles","branch":"herdr-pr-status",
+#    "pr":"#7","pr_state":"","pr_ci":"pending","pr_review":"review"}
 #
-# Every field except `agent` is optional. This script resolves the display form
-# of each one exactly once and hands the sinks a normalised envelope, where an
-# absent value is the empty string:
+#   pr         "#<number>" of the open, draft, merged or closed PR for the branch
+#   pr_state   "draft", "merged" or "closed"; empty for an open PR, which is
+#              the case worth the least ink
+#   pr_ci      "pass", "fail" or "pending" across every check; empty when the
+#              PR has none
+#   pr_review  "approved", "changes" or "review" (review required); empty when
+#              the repo asks for no review decision
 #
-#   {"agent":"claude","model":"opus-5","effort":"medium","repo":"dotfiles",
-#    "branch":"main","ctx":"42%","ctx_pct":42,"tokens":"i:163 | o:71.8k",
-#    "spend":"i · 163 | o · 71.8k","cache":"r · 11.8M | w · 197.8k | h",
-#    "hit":"98%","hit_pct":98,
-#    "limit_5h":"8%","limit_5h_pct":8,"reset_5h":"2h55m",
-#    "limit_7d":"17%","limit_7d_pct":17,"reset_7d":"79h15m"}
+# The values are bare words rather than glyphs so the sink decides how they are
+# drawn and herdr's text rules can match them.
 #
-# `hit` is the only derived field rather than a reformatted one: it is the prompt
-# cache hit ratio, computed from the token counts a producer reports rather than
-# sent by one. Its label is the "h" on the end of `cache`, for the reason given
-# where it is appended.
+# Producers fire far more often than a PR changes - claude's status line runs on
+# every event - and `gh` is a network round-trip, so lookups are cached per
+# repo and branch for PR_TTL seconds. An expired entry is touched before the
+# lookup starts, so the concurrent publishes a burst of events produces reuse
+# the old answer instead of each starting their own `gh`.
 #
-# `tokens` is the tmux border's single-line form of the same counts; `spend` and
-# `cache` are the herdr sidebar's, punctuated the way that sidebar punctuates
-# everything else.
-#
-# Each percentage appears twice: once rendered ("8%") for sinks that draw it as
-# text, and once as a bare number for sinks that compare it against thresholds.
-# herdr's sidebar value rules are the latter -- they only match values that parse
-# completely as finite numbers, so "8%" would never cross one.
-#
-# Sinks own only their transport: tmux-agent-status writes @agent_* pane options
-# read by pane-border-format, herdr-agent-status reports pane metadata read by
-# the herdr sidebar and pane borders. Both may run at once, which is what happens
-# when herdr is launched inside tmux.
+# The default branch is never looked up: it has no PR of its own, and it is
+# where most idle panes sit.
 #
 # Usage:
 #   <producer> | agent-status     publish
-#   agent-status --clear          clear this pane's decoration on every transport
+#   agent-status --clear          clear this pane's PR metadata
 #
-# With no live transport this is a silent no-op, so agents run unaffected.
+# Outside a herdr pane this is a silent no-op, so agents run unaffected.
 
 set -uo pipefail
 
-BIN_DIR=${HOME}/.local/bin
+SINK=${HOME}/.local/bin/herdr-agent-status
 
-# A transport is live only when this process can identify the pane to annotate.
-# Both variables are inherited from the agent process, which is the right pane
+# $HERDR_PANE_ID is inherited from the agent process, which is the right pane
 # even when the write happens from a grandchild (claude's status line command).
-sinks=()
-if [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ]; then
-    sinks+=("$BIN_DIR/tmux-agent-status")
-fi
-if [ -n "${HERDR_PANE_ID:-}" ]; then
-    sinks+=("$BIN_DIR/herdr-agent-status")
-fi
-[ ${#sinks[@]} -gt 0 ] || exit 0
-
-publish() {
-    local sink
-    for sink in "${sinks[@]}"; do
-        [ -x "$sink" ] || continue
-        printf '%s' "$1" | "$sink" >/dev/null 2>&1
-    done
-}
+[ -n "${HERDR_PANE_ID:-}" ] || exit 0
+[ -x "$SINK" ] || exit 0
 
 if [ "${1:-}" = "--clear" ]; then
-    for sink in "${sinks[@]}"; do
-        [ -x "$sink" ] || continue
-        "$sink" --clear >/dev/null 2>&1
-    done
+    "$SINK" --clear >/dev/null 2>&1
     exit 0
 fi
 
 command -v jq >/dev/null 2>&1 || exit 0
 
+# An open PR moves on the scale of CI runs and reviews; a merged or closed one
+# only changes if it is reopened.
+PR_TTL=${AGENT_STATUS_PR_TTL:-60}
+PR_TTL_SETTLED=600
+
 input=$(cat)
 [ -n "$input" ] || exit 0
 
-# One jq pass emits every field on a single tab-separated line, with `-`
-# standing in for absent so the read below never desynchronises.
-fields=$(printf '%s' "$input" | jq -r '
-    def f: if . == null or . == "" then "-" else tostring end;
-    [ (.agent | f)
-    , (.model | f)
-    , (.effort | f)
-    , (.cwd | f)
-    , (.ctx_pct | f)
-    , (.input | f)
-    , (.output | f)
-    , (.cache_read | f)
-    , (.cache_write | f)
-    , (.limit_5h | f)
-    , (.reset_5h | f)
-    , (.limit_7d | f)
-    , (.reset_7d | f)
-    ] | @tsv' 2>/dev/null)
+agent=$(printf '%s' "$input" | jq -r '.agent // empty' 2>/dev/null)
+cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
+[ -n "$agent" ] || exit 0
 
-IFS=$'\t' read -r agent model effort cwd ctx_pct tok_in tok_out tok_cr tok_cw \
-    lim_5h rst_5h lim_7d rst_7d <<<"$fields"
-
-[ "${agent:--}" = "-" ] && exit 0
-
-# "Opus 5" -> "opus-5"; "github-copilot/gpt-5.6-luna" -> "gpt-5.6-luna".
-short_model() {
-    local m=${1##*/}
-    m=${m// /-}
-    printf '%s' "$m" | tr '[:upper:]' '[:lower:]'
-}
-
-# 8500 -> 8.5k, 1569383 -> 1.6M. Sub-1k counts stay exact.
-human() {
-    local n=$1
-    case $n in
-        '' | *[!0-9]*) return 1 ;;
-    esac
-    if [ "$n" -ge 1000000 ]; then
-        awk -v n="$n" 'BEGIN{printf "%.1fM", n/1000000}'
-    elif [ "$n" -ge 1000 ]; then
-        awk -v n="$n" 'BEGIN{printf "%.1fk", n/1000}'
-    else
-        printf '%s' "$n"
-    fi
-}
-
-as_pct() {
-    [ "$1" = "-" ] && return 0
-    awk -v p="$1" 'BEGIN{printf "%.0f%%", p}' 2>/dev/null
-}
-
-# The same rounding without the unit, for threshold-matching sinks. Rounded
-# rather than passed through so "42.7" reads as the same 43 both sinks show.
-as_num() {
-    [ "$1" = "-" ] && return 0
-    awk -v p="$1" 'BEGIN{printf "%.0f", p}' 2>/dev/null
-}
-
-# Same derivation as ~/.config/tmux/scripts/git-cwd.sh: repo root basename plus
-# the branch, falling back to a short SHA on a detached HEAD.
 repo=""
 branch=""
-if [ "$cwd" != "-" ] && [ -d "$cwd" ]; then
+root=""
+if [ -n "$cwd" ] && [ -d "$cwd" ]; then
     root=$(git -C "$cwd" --no-optional-locks rev-parse --show-toplevel 2>/dev/null)
     if [ -n "$root" ]; then
         repo=$(basename "$root")
+        # Empty on a detached HEAD, which has no PR to find.
         branch=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null)
-        [ -n "$branch" ] || branch=$(git -C "$cwd" --no-optional-locks rev-parse --short HEAD 2>/dev/null)
-    else
-        repo=$(basename "$cwd")
     fi
 fi
 
-if [ "$model" = "-" ]; then model=""; else model=$(short_model "$model"); fi
-# Every sink renders the tier in full, next to the model it qualifies, so the
-# only normalisation left is case.
-if [ "$effort" = "-" ]; then
-    effort=""
-else
-    effort=$(printf '%s' "$effort" | tr '[:upper:]' '[:lower:]')
-fi
+default_branch() {
+    local ref
+    ref=$(git -C "$root" --no-optional-locks symbolic-ref --quiet --short \
+        refs/remotes/origin/HEAD 2>/dev/null) && {
+        printf '%s' "${ref#origin/}"
+        return
+    }
+    printf 'main'
+}
 
-ctx=$(as_pct "$ctx_pct")
-# Rate limits are Claude.ai Pro/Max only, and only after the first API response;
-# the reset countdowns arrive pre-rendered ("2h 55m") from the producer, which
-# already formats them for its own status line. Spaces are stripped here because
-# every sink renders them bare, next to a label that already says which clock the
-# parenthetical belongs to.
-limit_5h=$(as_pct "$lim_5h")
-limit_7d=$(as_pct "$lim_7d")
-limit_5h_pct=$(as_num "$lim_5h")
-limit_7d_pct=$(as_num "$lim_7d")
-[ "$rst_5h" = "-" ] && rst_5h=""
-[ "$rst_7d" = "-" ] && rst_7d=""
-rst_5h=${rst_5h// /}
-rst_7d=${rst_7d// /}
-ctx_pct=$(as_num "$ctx_pct")
+# Seconds since a file was last modified; perl because stat's flags differ
+# between macOS and Linux.
+age() {
+    perl -e 'my @s = stat shift or exit 1; print time - $s[9]' "$1" 2>/dev/null
+}
 
-# Session-cumulative tokens as in / out / cache read / cache write. Two levels of
-# separator, and they are not interchangeable: one binds a label to the single
-# value it introduces, the other separates one label/value group from the next.
+# Prints the PR as one compact JSON object, or "{}" when the branch has none.
 #
-# Which character does the binding depends on where the string lands, which is
-# why it is decided here rather than in a sink. The herdr sidebar joins the tokens
-# within a row with a middle dot, so every row it draws already reads
-# "opus-5 · medium", "u5h · 8 · 2h55m" - and `spend` and `cache` sit in that
-# sidebar, so they bind with the same dot. The tmux border binds with a colon,
-# because there the neighbours are "ctx:42%" and "5h:8%". Same numbers, punctuated
-# for wherever they are going.
-#
-# The group separator is a pipe in both, which is already the tmux border's
-# separator between segments and is distinct enough from the dot that the two
-# levels do not read as one flat list.
-#
-# `spend` and `cache` are split so a sink too narrow for both can render them on
-# separate lines; `tokens` is the combined single-line form the tmux border has
-# always used.
-#
-# Labels are plain ASCII rather than arrows and symbols: the glyphs that fit this
-# job semantically (up/down arrows, and the rotation arrows for cache) are
-# East-Asian Ambiguous width, so a terminal advances one cell while the font
-# draws nearly two and the glyph bleeds into the digits beside it. The middle dot
-# is ambiguous-width too, but herdr is already drawing it between every token in
-# the sidebar, so it is not a new risk there - and it is kept off the tmux border,
-# which has no such precedent.
-#
-# A session that has not made an API call yet reports zeroes rather than absent
-# fields; "i:0 | o:0 | r:0 | w:0" takes up the border while saying nothing, so
-# the whole group is dropped until something has actually been spent.
-spend=""
-cache=""
-tokens=""
-any_spend=0
-for value in "$tok_in" "$tok_out" "$tok_cr" "$tok_cw"; do
-    case $value in
-        '' | '-' | *[!0-9]*) continue ;;
-    esac
-    [ "$value" -gt 0 ] && any_spend=1
-done
-if [ "$any_spend" = 1 ]; then
-    for pair in "spend:i:$tok_in" "spend:o:$tok_out" "cache:r:$tok_cr" "cache:w:$tok_cw"; do
-        group=${pair%%:*}
-        rest=${pair#*:}
-        label=${rest%%:*}
-        value=${rest#*:}
-        [ "$value" = "-" ] && continue
-        formatted=$(human "$value") || continue
-        tokens="${tokens:+$tokens | }$label:$formatted"
-        if [ "$group" = spend ]; then
-            spend="${spend:+$spend | }$label · $formatted"
-        else
-            cache="${cache:+$cache | }$label · $formatted"
-        fi
-    done
-fi
+# statusCheckRollup mixes two shapes: check runs carry status/conclusion and
+# commit statuses carry a single state. A check that did not run (skipped,
+# neutral) counts as passing, and any one failure fails the whole rollup.
+lookup_pr() {
+    local json
+    if ! json=$(cd "$root" && gh pr view "$branch" \
+        --json number,state,isDraft,reviewDecision,statusCheckRollup 2>/dev/null); then
+        printf '{}'
+        return
+    fi
+    printf '%s' "$json" | jq -c '
+        def fail: [ "FAILURE", "ERROR", "CANCELLED", "TIMED_OUT",
+                    "ACTION_REQUIRED", "STARTUP_FAILURE" ];
+        def run_state:
+            if .__typename == "StatusContext" then
+                if (.state | IN(fail[])) then "fail"
+                elif .state == "SUCCESS" then "pass"
+                else "pending" end
+            elif .status != "COMPLETED" then "pending"
+            elif (.conclusion | IN(fail[])) then "fail"
+            else "pass" end;
+        [ .statusCheckRollup[]? | run_state ] as $runs
+        | { pr: "#\(.number)",
+            pr_state: (if .state == "MERGED" then "merged"
+                       elif .state == "CLOSED" then "closed"
+                       elif .isDraft then "draft"
+                       else "" end),
+            pr_ci: (if ($runs | index("fail")) then "fail"
+                    elif ($runs | index("pending")) then "pending"
+                    elif ($runs | length) > 0 then "pass"
+                    else "" end),
+            pr_review: ({ APPROVED: "approved",
+                          CHANGES_REQUESTED: "changes",
+                          REVIEW_REQUIRED: "review" }[.reviewDecision // ""] // "")
+          }' 2>/dev/null || printf '{}'
+}
 
-# Cache read tokens as a share of every input token the session has paid for:
-# reads, writes, and uncached input. Same denominator as claude's own
-# prompt_cache.hit_ratio, so the number means what /usage means by it.
-#
-# The read/write counts above say how much the cache moved, which climbs whether
-# a prefix is being reused or rebuilt. This says which of the two is happening,
-# and it is the one of the pair worth a threshold: a ratio that falls is a
-# session re-paying for context it already had.
-#
-# Derived inside the same any_spend guard, and only when the denominator is
-# positive: a session with no token fields at all (claude reports rate limits
-# instead) leaves it empty, and so leaves the sinks nothing to render.
-hit=""
-hit_pct=""
-if [ "$any_spend" = 1 ]; then
-    denom=0
-    for value in "$tok_in" "$tok_cr" "$tok_cw"; do
-        case $value in
-            '' | '-' | *[!0-9]*) continue ;;
+pr_json='{}'
+if [ -n "$branch" ] && [ "$branch" != "$(default_branch)" ] \
+    && command -v gh >/dev/null 2>&1; then
+    cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/agent-status/pr"
+    cache_key=$(printf '%s' "$root|$branch" | tr -c '[:alnum:]._-' '-')
+    cache_file="$cache_dir/$cache_key"
+
+    ttl=$PR_TTL
+    if [ -r "$cache_file" ]; then
+        pr_json=$(cat "$cache_file" 2>/dev/null)
+        case $(printf '%s' "$pr_json" | jq -r '.pr_state // empty' 2>/dev/null) in
+            merged | closed) ttl=$PR_TTL_SETTLED ;;
         esac
-        denom=$(( denom + value ))
-    done
-    case $tok_cr in
-        '' | '-' | *[!0-9]*) denom=0 ;;
-    esac
-    if [ "$denom" -gt 0 ]; then
-        share=$(awk -v r="$tok_cr" -v d="$denom" 'BEGIN{printf "%.4f", 100 * r / d}')
-        hit=$(as_pct "$share")
-        hit_pct=$(as_num "$share")
-        # The "h" label rides on the end of `cache` instead of travelling as a
-        # sidebar token of its own, because the pipe that has to precede a new
-        # group can only come from inside a token value - herdr joins the tokens
-        # it is given with the middle dot and nothing else. The ratio itself
-        # stays a separate token so it remains a bare number for herdr's value
-        # rules to compare, and herdr's own dot binds the two:
-        #
-        #   "r · 11.8M | w · 197.8k" + "h"  ·  "98"
-        #
-        # renders as "r · 11.8M | w · 197.8k | h · 98", which is the same
-        # two-level punctuation as every other row.
-        cache="${cache:+$cache | }h"
     fi
+
+    elapsed=$(age "$cache_file") || elapsed=""
+    if [ -z "$elapsed" ] || [ "$elapsed" -ge "$ttl" ]; then
+        mkdir -p "$cache_dir" 2>/dev/null
+        touch "$cache_file" 2>/dev/null
+        pr_json=$(lookup_pr)
+        printf '%s' "$pr_json" >"$cache_file" 2>/dev/null
+    fi
+    [ -n "$pr_json" ] || pr_json='{}'
 fi
 
-normalised=$(jq -n \
+normalised=$(printf '%s' "$pr_json" | jq -c \
     --arg agent "$agent" \
-    --arg model "$model" \
-    --arg effort "$effort" \
     --arg repo "$repo" \
     --arg branch "$branch" \
-    --arg ctx "$ctx" \
-    --arg ctx_pct "$ctx_pct" \
-    --arg tokens "$tokens" \
-    --arg spend "$spend" \
-    --arg cache "$cache" \
-    --arg hit "$hit" \
-    --arg hit_pct "$hit_pct" \
-    --arg limit_5h "$limit_5h" \
-    --arg limit_5h_pct "$limit_5h_pct" \
-    --arg reset_5h "$rst_5h" \
-    --arg limit_7d "$limit_7d" \
-    --arg limit_7d_pct "$limit_7d_pct" \
-    --arg reset_7d "$rst_7d" \
-    'def n: if . == "" then null else (. | tonumber?) end;
-     {$agent, $model, $effort, $repo, $branch, $ctx,
-      ctx_pct: ($ctx_pct | n),
-      $tokens, $spend, $cache,
-      $hit, hit_pct: ($hit_pct | n),
-      $limit_5h, limit_5h_pct: ($limit_5h_pct | n), $reset_5h,
-      $limit_7d, limit_7d_pct: ($limit_7d_pct | n), $reset_7d}' 2>/dev/null)
+    '{ $agent, $repo, $branch,
+       pr: (.pr // ""), pr_state: (.pr_state // ""),
+       pr_ci: (.pr_ci // ""), pr_review: (.pr_review // "") }' 2>/dev/null)
 [ -n "$normalised" ] || exit 0
 
-publish "$normalised"
+printf '%s' "$normalised" | "$SINK" >/dev/null 2>&1
 
 exit 0
