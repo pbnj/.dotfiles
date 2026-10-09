@@ -93,6 +93,9 @@ hide_tab_bar_when_single_tab = true
 # or have failed (failing); it shares the glyph's token, so $prci is colored with
 # `starts_with` rather than `equals`.
 #
+# When the agent's session watches several PRs, the row shows the one most in
+# need of attention and $prmore ("+2") counts the others.
+#
 # The trailing pair is the count of unresolved review threads, orange from one
 # and red past four; it travels as a bare number apart from its glyph because
 # `gt` only compares values that parse completely as numbers, and both vanish at
@@ -124,6 +127,7 @@ rows = [
       { gt = 4, fg = "#db4b4b", bold = true },
       { gt = 0, fg = "#c07617" },
     ] },
+    { token = "$prmore", dim = true },
   ],
 ]
 
