@@ -6,13 +6,15 @@
 #
 #   $pr       state glyph and number: " #7"
 #   $prstate  "draft", "merged" or "closed"; empty while the PR is open
-#   $prci     check rollup glyph: pass, fail or pending
+#   $prci     check rollup glyph, with the jobs behind it while pending or
+#             failing: "<clock> 2" running, "<xmark> 3" failed, "<check>" passed
 #   $prrev    review glyph: approved, changes requested or review required
 #   $prthl    comments glyph, present only beside a count
 #   $prth     number of unresolved review threads; empty at zero
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml,
-# which colors $prci and $prrev by matching the glyphs below with `equals` rules.
+# which colors $prci and $prrev by matching the glyphs below with `starts_with`
+# and `equals` rules.
 # A glyph changed here has to change there too. The thread count travels apart
 # from its glyph because herdr's `gt` rules only compare values that parse
 # completely as numbers.
@@ -142,14 +144,15 @@ fields=$(printf '%s' "$input" | jq -r '
     , (.pr | f)
     , (.pr_state | f)
     , (.pr_ci | f)
+    , (.pr_ci_count | f)
     , (.pr_review | f)
     , (.pr_threads | f)
     ] | @tsv' 2>/dev/null)
 [ -n "$fields" ] || exit 0
 
-IFS=$'\t' read -r agent pr state ci review threads <<<"$fields"
+IFS=$'\t' read -r agent pr state ci ci_count review threads <<<"$fields"
 
-for var in agent pr state ci review threads; do
+for var in agent pr state ci ci_count review threads; do
     [ "${!var}" = "-" ] && declare "$var="
 done
 
@@ -169,6 +172,12 @@ case $ci in
     fail) ci=$G_FAIL ;;
     pending) ci=$G_PENDING ;;
     *) ci="" ;;
+esac
+# The count shares the glyph's token, so herdr draws "<clock> 2" rather than
+# putting its separator dot between them; the rules color by the leading glyph.
+case $ci_count in
+    '' | *[!0-9]*) ;;
+    *) [ -n "$ci" ] && ci="$ci $ci_count" ;;
 esac
 
 case $review in
