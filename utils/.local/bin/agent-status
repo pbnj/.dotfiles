@@ -14,7 +14,7 @@
 #
 #   ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>.json
 #
-# So a branch shows a PR only while some agent is watching it. A snapshot whose
+# with the branch percent-encoded as jq's @uri does. So a branch shows a PR only while some agent is watching it. A snapshot whose
 # watch stopped updating it more than AGENT_STATUS_PR_MAX_AGE seconds ago
 # (default 900) is ignored, since a watch that died before the merge never
 # deletes it.
@@ -112,12 +112,12 @@ if [ -n "$cwd" ] && [ -d "$cwd" ]; then
     fi
 fi
 
-# The branch's snapshot, or "{}" when there is none or it has gone stale. The
-# file name is lossy (a/b and a-b share one), so its own repo and branch fields
-# have to match too.
+# The branch's snapshot, or "{}" when there is none or it has gone stale. Its own
+# repo and branch fields have to match too, as a guard against a slug parsed
+# from an unusual remote.
 pr_json='{}'
 if [ -n "$slug" ] && [ -n "$branch" ]; then
-    snapshot="$cache_home/gh-pr/$slug/$(printf '%s' "$branch" | tr -c '[:alnum:]._-' '-').json"
+    snapshot="$cache_home/gh-pr/$slug/$(jq -rn --arg b "$branch" '$b | @uri').json"
     if [ -r "$snapshot" ]; then
         pr_json=$(jq -c --arg slug "$slug" --arg branch "$branch" \
             --argjson max_age "$PR_MAX_AGE" '
