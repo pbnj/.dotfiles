@@ -39,6 +39,24 @@
 # The default branch is never looked up: it has no PR of its own, and it is
 # where most idle panes sit.
 #
+# The sidebar only has room for glyphs, so the full answer - PR title and URL,
+# every check with its link, each unresolved review thread with its first
+# comment - is also written as one JSON record per pane, for readers that have
+# the room (the herdr-bridge native messaging host behind the browser
+# extension):
+#
+#   $XDG_CACHE_HOME/agent-status/panes/<socket>--<pane>.json
+#
+#   {"v":1,"socket":"...","pane":"w1:p1","agent":"claude","cwd":"...",
+#    "root":"...","repo":"dotfiles","slug":"pbnj/dotfiles","branch":"...",
+#    "fetched_at":1760000000,"pr":{...}|null}
+#
+# where <socket>--<pane> is "$HERDR_SOCKET_PATH|$HERDR_PANE_ID" with every
+# character outside [A-Za-z0-9._-] replaced by "-". It is keyed by socket as
+# well as pane because pane ids restart at w1:p1 with the server. The record is
+# replaced atomically and only rewritten when it changes, so a reader can watch
+# the directory without being woken by every status line render.
+#
 # Usage:
 #   <producer> | agent-status     publish
 #   agent-status --clear          clear this pane's PR metadata
@@ -54,7 +72,14 @@ SINK=${HOME}/.local/bin/herdr-agent-status
 [ -n "${HERDR_PANE_ID:-}" ] || exit 0
 [ -x "$SINK" ] || exit 0
 
+state_dir="${XDG_CACHE_HOME:-$HOME/.cache}/agent-status"
+socket=${HERDR_SOCKET_PATH:-default}
+pane_key=$(printf '%s' "$socket|$HERDR_PANE_ID" | tr -c '[:alnum:]._-' '-')
+pane_dir="$state_dir/panes"
+pane_file="$pane_dir/$pane_key.json"
+
 if [ "${1:-}" = "--clear" ]; then
+    rm -f "$pane_file" 2>/dev/null
     "$SINK" --clear >/dev/null 2>&1
     exit 0
 fi
@@ -74,6 +99,7 @@ cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
 [ -n "$agent" ] || exit 0
 
 repo=""
+slug=""
 branch=""
 root=""
 if [ -n "$cwd" ] && [ -d "$cwd" ]; then
@@ -82,6 +108,11 @@ if [ -n "$cwd" ] && [ -d "$cwd" ]; then
         repo=$(basename "$root")
         # Empty on a detached HEAD, which has no PR to find.
         branch=$(git -C "$cwd" --no-optional-locks branch --show-current 2>/dev/null)
+        # owner/name from origin's last two path segments, so a reader can link
+        # the repo without asking gh. Not anchored on github.com: an SSH host
+        # alias such as "personal:pbnj/.dotfiles" names no host at all.
+        slug=$(git -C "$cwd" --no-optional-locks remote get-url origin 2>/dev/null \
+            | sed -E 's#\.git$##; s#/+$##' | sed -nE 's#^.*[:/]([^/:]+/[^/:]+)$#\1#p')
     fi
 fi
 
@@ -101,7 +132,15 @@ age() {
     perl -e 'my @s = stat shift or exit 1; print time - $s[9]' "$1" 2>/dev/null
 }
 
-# Prints the PR as one compact JSON object, or "{}" when the branch has none.
+# Prints the PR as one compact JSON record, or "{}" when the branch has none:
+#
+#   {"number":7,"title":"...","url":"...","author":"pbnj","head":"...",
+#    "base":"main","updated_at":"...","state":"open|draft|merged|closed",
+#    "review":"approved|changes|review|","ci":"pass|fail|pending|",
+#    "ci_counts":{"pending":2,"fail":0},
+#    "checks":[{"name":"...","workflow":"...","state":"...","url":"..."}],
+#    "threads":[{"path":"...","line":12,"outdated":false,"comments":3,
+#                "author":"...","body":"...","url":"..."}]}
 #
 # One GraphQL query rather than `gh pr view`, because review threads are only
 # exposed there; {owner} and {repo} are filled in by gh from the checkout's
@@ -109,9 +148,13 @@ age() {
 #
 # The CI state is GitHub's own rollup across every check run and commit status,
 # under which a check that did not run (skipped, neutral) counts as passing.
+# ci_counts come from GitHub's per-state totals, so they stay right past the
+# first 100 checks that are listed individually.
 #
 # Threads count as unaddressed while unresolved, outdated or not: a reply that
-# leaves the thread open has not closed it. Only the first 100 are read.
+# leaves the thread open has not closed it. Only the first 100 are read, and
+# only unresolved ones are kept, each with its opening comment cut to 500
+# characters.
 lookup_pr() {
     local json
     # shellcheck disable=SC2016 # $owner etc. are GraphQL variables, not shell
@@ -122,15 +165,31 @@ lookup_pr() {
             pullRequests(headRefName: $branch, first: 1,
                          orderBy: {field: CREATED_AT, direction: DESC}) {
               nodes {
-                number state isDraft reviewDecision
+                number title url state isDraft reviewDecision
+                headRefName baseRefName updatedAt
+                author { login }
                 commits(last: 1) { nodes { commit { statusCheckRollup {
                   state
-                  contexts(first: 1) {
+                  contexts(first: 100) {
                     checkRunCountsByState { state count }
                     statusContextCountsByState { state count }
+                    nodes {
+                      __typename
+                      ... on CheckRun {
+                        name status conclusion detailsUrl
+                        checkSuite { workflowRun { workflow { name } } }
+                      }
+                      ... on StatusContext { context state targetUrl }
+                    }
                   }
                 } } } }
-                reviewThreads(first: 100) { nodes { isResolved } }
+                reviewThreads(first: 100) { nodes {
+                  isResolved isOutdated path line
+                  comments(first: 1) {
+                    totalCount
+                    nodes { author { login } body url }
+                  }
+                } }
               }
             }
           }
@@ -145,19 +204,35 @@ lookup_pr() {
         return
     }
     printf '%s' "$json" | jq -c '
+        def run_state:
+          if .status != "COMPLETED" then "pending"
+          else { SUCCESS: "pass", FAILURE: "fail", TIMED_OUT: "fail",
+                 CANCELLED: "fail", ACTION_REQUIRED: "fail",
+                 STARTUP_FAILURE: "fail", SKIPPED: "skipped", STALE: "skipped",
+                 NEUTRAL: "neutral" }[.conclusion // ""] // "neutral" end;
+        def status_state:
+          { SUCCESS: "pass", FAILURE: "fail", ERROR: "fail",
+            PENDING: "pending", EXPECTED: "pending" }[.state // ""] // "pending";
         .data.repository.pullRequests.nodes[0]
         | if . == null then {} else
-          { pr: "#\(.number)",
-            pr_state: (if .state == "MERGED" then "merged"
-                       elif .state == "CLOSED" then "closed"
-                       elif .isDraft then "draft"
-                       else "" end),
-            pr_ci: ({ SUCCESS: "pass", FAILURE: "fail", ERROR: "fail",
-                      PENDING: "pending", EXPECTED: "pending" }
-                    [.commits.nodes[0].commit.statusCheckRollup.state // ""] // ""),
-            # Check runs are GitHub Actions jobs and other app checks;
-            # status contexts are external services. Both count as jobs here.
-            pr_ci_count: (.commits.nodes[0].commit.statusCheckRollup.contexts
+          (.commits.nodes[0].commit.statusCheckRollup // {}) as $rollup
+          | { number, title, url,
+              author: (.author.login // ""),
+              head: .headRefName, base: .baseRefName,
+              updated_at: .updatedAt,
+              state: (if .state == "MERGED" then "merged"
+                      elif .state == "CLOSED" then "closed"
+                      elif .isDraft then "draft"
+                      else "open" end),
+              review: ({ APPROVED: "approved",
+                         CHANGES_REQUESTED: "changes",
+                         REVIEW_REQUIRED: "review" }[.reviewDecision // ""] // ""),
+              ci: ({ SUCCESS: "pass", FAILURE: "fail", ERROR: "fail",
+                     PENDING: "pending", EXPECTED: "pending" }
+                   [$rollup.state // ""] // ""),
+              # Check runs are GitHub Actions jobs and other app checks;
+              # status contexts are external services. Both count as jobs here.
+              ci_counts: (($rollup.contexts // {})
                           | [ (.checkRunCountsByState // [])[],
                               (.statusContextCountsByState // [])[] ]
                           | { pending: (map(select(.state | IN("IN_PROGRESS",
@@ -166,25 +241,37 @@ lookup_pr() {
                               fail: (map(select(.state | IN("FAILURE", "ERROR",
                                   "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
                                   "STARTUP_FAILURE"))) | map(.count) | add // 0) }),
-            pr_review: ({ APPROVED: "approved",
-                          CHANGES_REQUESTED: "changes",
-                          REVIEW_REQUIRED: "review" }[.reviewDecision // ""] // ""),
-            pr_threads: ([ .reviewThreads.nodes[] | select(.isResolved | not) ]
-                         | length)
-          } end' 2>/dev/null || printf '{}'
+              checks: [ ($rollup.contexts.nodes // [])[]
+                        | if .__typename == "CheckRun" then
+                            { name,
+                              workflow: (.checkSuite.workflowRun.workflow.name // ""),
+                              state: run_state, url: (.detailsUrl // "") }
+                          else
+                            { name: .context, workflow: "",
+                              state: status_state, url: (.targetUrl // "") }
+                          end ],
+              threads: [ .reviewThreads.nodes[] | select(.isResolved | not)
+                         | (.comments.nodes[0] // {}) as $first
+                         | { path, line, outdated: .isOutdated,
+                             comments: .comments.totalCount,
+                             author: ($first.author.login // ""),
+                             body: (($first.body // "") | .[0:500]),
+                             url: ($first.url // "") } ]
+            } end' 2>/dev/null || printf '{}'
 }
 
 pr_json='{}'
 if [ -n "$branch" ] && [ "$branch" != "$(default_branch)" ] \
     && command -v gh >/dev/null 2>&1; then
-    cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/agent-status/pr"
+    # pr.v2 rather than pr: entries there hold the earlier, summary-only shape.
+    cache_dir="$state_dir/pr.v2"
     cache_key=$(printf '%s' "$root|$branch" | tr -c '[:alnum:]._-' '-')
     cache_file="$cache_dir/$cache_key"
 
     ttl=$PR_TTL
     if [ -r "$cache_file" ]; then
         pr_json=$(cat "$cache_file" 2>/dev/null)
-        case $(printf '%s' "$pr_json" | jq -r '.pr_state // empty' 2>/dev/null) in
+        case $(printf '%s' "$pr_json" | jq -r '.state // empty' 2>/dev/null) in
             merged | closed) ttl=$PR_TTL_SETTLED ;;
         esac
     fi
@@ -197,18 +284,44 @@ if [ -n "$branch" ] && [ "$branch" != "$(default_branch)" ] \
         printf '%s' "$pr_json" >"$cache_file" 2>/dev/null
     fi
     [ -n "$pr_json" ] || pr_json='{}'
+    fetched_at=$(perl -e 'my @s = stat shift or exit 1; print $s[9]' "$cache_file" 2>/dev/null)
 fi
+
+# Rewritten only when it changes, and swapped in with a rename so a reader never
+# sees a half-written record.
+write_pane_record() {
+    local record tmp
+    record=$(printf '%s' "$pr_json" | jq -c \
+        --arg socket "$socket" --arg pane "$HERDR_PANE_ID" \
+        --arg agent "$agent" --arg cwd "$cwd" --arg root "$root" \
+        --arg repo "$repo" --arg slug "$slug" --arg branch "$branch" \
+        --arg fetched_at "${fetched_at:-}" \
+        '{ v: 1, $socket, $pane, $agent, $cwd, $root, $repo, $slug, $branch,
+           fetched_at: ($fetched_at | tonumber? // null),
+           pr: (if . == {} then null else . end) }' 2>/dev/null) || return
+    [ -n "$record" ] || return
+    if [ -r "$pane_file" ] && [ "$(cat "$pane_file" 2>/dev/null)" = "$record" ]; then
+        return
+    fi
+    mkdir -p "$pane_dir" 2>/dev/null || return
+    tmp=$(mktemp "$pane_dir/.record.XXXXXX" 2>/dev/null) || return
+    if ! { printf '%s\n' "$record" >"$tmp" && mv -f "$tmp" "$pane_file"; } 2>/dev/null; then
+        rm -f "$tmp" 2>/dev/null
+    fi
+}
+write_pane_record
 
 normalised=$(printf '%s' "$pr_json" | jq -c \
     --arg agent "$agent" \
     --arg repo "$repo" \
     --arg branch "$branch" \
     '{ $agent, $repo, $branch,
-       pr: (.pr // ""), pr_state: (.pr_state // ""),
-       pr_ci: (.pr_ci // ""), pr_review: (.pr_review // ""),
-       pr_ci_count: ((.pr_ci_count[.pr_ci // ""]? // 0)
+       pr: (if .number then "#\(.number)" else "" end),
+       pr_state: (if .state == "open" then "" else .state // "" end),
+       pr_ci: (.ci // ""), pr_review: (.review // ""),
+       pr_ci_count: ((.ci_counts[.ci // ""]? // 0)
                      | if . > 0 then tostring else "" end),
-       pr_threads: ((.pr_threads // 0) | if . > 0 then tostring else "" end) }' 2>/dev/null)
+       pr_threads: ((.threads // []) | length | if . > 0 then tostring else "" end) }' 2>/dev/null)
 [ -n "$normalised" ] || exit 0
 
 printf '%s' "$normalised" | "$SINK" >/dev/null 2>&1
