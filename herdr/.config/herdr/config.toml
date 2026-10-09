@@ -79,10 +79,13 @@ hide_tab_bar_when_single_tab = true
 #
 # herdr joins the tokens in a row with a middle dot:
 #
-#   <PR glyph> #7 · draft · <CI glyph> · <review glyph>
+#   <PR glyph> #7 · draft · <CI glyph> · <review glyph> · <comments glyph> · 3
 #
-# $prstate is empty while the PR is open, and $prci and $prrev are cleared once
-# it is merged or closed.
+# The trailing pair is the count of unresolved review threads, orange from one
+# and red past four; it travels as a bare number apart from its glyph because
+# `gt` only compares values that parse completely as numbers, and both vanish at
+# zero. $prstate is empty while the PR is open, and $prci, $prrev and the thread
+# count are cleared once it is merged or closed.
 agent_panel_sort = "priority"
 [ui.sidebar.agents]
 rows = [
@@ -103,6 +106,11 @@ rows = [
       { equals = "\uF044", fg = "#db4b4b", bold = true },
       { equals = "\uF06E", fg = "#c07617" },
       { equals = "\uF164", fg = "#41a35b" },
+    ] },
+    { token = "$prthl", dim = true },
+    { token = "$prth", rules = [
+      { gt = 4, fg = "#db4b4b", bold = true },
+      { gt = 0, fg = "#c07617" },
     ] },
   ],
 ]

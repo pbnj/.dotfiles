@@ -12,7 +12,8 @@
 # normalised envelope, where an absent value is the empty string:
 #
 #   {"agent":"claude","repo":"dotfiles","branch":"herdr-pr-status",
-#    "pr":"#7","pr_state":"","pr_ci":"pending","pr_review":"review"}
+#    "pr":"#7","pr_state":"","pr_ci":"pending","pr_review":"review",
+#    "pr_threads":"3"}
 #
 #   pr         "#<number>" of the open, draft, merged or closed PR for the branch
 #   pr_state   "draft", "merged" or "closed"; empty for an open PR, which is
@@ -21,6 +22,7 @@
 #              PR has none
 #   pr_review  "approved", "changes" or "review" (review required); empty when
 #              the repo asks for no review decision
+#   pr_threads count of unresolved review threads; empty when there are none
 #
 # The values are bare words rather than glyphs so the sink decides how they are
 # drawn and herdr's text rules can match them.
@@ -98,41 +100,52 @@ age() {
 
 # Prints the PR as one compact JSON object, or "{}" when the branch has none.
 #
-# statusCheckRollup mixes two shapes: check runs carry status/conclusion and
-# commit statuses carry a single state. A check that did not run (skipped,
-# neutral) counts as passing, and any one failure fails the whole rollup.
+# One GraphQL query rather than `gh pr view`, because review threads are only
+# exposed there; {owner} and {repo} are filled in by gh from the checkout's
+# remote. With several PRs from one branch, the newest wins.
+#
+# The CI state is GitHub's own rollup across every check run and commit status,
+# under which a check that did not run (skipped, neutral) counts as passing.
+#
+# Threads count as unaddressed while unresolved, outdated or not: a reply that
+# leaves the thread open has not closed it. Only the first 100 are read.
 lookup_pr() {
     local json
-    if ! json=$(cd "$root" && gh pr view "$branch" \
-        --json number,state,isDraft,reviewDecision,statusCheckRollup 2>/dev/null); then
+    # shellcheck disable=SC2016 # $owner etc. are GraphQL variables, not shell
+    json=$(cd "$root" && gh api graphql \
+        -F owner='{owner}' -F repo='{repo}' -f branch="$branch" -f query='
+        query($owner: String!, $repo: String!, $branch: String!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequests(headRefName: $branch, first: 1,
+                         orderBy: {field: CREATED_AT, direction: DESC}) {
+              nodes {
+                number state isDraft reviewDecision
+                commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+                reviewThreads(first: 100) { nodes { isResolved } }
+              }
+            }
+          }
+        }' 2>/dev/null) || {
         printf '{}'
         return
-    fi
+    }
     printf '%s' "$json" | jq -c '
-        def fail: [ "FAILURE", "ERROR", "CANCELLED", "TIMED_OUT",
-                    "ACTION_REQUIRED", "STARTUP_FAILURE" ];
-        def run_state:
-            if .__typename == "StatusContext" then
-                if (.state | IN(fail[])) then "fail"
-                elif .state == "SUCCESS" then "pass"
-                else "pending" end
-            elif .status != "COMPLETED" then "pending"
-            elif (.conclusion | IN(fail[])) then "fail"
-            else "pass" end;
-        [ .statusCheckRollup[]? | run_state ] as $runs
-        | { pr: "#\(.number)",
+        .data.repository.pullRequests.nodes[0]
+        | if . == null then {} else
+          { pr: "#\(.number)",
             pr_state: (if .state == "MERGED" then "merged"
                        elif .state == "CLOSED" then "closed"
                        elif .isDraft then "draft"
                        else "" end),
-            pr_ci: (if ($runs | index("fail")) then "fail"
-                    elif ($runs | index("pending")) then "pending"
-                    elif ($runs | length) > 0 then "pass"
-                    else "" end),
+            pr_ci: ({ SUCCESS: "pass", FAILURE: "fail", ERROR: "fail",
+                      PENDING: "pending", EXPECTED: "pending" }
+                    [.commits.nodes[0].commit.statusCheckRollup.state // ""] // ""),
             pr_review: ({ APPROVED: "approved",
                           CHANGES_REQUESTED: "changes",
-                          REVIEW_REQUIRED: "review" }[.reviewDecision // ""] // "")
-          }' 2>/dev/null || printf '{}'
+                          REVIEW_REQUIRED: "review" }[.reviewDecision // ""] // ""),
+            pr_threads: ([ .reviewThreads.nodes[] | select(.isResolved | not) ]
+                         | length)
+          } end' 2>/dev/null || printf '{}'
 }
 
 pr_json='{}'
@@ -166,7 +179,8 @@ normalised=$(printf '%s' "$pr_json" | jq -c \
     --arg branch "$branch" \
     '{ $agent, $repo, $branch,
        pr: (.pr // ""), pr_state: (.pr_state // ""),
-       pr_ci: (.pr_ci // ""), pr_review: (.pr_review // "") }' 2>/dev/null)
+       pr_ci: (.pr_ci // ""), pr_review: (.pr_review // ""),
+       pr_threads: ((.pr_threads // 0) | if . > 0 then tostring else "" end) }' 2>/dev/null)
 [ -n "$normalised" ] || exit 0
 
 printf '%s' "$normalised" | "$SINK" >/dev/null 2>&1

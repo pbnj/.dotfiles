@@ -8,10 +8,14 @@
 #   $prstate  "draft", "merged" or "closed"; empty while the PR is open
 #   $prci     check rollup glyph: pass, fail or pending
 #   $prrev    review glyph: approved, changes requested or review required
+#   $prthl    comments glyph, present only beside a count
+#   $prth     number of unresolved review threads; empty at zero
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml,
 # which colors $prci and $prrev by matching the glyphs below with `equals` rules.
-# A glyph changed here has to change there too.
+# A glyph changed here has to change there too. The thread count travels apart
+# from its glyph because herdr's `gt` rules only compare values that parse
+# completely as numbers.
 #
 # The glyphs are Nerd Font private-use codepoints, so the terminal font has to be
 # a Nerd Font. CI and review are glyph-only because the expanded sidebar is
@@ -47,7 +51,7 @@ SOURCE=dotfiles.agent-status
 # Only the pr* tokens are reported. The rest are what earlier versions of this
 # script published - model, context, rate limits, token counts - and stay in the
 # clear list so a pane annotated by one of them loses those too.
-TOKENS=(pr prstate prci prrev
+TOKENS=(pr prstate prci prrev prthl prth
     model effort where repo branch ctxl ctx u5hl u5h u5hr u7dl u7d u7dr
     spend cache hit)
 
@@ -68,6 +72,8 @@ G_PENDING=$'\xef\x80\x97'
 G_APPROVED=$'\xef\x85\xa4'
 G_CHANGES=$'\xef\x81\x84'
 G_REVIEW=$'\xef\x81\xae'
+# nf-fa-comments U+F086
+G_THREADS=$'\xef\x82\x86'
 
 # Keyed by socket as well as pane id: pane ids restart at w1:p1 when the server
 # does, and a stale cache entry would otherwise suppress a new pane's first
@@ -108,12 +114,13 @@ fields=$(printf '%s' "$input" | jq -r '
     , (.pr_state | f)
     , (.pr_ci | f)
     , (.pr_review | f)
+    , (.pr_threads | f)
     ] | @tsv' 2>/dev/null)
 [ -n "$fields" ] || exit 0
 
-IFS=$'\t' read -r agent pr state ci review <<<"$fields"
+IFS=$'\t' read -r agent pr state ci review threads <<<"$fields"
 
-for var in agent pr state ci review; do
+for var in agent pr state ci review threads; do
     [ "${!var}" = "-" ] && declare "$var="
 done
 
@@ -142,18 +149,28 @@ case $review in
     *) review="" ;;
 esac
 
+case $threads in
+    '' | 0 | *[!0-9]*) threads="" ;;
+esac
+
 # Once a PR is merged or closed, its checks and reviews are history rather than
 # something to act on.
 case $state in
     merged | closed)
         ci=""
         review=""
+        threads=""
         ;;
 esac
 
+# The glyph is cleared with the count, so a PR with every thread resolved shows
+# no bare comments icon.
+threads_label=""
+[ -n "$threads" ] && threads_label=$G_THREADS
+
 # Producers fire far more often than the metadata changes (claude's status line
 # re-renders on every event), so skip the socket round-trip when nothing moved.
-payload="$pr|$state|$ci|$review"
+payload="$pr|$state|$ci|$review|$threads"
 if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; then
     exit 0
 fi
@@ -171,11 +188,13 @@ args=(pane report-metadata "$pane"
     --token "pr=$pr"
     --token "prstate=$state"
     --token "prci=$ci"
-    --token "prrev=$review")
+    --token "prrev=$review"
+    --token "prthl=$threads_label"
+    --token "prth=$threads")
 # The first publish from this pane also clears what an older version of this
 # script left behind, which the pr* tokens alone would not overwrite.
 if [ ! -e "$cache_file" ]; then
-    for name in "${TOKENS[@]:4}"; do
+    for name in "${TOKENS[@]:6}"; do
         args+=(--clear-token "$name")
     done
 fi
