@@ -49,6 +49,14 @@ description = "Fuzzy-find or clone projects"
 width = "80%"
 height = "80%"
 
+[[keys.command]]
+key = "prefix+ctrl+c"
+type = "popup"
+command = "claude"
+description = "Claude"
+width = "80%"
+height = "80%"
+
 # prefix+shift+n keeps inheriting the current workspace's cwd; this is the
 # escape hatch for starting somewhere unrelated to what is already open. `shell`
 # runs detached, so nothing flashes a pane on the way past.
