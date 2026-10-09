@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Lists the open pull requests a coding agent session is working on, from the
+# snapshots gh-pr-watch (the gh skill's PR watch, in
+# komodohealth/Security-Automation) keeps while it watches a PR:
+#
+#   ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>/<number>.json
+#
+# Makes no GitHub calls. Prints one JSON array of snapshots: every PR whose
+# watch runs in the given session, wherever its branch lives, plus any PR on
+# the given repo and branch, each once. The PR most in need of attention comes
+# first -- failing CI, then changes requested, unresolved threads, pending CI,
+# review required -- then the newest.
+#
+# A snapshot not refreshed for --max-age seconds (default 900) is left out: a
+# watch that died before the merge never deletes its snapshot.
+#
+# Usage:
+#   gh-pr-snapshots [--agent claude|pi --session ID] [--repo OWNER/NAME --branch BRANCH]
+#                   [--max-age SECONDS]
+
+set -uo pipefail
+
+agent="" session="" repo="" branch="" max_age=${AGENT_STATUS_PR_MAX_AGE:-900}
+while [ $# -gt 0 ]; do
+    [ $# -ge 2 ] || { echo "gh-pr-snapshots: $1 needs a value" >&2; exit 2; }
+    case "$1" in
+        --agent) agent=$2 ;;
+        --session) session=$2 ;;
+        --repo) repo=$2 ;;
+        --branch) branch=$2 ;;
+        --max-age) max_age=$2 ;;
+        *) echo "gh-pr-snapshots: unknown option $1" >&2; exit 2 ;;
+    esac
+    shift 2
+done
+case $max_age in '' | *[!0-9]*) echo "gh-pr-snapshots: --max-age must be a number" >&2; exit 2 ;; esac
+case $agent in claude | pi | '') ;; *) agent="" session="" ;; esac
+
+# dotglob: a repo can be named .dotfiles. In-flight temp files are .snapshot.XXXXXX
+# and never end in .json.
+shopt -s nullglob dotglob
+files=("${XDG_CACHE_HOME:-$HOME/.cache}"/gh-pr/*/*/*/*.json)
+if [ ${#files[@]} -eq 0 ] || ! command -v jq >/dev/null 2>&1; then
+    echo '[]'
+    exit 0
+fi
+
+# shellcheck disable=SC2016 # jq variables, not shell ones
+jq -sc --arg key "${agent}_session" --arg session "$session" \
+    --arg repo "$repo" --arg branch "$branch" --argjson max_age "$max_age" '
+    [ .[] | objects | select(.v == 1)
+      | select((now - (.fetched_at // 0)) <= $max_age)
+      | select(($session != "" and (.watcher // {})[$key] == $session)
+               or ($repo != "" and $branch != "" and .repo == $repo and .branch == $branch)) ]
+    | unique_by([.repo, .number])
+    | sort_by([ .ci == "fail", .review == "changes", ((.threads // []) | length > 0),
+                .ci == "pending", .review == "review", .number ])
+    | reverse' "${files[@]}" 2>/dev/null || echo '[]'

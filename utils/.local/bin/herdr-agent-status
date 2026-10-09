@@ -11,6 +11,7 @@
 #   $prrev    review glyph: approved, changes requested or review required
 #   $prthl    comments glyph, present only beside a count
 #   $prth     number of unresolved review threads; empty at zero
+#   $prmore   "+<n>" for the session's other open PRs; empty when there are none
 #
 # rendered by [ui.sidebar.agents.rows_by_agent] in ~/.config/herdr/config.toml,
 # which colors $prci and $prrev by matching the glyphs below with `starts_with`
@@ -53,7 +54,7 @@ SOURCE=dotfiles.agent-status
 # Only the pr* tokens are reported. The rest are what earlier versions of this
 # script published - model, context, rate limits, token counts - and stay in the
 # clear list so a pane annotated by one of them loses those too.
-TOKENS=(pr prstate prci prrev prthl prth
+TOKENS=(pr prstate prci prrev prthl prth prmore
     model effort where repo branch ctxl ctx u5hl u5h u5hr u7dl u7d u7dr
     spend cache hit)
 
@@ -148,12 +149,13 @@ fields=$(printf '%s' "$input" | jq -r '
     , (.pr_ci_count | f)
     , (.pr_review | f)
     , (.pr_threads | f)
+    , (.pr_more | f)
     ] | @tsv' 2>/dev/null)
 [ -n "$fields" ] || exit 0
 
-IFS=$'\t' read -r agent pr state ci ci_count review threads <<<"$fields"
+IFS=$'\t' read -r agent pr state ci ci_count review threads more <<<"$fields"
 
-for var in agent pr state ci ci_count review threads; do
+for var in agent pr state ci ci_count review threads more; do
     [ "${!var}" = "-" ] && declare "$var="
 done
 
@@ -209,7 +211,7 @@ threads_label=""
 
 # Producers fire far more often than the metadata changes (claude's status line
 # re-renders on every event), so skip the socket round-trip when nothing moved.
-payload="$pr|$state|$ci|$review|$threads"
+payload="$pr|$state|$ci|$review|$threads|$more"
 if [ -r "$cache_file" ] && [ "$(cat "$cache_file" 2>/dev/null)" = "$payload" ]; then
     exit 0
 fi
@@ -219,7 +221,7 @@ fi
 # first, in reports of its own, so the PR report after it stays under herdr's
 # token limit; if it fails, so does this publish, and the next one retries.
 if [ ! -e "$cache_file" ]; then
-    clear_tokens "${TOKENS[@]:6}" || exit 0
+    clear_tokens "${TOKENS[@]:7}" || exit 0
 fi
 
 args=(pane report-metadata "$pane"
@@ -230,7 +232,8 @@ args=(pane report-metadata "$pane"
     --token "prci=$ci"
     --token "prrev=$review"
     --token "prthl=$threads_label"
-    --token "prth=$threads")
+    --token "prth=$threads"
+    --token "prmore=$more")
 
 "$HERDR_BIN" "${args[@]}" >/dev/null 2>&1 \
     && { mkdir -p "$cache_dir" 2>/dev/null && printf '%s' "$payload" >"$cache_file" 2>/dev/null; }

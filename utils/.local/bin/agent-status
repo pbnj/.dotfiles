@@ -4,20 +4,20 @@
 # only inside it.
 #
 # Producers (claude's status line, pi's agent-pane-status extension) pipe one
-# JSON envelope on stdin naming the agent and where it is working:
+# JSON envelope on stdin naming the agent, its session and where it is working:
 #
-#   {"agent":"claude","cwd":"/path"}
+#   {"agent":"claude","session":"<session id>","cwd":"/path"}
 #
-# This script makes no GitHub calls. The PR comes from the snapshot gh-pr-watch
-# (the gh skill's PR watch, in komodohealth/Security-Automation) keeps while it
-# watches an open PR, and deletes once the PR merges or closes:
+# This script makes no GitHub calls. The PRs come from gh-pr-snapshots, which
+# reads the snapshots gh-pr-watch (the gh skill's PR watch, in
+# komodohealth/Security-Automation) keeps while it watches an open PR: every PR
+# watched from this agent session, wherever its branch lives, plus any on the
+# pane's own branch. A PR shows only while some agent is watching it, and
+# drops out once it merges or closes or its watch goes quiet for
+# AGENT_STATUS_PR_MAX_AGE seconds (default 900).
 #
-#   ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>.json
-#
-# with the branch percent-encoded as jq's @uri does. So a branch shows a PR only while some agent is watching it. A snapshot whose
-# watch stopped updating it more than AGENT_STATUS_PR_MAX_AGE seconds ago
-# (default 900) is ignored, since a watch that died before the merge never
-# deletes it.
+# The sidebar has one row for PRs, so it shows the one most in need of
+# attention and counts the rest.
 #
 # This script resolves the repo and branch exactly once and hands the sink a
 # normalised envelope, where an absent value is the empty string:
@@ -37,6 +37,7 @@
 #   pr_review  "approved", "changes" or "review" (review required); empty when
 #              the repo asks for no review decision
 #   pr_threads count of unresolved review threads; empty when there are none
+#   pr_more    "+<n>" for the session's other open PRs; empty when there are none
 #
 # The values are bare words rather than glyphs so the sink decides how they are
 # drawn and herdr's text rules can match them.
@@ -47,8 +48,9 @@
 #
 #   $XDG_CACHE_HOME/agent-status/panes/<socket>--<pane>.json
 #
-#   {"v":2,"socket":"...","pane":"w1:p1","agent":"claude","cwd":"...",
-#    "root":"...","repo":"dotfiles","slug":"pbnj/dotfiles","branch":"..."}
+#   {"v":2,"socket":"...","pane":"w1:p1","agent":"claude","session":"...",
+#    "cwd":"...","root":"...","repo":"dotfiles","slug":"pbnj/dotfiles",
+#    "branch":"..."}
 #
 # where <socket>--<pane> is "$HERDR_SOCKET_PATH|$HERDR_PANE_ID" with every
 # character outside [A-Za-z0-9._-] replaced by "-". It is keyed by socket as
@@ -71,10 +73,9 @@ SINK=${HOME}/.local/bin/herdr-agent-status
 [ -n "${HERDR_PANE_ID:-}" ] || exit 0
 [ -x "$SINK" ] || exit 0
 
-cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
 socket=${HERDR_SOCKET_PATH:-default}
 pane_key=$(printf '%s' "$socket|$HERDR_PANE_ID" | tr -c '[:alnum:]._-' '-')
-pane_dir="$cache_home/agent-status/panes"
+pane_dir="${XDG_CACHE_HOME:-$HOME/.cache}/agent-status/panes"
 pane_file="$pane_dir/$pane_key.json"
 
 if [ "${1:-}" = "--clear" ]; then
@@ -85,12 +86,11 @@ fi
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-PR_MAX_AGE=${AGENT_STATUS_PR_MAX_AGE:-900}
-
 input=$(cat)
 [ -n "$input" ] || exit 0
 
 agent=$(printf '%s' "$input" | jq -r '.agent // empty' 2>/dev/null)
+session=$(printf '%s' "$input" | jq -r '.session // empty' 2>/dev/null)
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
 [ -n "$agent" ] || exit 0
 
@@ -112,21 +112,9 @@ if [ -n "$cwd" ] && [ -d "$cwd" ]; then
     fi
 fi
 
-# The branch's snapshot, or "{}" when there is none or it has gone stale. Its own
-# repo and branch fields have to match too, as a guard against a slug parsed
-# from an unusual remote.
-pr_json='{}'
-if [ -n "$slug" ] && [ -n "$branch" ]; then
-    snapshot="$cache_home/gh-pr/$slug/$(jq -rn --arg b "$branch" '$b | @uri').json"
-    if [ -r "$snapshot" ]; then
-        pr_json=$(jq -c --arg slug "$slug" --arg branch "$branch" \
-            --argjson max_age "$PR_MAX_AGE" '
-            if .repo == $slug and .branch == $branch
-               and (now - (.fetched_at // 0)) <= $max_age
-            then . else {} end' "$snapshot" 2>/dev/null) || pr_json='{}'
-        [ -n "$pr_json" ] || pr_json='{}'
-    fi
-fi
+prs=$("${HOME}/.local/bin/gh-pr-snapshots" --agent "$agent" --session "$session" \
+    --repo "$slug" --branch "$branch" 2>/dev/null) || prs='[]'
+[ -n "$prs" ] || prs='[]'
 
 # Rewritten only when it changes, and swapped in with a rename so a reader never
 # sees a half-written record.
@@ -134,9 +122,9 @@ write_pane_record() {
     local record tmp
     record=$(jq -nc \
         --arg socket "$socket" --arg pane "$HERDR_PANE_ID" \
-        --arg agent "$agent" --arg cwd "$cwd" --arg root "$root" \
+        --arg agent "$agent" --arg session "$session" --arg cwd "$cwd" --arg root "$root" \
         --arg repo "$repo" --arg slug "$slug" --arg branch "$branch" \
-        '{ v: 2, $socket, $pane, $agent, $cwd, $root, $repo, $slug, $branch }' 2>/dev/null) || return
+        '{ v: 2, $socket, $pane, $agent, $session, $cwd, $root, $repo, $slug, $branch }' 2>/dev/null) || return
     [ -n "$record" ] || return
     if [ -r "$pane_file" ] && [ "$(cat "$pane_file" 2>/dev/null)" = "$record" ]; then
         return
@@ -149,17 +137,19 @@ write_pane_record() {
 }
 write_pane_record
 
-normalised=$(printf '%s' "$pr_json" | jq -c \
+normalised=$(printf '%s' "$prs" | jq -c \
     --arg agent "$agent" \
     --arg repo "$repo" \
     --arg branch "$branch" \
-    '{ $agent, $repo, $branch,
+    '(length) as $n | (.[0] // {})
+     | { $agent, $repo, $branch,
        pr: (if .number then "#\(.number)" else "" end),
        pr_state: (if .state == "draft" then "draft" else "" end),
        pr_ci: (.ci // ""), pr_review: (.review // ""),
        pr_ci_count: ((.ci_counts[.ci // ""]? // 0)
                      | if . > 0 then tostring else "" end),
-       pr_threads: ((.threads // []) | length | if . > 0 then tostring else "" end) }' 2>/dev/null)
+       pr_threads: ((.threads // []) | length | if . > 0 then tostring else "" end),
+       pr_more: (if $n > 1 then "+\($n - 1)" else "" end) }' 2>/dev/null)
 [ -n "$normalised" ] || exit 0
 
 printf '%s' "$normalised" | "$SINK" >/dev/null 2>&1

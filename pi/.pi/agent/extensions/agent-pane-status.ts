@@ -7,9 +7,9 @@
  *
  * The PR lookup and the writes live in ~/.local/bin/agent-status, shared with
  * the claude status line, so both agents produce identical sidebar rows. This
- * extension only feeds it a JSON envelope on stdin; agent-status caches the `gh`
- * lookup, so publishing on every turn costs a network call at most once a
- * minute.
+ * extension only feeds it a JSON envelope on stdin; agent-status reads the
+ * snapshots gh-pr-watch keeps and makes no GitHub calls, so publishing on
+ * every turn is cheap.
  *
  * Inert outside a herdr pane and outside the TUI: without $HERDR_PANE_ID there
  * is no pane to annotate, and `pi --print` / rpc runs have nothing to draw on.
@@ -45,7 +45,10 @@ export default function agentPaneStatusExtension(pi: ExtensionAPI) {
 
   function publish(ctx: ExtensionContext): void {
     if (!enabled(ctx)) return;
-    run([], JSON.stringify({ agent: "pi", cwd: ctx.cwd }));
+    // The session id ties this pane to every PR the session's gh-pr-watch
+    // runs watch, wherever their branches live; it survives /resume.
+    const session = ctx.sessionManager?.getSessionId?.() ?? "";
+    run([], JSON.stringify({ agent: "pi", session, cwd: ctx.cwd }));
   }
 
   // Turn boundaries are where a branch gets pushed or a PR opened, so they are

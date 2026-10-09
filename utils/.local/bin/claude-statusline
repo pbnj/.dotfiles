@@ -3,6 +3,15 @@
 #
 #   opus-5.5 medium · dotfiles main · ctx 42% · 5h 8% 2h55m · 7d 17% 79h15m
 #
+# followed by one line per open pull request this session is working on --
+# every PR a gh-pr-watch run in this session watches, plus any on the current
+# branch -- most in need of attention first:
+#
+#   #249 Security-Automation · ci fail 2 · changes requested · 3 threads
+#
+# The PRs come from gh-pr-snapshots, which reads gh-pr-watch's snapshots and
+# makes no GitHub calls. Five at most, then a count of the rest.
+#
 # The same facts used to go to the herdr sidebar instead, with this script
 # printing nothing; they live here now so they sit in the session they describe.
 # The sidebar carries the branch's pull request instead, published below.
@@ -16,14 +25,16 @@
 #   rate_limits - only for Claude.ai Pro/Max, after the first API response
 #   context_window.used_percentage - null early in a session and after /compact
 #
-# The reset countdowns only advance when the status line runs, so an idle
-# session can show a stale one; deliberately not papered over with
-# statusLine.refreshInterval.
+# A watch updates its snapshot while the session sits idle, so
+# statusLine.refreshInterval (30s, in ~/.claude/settings.json) re-runs this on
+# a timer as well as on events; that keeps the reset countdowns current too.
 
 input=$(cat)
 
 j() { printf '%s' "$input" | jq -r "$1 // empty"; }
 
+session=$(j '.session_id')
+slug=$(j 'if .workspace.repo.owner and .workspace.repo.name then "\(.workspace.repo.owner)/\(.workspace.repo.name)" else empty end')
 model=$(j '.model.display_name // .model.id')
 effort=$(j '.effort.level')
 cwd=$(j '.workspace.current_dir // .cwd')
@@ -40,7 +51,8 @@ week_reset=$(j '.rate_limits.seven_day.resets_at')
 publish_status() {
     local writer=${HOME}/.local/bin/agent-status
     [ -n "${HERDR_PANE_ID:-}" ] && [ -x "$writer" ] || return 0
-    jq -nc --arg cwd "$cwd" '{agent: "claude", cwd: $cwd}' 2>/dev/null \
+    jq -nc --arg session "$session" --arg cwd "$cwd" \
+        '{agent: "claude", session: $session, cwd: $cwd}' 2>/dev/null \
         | "$writer" >/dev/null 2>&1 &
 }
 
@@ -150,3 +162,36 @@ for seg in "${segments[@]:1}"; do
 done
 
 printf '%s' "$out"
+
+# One line per open PR. The number links to the PR (OSC 8).
+GREEN=$'\033[38;2;65;163;91m'
+pr_lines() {
+    local prs=$1
+    jq -r --arg dim "$DIM" --arg reset "$RESET" --arg red "$RED" \
+        --arg orange "$ORANGE" --arg green "$GREEN" --arg bold "$BOLD" '
+        def color($c; $s): "\($c)\($s)\($reset)";
+        def link($url; $s): "\u001b]8;;\($url)\u001b\\\($s)\u001b]8;;\u001b\\";
+        (.[:5][] | [
+            (link(.url; color($bold; "#\(.number)")) + " " + (.repo | split("/")[1])
+             + (if .state == "draft" then " " + color($dim; "draft") else "" end)),
+            (if .ci == "fail" then color($red; "ci fail \(.ci_counts.fail)")
+             elif .ci == "pending" then color($orange; "ci pending \(.ci_counts.pending)")
+             elif .ci == "pass" then color($green; "ci pass")
+             else empty end),
+            (if .review == "changes" then color($red; "changes requested")
+             elif .review == "review" then color($orange; "review required")
+             elif .review == "approved" then color($green; "approved")
+             else empty end),
+            ((.threads // []) | length | select(. > 0)
+             | color(if . > 4 then $red else $orange end; "\(.) thread\(if . > 1 then "s" else "" end)")),
+            (if (now - (.fetched_at // 0)) > ([3 * (.interval // 60), 60] | max) then color($dim; "stale") else empty end)
+          ] | join(" \($dim)·\($reset) ")),
+        (length - 5 | select(. > 0) | color($dim; "+\(.) more"))
+        ' <<<"$prs" 2>/dev/null
+}
+
+prs=$("${HOME}/.local/bin/gh-pr-snapshots" --agent claude --session "$session" \
+    --repo "$slug" --branch "$branch" 2>/dev/null) || prs='[]'
+while IFS= read -r line; do
+    [ -n "$line" ] && printf '\n%s' "$line"
+done < <(pr_lines "${prs:-[]}")
