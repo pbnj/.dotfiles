@@ -126,6 +126,12 @@ lookup_pr() {
             }
           }
         }' 2>/dev/null) || {
+        # gh exits 1 on a network failure and on GraphQL errors alike,
+        # including rate limits, and this reports that as "no PR": the row
+        # vanishes until the next lookup succeeds, and the "{}" overwrites a
+        # good cached answer. A possible improvement is to keep the cached
+        # answer on failure, publish it marked as stale (dimmed, or with a
+        # warning glyph), and retry sooner than PR_TTL.
         printf '{}'
         return
     }
