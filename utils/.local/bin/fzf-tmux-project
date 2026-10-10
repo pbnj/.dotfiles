@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Fuzzy-find git projects and open each selection in a new tmux window.
+#              The tmux port of fzf-herdr-project: same picker and bindings, with
+#              a window (named after the project) standing in for a workspace.
+#              Pasting a GitHub URL -- a pull request, issue, file, or the repo
+#              itself -- narrows the list to the org/repo it points at.
+#              A project that is not cloned yet is cloned from GitHub into
+#              ~/Projects/github.com/<org>/<repo> by <ENTER> (and then opened
+#              with the agent), or by <CTRL-Y> (opened with a bare shell).
+#              <ENTER> opens the window and starts DEFAULT_AGENT in it;
+#              <ALT-ENTER> picks the agent instead, from the AGENT_KINDS below
+#              that are actually installed.
+#              <ALT-O>/<ALT-P>/<ALT-A> open the highlighted project's GitHub
+#              repo, pull request, or Actions page in the browser.
+# Dependencies: brew install fd fzf gh tmux
+# Usage: fzf-tmux-project [initial query]
+#        Bind with display-popup -E so the picker closes once a window is opened.
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+QUERY="${1:-}"
+SEARCH_ROOTS=(
+  "${HOME}/Projects"
+  "${HOME}/.dotfiles"
+)
+# DEFAULT_AGENT is what <ENTER> starts; AGENT_KINDS are offered by <ALT-ENTER>,
+# in this order. Each entry is run as a command in the new pane, so it must be
+# the executable's own name.
+DEFAULT_AGENT=claude
+AGENT_KINDS=(claude pi copilot)
+CLONE_ROOT="${HOME}/Projects/github.com"
+MAX_DEPTH="${HERDR_PROJECT_DEPTH:-5}"
+
+# fzf picks its 256-colour theme whenever TERM mentions "256" (tmux-256color),
+# but the 16-colour ANSI theme under xterm-ghostty. Pin the ANSI theme so the
+# popup matches the terminal's own palette.
+export FZF_DEFAULT_OPTS="--color=16 ${FZF_DEFAULT_OPTS:-}"
+
+project_list() {
+  fd --hidden --no-ignore --type d --max-depth "${MAX_DEPTH}" '^\.git$' "${SEARCH_ROOTS[@]}" \
+    -x dirname {} | sort -u
+}
+
+project_preview() {
+  local dir="${1:-}"
+  echo "${dir}"
+  echo
+  git -C "${dir}" log --oneline --decorate --color=always -10 2>/dev/null || true
+  echo
+  git -C "${dir}" status --short --branch 2>/dev/null || true
+}
+
+open_url() {
+  local url="${1:-}"
+  [[ -n "${url}" ]] || return 0
+  if command -v open >/dev/null 2>&1; then
+    open "${url}"
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "${url}"
+  else
+    echo "No opener found for ${url}." >&2
+    return 1
+  fi
+}
+
+# project_browse <repo|pr|actions> <dir> -- gh reads the repo from the cwd, so
+# every call runs in a subshell that has cd'd into the project. A branch with no
+# PR falls back to the repo's pull request list rather than failing.
+project_browse() {
+  local target="${1:-repo}" dir="${2:-}" url pr_url
+  [[ -d "${dir}/.git" ]] || return 0
+
+  url="$(cd "${dir}" && gh repo view --json url --jq .url 2>/dev/null)" || true
+  if [[ -z "${url}" ]]; then
+    echo "${dir} is not a GitHub repo." >&2
+    return 1
+  fi
+
+  case "${target}" in
+  pr)
+    pr_url="$(cd "${dir}" && gh pr view --json url --jq .url 2>/dev/null)" || true
+    url="${pr_url:-${url}/pulls}"
+    ;;
+  actions) url="${url}/actions" ;;
+  esac
+
+  open_url "${url}"
+}
+
+project_pull() {
+  local dir
+  for dir in "$@"; do
+    git -C "${dir}" pull --rebase --autostash --prune --quiet 2>/dev/null || true
+  done
+}
+
+# Reduce anything that names a GitHub repo -- org/repo, a clone URL, an https
+# URL, including deep links into one such as a pull request, issue, or file -- to
+# the bare "org/repo" the clone path is built from. Prints nothing when the input
+# is not a fully qualified repo, which is the signal to fall back to a GitHub
+# search.
+normalize_spec() {
+  local spec="${1:-}" url=""
+  spec="${spec#"${spec%%[![:space:]]*}"}"
+  spec="${spec%"${spec##*[![:space:]]}"}"
+  spec="${spec#git@github.com:}"
+  spec="${spec#http://}"
+  spec="${spec#https://}"
+  spec="${spec#www.}"
+  if [[ "${spec}" == github.com/* ]]; then
+    url=1
+    spec="${spec#github.com/}"
+  fi
+  spec="${spec%%[?#]*}"
+  spec="${spec%.git}"
+  spec="${spec%/}"
+  # Only a URL may carry a path past the repo: /pull/123, /issues/4, /blob/...
+  # A bare "a/b/c" is left alone, so it still searches rather than guessing.
+  if [[ -n "${url}" && "${spec}" =~ ^([^/]+/[^/]+)/ ]]; then
+    spec="${BASH_REMATCH[1]}"
+    spec="${spec%.git}"
+  fi
+  [[ "${spec}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || return 0
+  printf '%s\n' "${spec}"
+}
+
+# Bound to fzf's change event: a pasted GitHub URL becomes the "org/repo" it
+# names, which fuzzy-matches the org/repo column the picker displays. Anything
+# that is not a URL is echoed back untouched, so typing is unaffected.
+query_from_url() {
+  local query="${1:-}" spec
+  if [[ "${query}" == *github.com[/:]* ]]; then
+    spec="$(normalize_spec "${query}")"
+    [[ -n "${spec}" ]] && query="${spec}"
+  fi
+  printf '%s\n' "${query}"
+}
+
+# Literal first: an exact org/repo clones without a network round-trip. Anything
+# else goes through `gh search repos` so the repo is confirmed to exist before
+# git touches the disk.
+resolve_spec() {
+  local query="${1:-}" spec
+  if [[ -z "${query}" ]]; then
+    echo "Nothing to clone: type an org/repo (or a repo name to search) first." >&2
+    return 1
+  fi
+
+  spec="$(normalize_spec "${query}")"
+  if [[ -n "${spec}" ]]; then
+    printf '%s\n' "${spec}"
+    return 0
+  fi
+
+  spec="$(gh search repos --limit 30 --json fullName --jq '.[].fullName' "${query}" 2>/dev/null |
+    fzf --reverse \
+      --prompt="GitHub repo> " \
+      --header='<ENTER>: clone into '"${CLONE_ROOT}"'/<org>/<repo>' \
+      --preview='gh repo view {}' \
+      --preview-window='bottom,60%' || true)"
+
+  if [[ -z "${spec}" ]]; then
+    echo "No GitHub repo matched '${query}'." >&2
+    return 1
+  fi
+  printf '%s\n' "${spec}"
+}
+
+# Prints the project directory on success so the caller can hand it to
+# open_windows. Already-cloned repos short-circuit instead of erroring.
+clone_repo() {
+  local spec="${1:-}" dir="${CLONE_ROOT}/${1:-}"
+
+  if [[ -d "${dir}/.git" ]]; then
+    echo "Already cloned: ${dir}" >&2
+    printf '%s\n' "${dir}"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${dir}")"
+  if ! gh repo clone "${spec}" "${dir}"; then
+    echo "Failed to clone ${spec} into ${dir}." >&2
+    return 1
+  fi
+  printf '%s\n' "${dir}"
+}
+
+installed_agent_kinds() {
+  local kind
+  for kind in "${AGENT_KINDS[@]}"; do
+    command -v "${kind}" >/dev/null 2>&1 && printf '%s\n' "${kind}"
+  done
+}
+
+# Prints the chosen `--kind`, or nothing when the user escapes out -- which the
+# callers read as "just open the shell", not as an error.
+pick_agent_kind() {
+  local kinds=()
+  while IFS= read -r kind; do
+    kinds+=("${kind}")
+  done < <(installed_agent_kinds)
+
+  case "${#kinds[@]}" in
+  0)
+    echo "No agent from '${AGENT_KINDS[*]}' is installed; opening a shell." >&2
+    return 0
+    ;;
+  1)
+    printf '%s\n' "${kinds[0]}"
+    return 0
+    ;;
+  esac
+
+  printf '%s\n' "${kinds[@]}" |
+    fzf --reverse \
+      --prompt="Agent> " \
+      --header='<ENTER>: start this agent in the window / <ESC>: shell only' ||
+    true
+}
+
+# The session the popup was opened from; every window lands here.
+SESSION="$(tmux display-message -p '#{session_id}')"
+
+# Typed into the pane rather than run as the window's command, so quitting the
+# agent leaves a shell in the project instead of closing the window.
+launch_agent_in_pane() {
+  local kind="${1}" pane="${2}" dir="${3}"
+  if ! tmux send-keys -t "${pane}" "${kind}" Enter; then
+    echo "Could not run ${kind} in ${pane} for ${dir}." >&2
+    return 1
+  fi
+}
+
+# Matched on the foreground command, which for a node-based agent can be
+# "node" -- so an agent is also recognised by the pane title it sets.
+window_has_agent() {
+  local window="${1}" kinds
+  kinds="$(printf '%s|' "${AGENT_KINDS[@]}")"
+  tmux list-panes -t "${window}" -F '#{pane_current_command} #{pane_title}' 2>/dev/null |
+    grep -qiE "(^|[^a-z])(${kinds%|})([^a-z]|$)"
+}
+
+# The first pane of the window sitting at a shell prompt, so a pane that is
+# busy is never typed over. Prints nothing when every pane is taken.
+free_pane_in_window() {
+  tmux list-panes -t "${1}" -F '#{pane_id} #{pane_current_command}' 2>/dev/null |
+    awk '$2 ~ /^-?(bash|zsh|fish|sh)$/ { print $1; exit }'
+}
+
+# open_windows <agent-kind> <dir>... -- an empty kind opens a bare shell.
+open_windows() {
+  local kind="${1}"
+  shift
+  local dirs=("$@")
+  local last_index=$((${#dirs[@]} - 1))
+  local i dir label existing focus pane
+  local bg=()
+
+  for i in "${!dirs[@]}"; do
+    dir="${dirs[$i]}"
+    [[ -d "${dir}" ]] || continue
+    label="$(basename "${dir}")"
+    if [[ "${i}" -eq "${last_index}" ]]; then focus=1 bg=(); else focus="" bg=(-d); fi
+
+    # Reuse an existing window with the same name instead of duplicating it.
+    existing="$(tmux list-windows -t "${SESSION}" -F '#{window_id} #{window_name}' 2>/dev/null |
+      awk -v label="${label}" '$2 == label { print $1; exit }')"
+
+    if [[ -n "${existing}" ]]; then
+      [[ -n "${focus}" ]] && tmux select-window -t "${existing}"
+
+      # An agent is already at work here -- focusing it is the whole job.
+      if [[ -n "${kind}" ]] && ! window_has_agent "${existing}"; then
+        pane="$(free_pane_in_window "${existing}")"
+        if [[ -n "${pane}" ]]; then
+          launch_agent_in_pane "${kind}" "${pane}" "${dir}" || true
+        else
+          echo "No free pane in ${label}; skipping ${kind}." >&2
+        fi
+      fi
+      continue
+    fi
+
+    # -d keeps every window but the last in the background. The agent is the
+    # window's own process, so quitting it closes the window.
+    tmux new-window -t "${SESSION}:" -c "${dir}" -n "${label}" ${bg[@]+"${bg[@]}"} \
+      ${kind:+-- "${kind}"} || continue
+  done
+}
+
+export -f project_preview project_pull project_browse open_url normalize_spec query_from_url
+
+QUERY="$(query_from_url "${QUERY}")"
+
+# One binding group per line: a single line overflows the popup and gets cut off.
+HEADER="<ENTER>: open/clone with ${DEFAULT_AGENT}  <ALT-ENTER>: pick ${AGENT_KINDS[*]}
+<TAB>: multi-select  <CTRL-G>: git pull  <CTRL-Y>: clone from GitHub
+<ALT-O>: repo  <ALT-P>: pull request  <ALT-A>: actions (in browser)"
+
+# --print-query and --expect make the first two output lines the typed query and
+# the key that closed fzf; the selections follow.
+OUTPUT=()
+while IFS= read -r line; do
+  OUTPUT+=("${line}")
+done < <(
+  project_list | fzf \
+    --multi \
+    --reverse \
+    --prompt="Project> " \
+    --query="${QUERY}" \
+    --header="${HEADER}" \
+    --preview='project_preview {}' \
+    --preview-window='bottom,60%' \
+    --bind='ctrl-g:execute-silent(project_pull {+})+refresh-preview' \
+    --bind='alt-o:execute-silent(project_browse repo {})+abort' \
+    --bind='alt-p:execute-silent(project_browse pr {})+abort' \
+    --bind='alt-a:execute-silent(project_browse actions {})+abort' \
+    --bind='change:transform-query(query_from_url {q})' \
+    --with-nth=-2.. \
+    --delimiter=/ \
+    --print-query \
+    --expect=ctrl-y,alt-enter || true
+)
+
+[[ ${#OUTPUT[@]} -eq 0 ]] && exit 0
+
+TYPED_QUERY="${OUTPUT[0]}"
+KEY="${OUTPUT[1]:-}"
+SELECTED=("${OUTPUT[@]:2}")
+
+if [[ "${KEY}" == "ctrl-y" ]]; then
+  SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
+  DIR="$(clone_repo "${SPEC}")" || exit 1
+  open_windows "" "${DIR}"
+  exit 0
+fi
+
+# A query naming a repo that is not cloned -- typically a pasted GitHub URL --
+# can still fuzzy-match a different local project, so the highlighted line is
+# not trusted then: <ENTER> clones the named repo instead. `gh repo view` keeps
+# a partly typed "org/repo" that happens to look qualified from turning into a
+# clone of nothing, and it only runs in this not-cloned case.
+if [[ ${#SELECTED[@]} -le 1 ]]; then
+  SPEC="$(normalize_spec "${TYPED_QUERY}")"
+  if [[ -n "${SPEC}" && ! -d "${CLONE_ROOT}/${SPEC}/.git" && "${SELECTED[0]:-}" != */"${SPEC}" ]] &&
+    gh repo view "${SPEC}" --json name >/dev/null 2>&1; then
+    SELECTED=()
+  fi
+fi
+
+# Nothing matched: clone what the query names, then open it like any other pick.
+if [[ ${#SELECTED[@]} -eq 0 ]]; then
+  [[ -n "${TYPED_QUERY}" ]] || exit 0
+  SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
+  DIR="$(clone_repo "${SPEC}")" || exit 1
+  SELECTED=("${DIR}")
+fi
+
+if [[ "${KEY}" == "alt-enter" ]]; then
+  KIND="$(pick_agent_kind)"
+elif command -v "${DEFAULT_AGENT}" >/dev/null 2>&1; then
+  KIND="${DEFAULT_AGENT}"
+else
+  echo "${DEFAULT_AGENT} is not installed; opening a shell." >&2
+  KIND=""
+fi
+
+open_windows "${KIND}" "${SELECTED[@]}"
