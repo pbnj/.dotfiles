@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Fuzzy-find a tmux window and switch to it. Lists the current
+#              session's windows; <CTRL-A> toggles to every session's windows
+#              and back. Window flags are kept in the list, so a window that
+#              rang the bell (e.g. a Claude session waiting on you) shows "!"
+#              and can be found by typing "!". The preview shows the window's
+#              active pane.
+# Dependencies: brew install fzf tmux
+# Usage: fzf-tmux-window
+#        Bind with display-popup -E so the picker closes once a window is chosen.
+#        fzf-tmux-window --list <session|all> prints the list (used by reload).
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+SELF="$(command -v "$0")"
+SESSION_PROMPT="Window> "
+ALL_PROMPT="Window (all sessions)> "
+
+# Tab-separated: window id (hidden; ids are unique across sessions), then the
+# session, window and what is running in it. Claude's executable is named after
+# its version (e.g. 2.1.296), so a bare version number is shown as "claude".
+#
+# Windows that rang the bell are listed first. The bell flag leads each line as
+# a sort key and is cut off again; the stable sort keeps tmux's own order
+# within each group.
+list_windows() {
+  local scope=(-a)
+  [[ "${1}" == "all" ]] || scope=(-t "${FZF_TMUX_WINDOW_SESSION}")
+  tmux list-windows "${scope[@]}" \
+    -F $'#{window_bell_flag}\t#{window_id}\t#{session_name}\t#{window_index}:#{window_name}#{window_flags}\t#{?#{m/r:^[0-9]+[.][0-9]+[.][0-9]+$,#{pane_current_command}},claude,#{pane_current_command}}\t#{s|^'"${HOME}"'|~|:pane_current_path}' |
+    sort -s -t $'\t' -k1,1r |
+    cut -f2-
+}
+
+if [[ "${1:-}" == "--list" ]]; then
+  list_windows "${2:?--list needs 'session' or 'all'}"
+  exit 0
+fi
+
+# Exported rather than spliced into fzf's reload command: session ids start
+# with "$", which the shell running reload would expand.
+FZF_TMUX_WINDOW_SESSION="$(tmux display-message -p '#{session_id}')"
+export FZF_TMUX_WINDOW_SESSION
+
+window="$(
+  list_windows session | fzf \
+    --reverse \
+    --delimiter=$'\t' \
+    --with-nth=2.. \
+    --nth=1,2,3 \
+    --tiebreak=index \
+    --prompt="${SESSION_PROMPT}" \
+    --header='<ENTER>: switch  <CTRL-A>: toggle all sessions' \
+    --bind="ctrl-a:transform:if [[ \$FZF_PROMPT == '${ALL_PROMPT}' ]]; then echo 'change-prompt(${SESSION_PROMPT})+reload(${SELF} --list session)'; else echo 'change-prompt(${ALL_PROMPT})+reload(${SELF} --list all)'; fi" \
+    --preview='tmux capture-pane -ep -t {1}' \
+    --preview-window='down,60%' |
+    cut -f1
+)" || exit 0
+
+[[ -n "${window}" ]] || exit 0
+# switch-client moves to the window's session (selecting the window there);
+# select-window covers the window already being in the current session.
+tmux switch-client -t "${window}" && tmux select-window -t "${window}"
