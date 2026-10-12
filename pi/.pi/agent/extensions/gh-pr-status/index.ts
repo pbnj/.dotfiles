@@ -17,6 +17,7 @@ import {
   readSnapshots,
   type Snapshot,
 } from "./cache.ts";
+import { WatchManager } from "./watch.ts";
 
 const gitExec = promisify(execFile);
 const WIDGET = "gh-pr-status";
@@ -136,6 +137,7 @@ function prRow(pr: Snapshot, theme: Theme, now: number): string {
 }
 
 export default function ghPrStatus(pi: ExtensionAPI) {
+  const watches = new WatchManager();
   let timer: ReturnType<typeof setInterval> | undefined;
   let generation = 0;
   let requestRender: (() => void) | undefined;
@@ -153,8 +155,31 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     if (ctx?.mode === "tui") ctx.ui.setWidget(WIDGET, undefined);
   }
 
+  pi.registerCommand("watch-pr", {
+    description: "Watch a PR's CI and reviews; show updates as notifications",
+    handler: async (args, ctx) => {
+      if (ctx.mode !== "tui") return;
+      try {
+        await watches.start(
+          args,
+          ctx.cwd,
+          ctx.sessionManager.getSessionId(),
+          (message, level) => {
+            ctx.ui.notify(message, level);
+          },
+        );
+      } catch (error) {
+        ctx.ui.notify(
+          `watch-pr: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
+        );
+      }
+    },
+  });
+
   pi.on("session_start", async (_event, ctx) => {
     stop(ctx);
+    await watches.stopAll();
     if (ctx.mode !== "tui") return;
     const current = generation;
     activeContext = ctx;
@@ -214,5 +239,8 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     requestRender?.();
   });
   pi.on("agent_end", () => requestRender?.());
-  pi.on("session_shutdown", (_event, ctx) => stop(ctx));
+  pi.on("session_shutdown", async (_event, ctx) => {
+    stop(ctx);
+    await watches.stopAll();
+  });
 }
