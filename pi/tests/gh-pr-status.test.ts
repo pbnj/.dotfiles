@@ -38,8 +38,9 @@ async function put(
   branch: string,
   number: number,
   value: unknown,
+  base = root,
 ) {
-  const dir = join(root, owner, repo, branch);
+  const dir = join(base, owner, repo, branch);
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, `${number}.json`), JSON.stringify(value));
 }
@@ -96,6 +97,81 @@ void test("matches Pi session across repos and branch fallback without another a
       undefined,
       undefined,
       now,
+    ),
+    undefined,
+  );
+});
+
+void test("managed watches survive another agent overwriting snapshot attribution", async () => {
+  const managedRoot = join(root, "managed");
+  await put(
+    "owner",
+    "other",
+    "branch-one",
+    31,
+    snapshot({
+      repo: "owner/other",
+      branch: "branch-one",
+      number: 31,
+      url: "https://github.com/owner/other/pull/31",
+      watcher: { claude_session: "another-agent" },
+    }),
+    managedRoot,
+  );
+  await put(
+    "owner",
+    "other",
+    "branch-two",
+    32,
+    snapshot({
+      repo: "owner/other",
+      branch: "branch-two",
+      number: 32,
+      url: "https://github.com/owner/other/pull/32",
+      watcher: { pi_session: "mine" },
+    }),
+    managedRoot,
+  );
+  await put(
+    "owner",
+    "other",
+    "branch-three",
+    33,
+    snapshot({
+      repo: "owner/other",
+      branch: "branch-three",
+      number: 33,
+      url: "https://github.com/owner/other/pull/33",
+      watcher: { claude_session: "another-agent" },
+    }),
+    managedRoot,
+  );
+  const watched = new Set(["owner/other#31", "owner/other#32"]);
+  const prs = await readSnapshots(
+    managedRoot,
+    "mine",
+    undefined,
+    undefined,
+    now,
+    watched,
+  );
+  assert.deepEqual(
+    prs.map(({ number }) => number),
+    [32, 31],
+  );
+  assert.ok(prs.every((pr) => pr.sessionMatch));
+  assert.equal(
+    parseSnapshot(
+      snapshot({
+        repo: "owner/other",
+        number: 31,
+        fetched_at: now - 901,
+      }),
+      "mine",
+      undefined,
+      undefined,
+      now,
+      watched,
     ),
     undefined,
   );

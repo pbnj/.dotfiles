@@ -152,7 +152,14 @@ function kill(watch: Watch, signal: NodeJS.Signals): void {
 export class WatchManager {
   private readonly watches = new Map<string, Watch>();
   private readonly starting = new Set<string>();
+  // Other agents can overwrite the same PR's single cache file, including its
+  // watcher attribution. Keep our own watched PRs until this session ends.
+  private readonly watched = new Set<string>();
   private generation = 0;
+
+  getWatchedPRs(): ReadonlySet<string> {
+    return new Set(this.watched);
+  }
 
   async start(
     raw: string,
@@ -189,6 +196,7 @@ export class WatchManager {
       });
       const watch: Watch = { child, stopped: false };
       this.watches.set(url, watch);
+      this.watched.add(label);
       let error: string | undefined;
       const stderr: string[] = [];
       createInterface({ input: child.stdout!, crlfDelay: Infinity }).on(
@@ -230,6 +238,7 @@ export class WatchManager {
   async stopAll(): Promise<void> {
     this.generation++;
     this.starting.clear();
+    this.watched.clear();
     const pending = [...this.watches.values()];
     this.watches.clear();
     await Promise.all(

@@ -190,6 +190,8 @@ export default function ghPrStatus(pi: ExtensionAPI) {
           session,
           info.slug,
           info.branch,
+          Date.now() / 1000,
+          watches.getWatchedPRs(),
         );
         if (generation !== current) return;
         snapshots = loaded;

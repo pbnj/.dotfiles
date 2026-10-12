@@ -55,7 +55,7 @@ void test("validates arguments and refuses extra options", () => {
   assert.throws(() => parseWatchArgs("42;rm"));
 });
 
-void test("spawns one background watcher, attributes it to Pi, forwards lines, and stops it", async () => {
+void test("spawns multiple watchers, tracks both PRs, forwards lines, and stops them", async () => {
   const bin = join(dir, "bin");
   await mkdir(bin);
   const watcher = join(bin, "gh-pr-watch");
@@ -98,9 +98,19 @@ console.log('https://github.com/owner/repo/pull/42');
     const child = JSON.parse(await readFile(result, "utf8"));
     assert.deepEqual(child.args, ["-R", "owner/repo", "--fresh", "42"]);
     assert.equal(child.session, "pi-123");
+    await manager.start(
+      "https://github.com/owner/repo/pull/43",
+      dir,
+      "pi-123",
+      notify,
+    );
+    assert.deepEqual([...manager.getWatchedPRs()].sort(), [
+      "owner/repo#42",
+      "owner/repo#43",
+    ]);
     assert.equal(
       events.filter(({ text }) => text.startsWith("Watching ")).length,
-      1,
+      2,
     );
     assert.ok(events.some(({ text }) => text.startsWith("Already watching ")));
     assert.ok(
@@ -109,6 +119,7 @@ console.log('https://github.com/owner/repo/pull/42');
       ),
     );
     await manager.stopAll();
+    assert.equal(manager.getWatchedPRs().size, 0);
     assert.throws(() => process.kill(child.pid, 0), { code: "ESRCH" });
     assert.ok(!events.some(({ text }) => text.includes("watch stopped")));
   } finally {
