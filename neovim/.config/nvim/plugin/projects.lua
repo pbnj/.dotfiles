@@ -59,22 +59,6 @@ local function projects()
   return items
 end
 
----Existing Herdr workspaces, keyed by label.
----@return table<string, string>
-local function herdr_workspaces()
-  local existing = {}
-  local list = vim
-    .system({ "herdr", "workspace", "list" }, { text = true })
-    :wait()
-  local ok, decoded = pcall(vim.json.decode, list.stdout or "")
-  if ok and decoded and decoded.result then
-    for _, ws in ipairs(decoded.result.workspaces or {}) do
-      existing[ws.label] = ws.workspace_id
-    end
-  end
-  return existing
-end
-
 ---Existing tmux panes, keyed by their cwd.
 ---@return table<string, table>
 local function tmux_panes_by_path()
@@ -106,27 +90,7 @@ end
 
 ---@param project table
 local function open_project(project)
-  -- Herdr exports HERDR_ENV for processes it manages. Prefer it when present
-  -- in case a Herdr pane is itself running under tmux.
-  if vim.env.HERDR_ENV == "1" then
-    local existing = herdr_workspaces()[project.label]
-    if existing then
-      vim.system({ "herdr", "workspace", "focus", existing }):wait()
-    else
-      vim
-        .system({
-          "herdr",
-          "workspace",
-          "create",
-          "--cwd",
-          project.dir,
-          "--label",
-          project.label,
-          "--focus",
-        })
-        :wait()
-    end
-  elseif vim.env.TMUX and vim.env.TMUX ~= "" then
+  if vim.env.TMUX and vim.env.TMUX ~= "" then
     local pane = tmux_panes_by_path()[project.dir]
     if pane then
       vim
@@ -151,10 +115,7 @@ local function open_project(project)
         :wait()
     end
   else
-    vim.notify(
-      "Workspace Projects requires Herdr or tmux",
-      vim.log.levels.ERROR
-    )
+    vim.notify("Workspace Projects requires tmux", vim.log.levels.ERROR)
   end
 end
 

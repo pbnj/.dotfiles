@@ -2,7 +2,6 @@
 # Open the given files in Neovim, preferring the terminal that is already open.
 #
 # Strategies are tried in order until one succeeds:
-#   herdr    a focused tab in the workspace labelled after the project
 #   tmux     a new window in the attached (or most recent) session
 #   ghostty  a fresh Ghostty instance, the original behaviour
 #
@@ -15,7 +14,7 @@
 
 set -eu
 
-STRATEGIES="${NVIM_GHOSTTY_STRATEGY:-herdr tmux ghostty}"
+STRATEGIES="${NVIM_GHOSTTY_STRATEGY:-tmux ghostty}"
 TERMINAL_APP="${NVIM_GHOSTTY_TERMINAL_APP:-Ghostty.app}"
 
 find_bin() {
@@ -35,13 +34,11 @@ die() {
 }
 
 nvim_bin=$(find_bin nvim) || die "Could not find the nvim binary."
-herdr_bin=$(find_bin herdr) || herdr_bin=
 tmux_bin=$(find_bin tmux) || tmux_bin=
-jq_bin=$(find_bin jq) || jq_bin=
 
 # Quoting matters twice over: Ghostty treats bare path arguments after `-e` as
 # documents to open (spawning a second window that tries to execute the file),
-# and both herdr and tmux take the command as a single string to hand a shell.
+# and tmux takes the command as a single string to hand a shell.
 quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
 nvim_command=$(quote "$nvim_bin")
@@ -50,8 +47,8 @@ for f in "$@"; do
 done
 
 # The project the first file belongs to: its git root when there is one, its
-# own directory otherwise. This is what names the herdr workspace and the tmux
-# window, and what both use as the working directory.
+# own directory otherwise. This is what names the tmux window, and what it uses
+# as the working directory.
 if [ $# -gt 0 ]; then
 	file_dir=$(/usr/bin/dirname "$1")
 else
@@ -72,62 +69,6 @@ ghostty_run() { # <command line> -- run it in a fresh Ghostty instance
 activate_terminal() {
 	app=$(/usr/bin/basename "$TERMINAL_APP" .app)
 	/usr/bin/osascript -e "tell application \"$app\" to activate" >/dev/null 2>&1 || true
-}
-
-# --- herdr -------------------------------------------------------------------
-
-# The server keeps running with no UI attached, in which case a new tab would be
-# created out of sight. Clients are `herdr` with no subcommand; the server is
-# `herdr server`. A `for` loop, not a pipe, so the result survives the subshell.
-herdr_client_attached() {
-	for pid in $(/usr/bin/pgrep -x herdr 2>/dev/null); do
-		case " $(/bin/ps -o command= -p "$pid" 2>/dev/null) " in
-		*" server "*) ;;
-		*) return 0 ;;
-		esac
-	done
-	return 1
-}
-
-try_herdr() {
-	[ -n "$herdr_bin" ] && [ -n "$jq_bin" ] || return 1
-	"$herdr_bin" status 2>/dev/null | grep -q 'status: running' || return 1
-
-	# Reuse the workspace named after the project rather than duplicating it,
-	# the same convention fzf-herdr-project follows.
-	# shellcheck disable=SC2016  # $label is a jq variable, not a shell one
-	workspace=$("$herdr_bin" workspace list 2>/dev/null |
-		"$jq_bin" -r --arg label "$project_label" \
-			'.result.workspaces[]? | select(.label == $label) | .workspace_id' |
-		head -1) || return 1
-
-	if [ -n "$workspace" ]; then
-		tab_label=$([ $# -gt 0 ] && /usr/bin/basename "$1" || printf 'nvim')
-		response=$("$herdr_bin" tab create \
-			--workspace "$workspace" \
-			--cwd "$project_root" \
-			--label "$tab_label" \
-			--focus 2>/dev/null) || return 1
-	else
-		response=$("$herdr_bin" workspace create \
-			--cwd "$project_root" \
-			--label "$project_label" \
-			--focus 2>/dev/null) || return 1
-	fi
-
-	pane=$(printf '%s' "$response" | "$jq_bin" -r '.result.root_pane.pane_id // empty')
-	[ -n "$pane" ] || return 1
-
-	# Not `exec nvim`: quitting Neovim should leave the tab at a shell prompt
-	# rather than closing it.
-	"$herdr_bin" pane run "$pane" "$nvim_command" >/dev/null 2>&1 || return 1
-
-	if herdr_client_attached; then
-		activate_terminal
-	else
-		ghostty_run "exec $(quote "$herdr_bin")"
-	fi
-	return 0
 }
 
 # --- tmux --------------------------------------------------------------------
@@ -168,7 +109,6 @@ try_ghostty() {
 
 for strategy in $STRATEGIES; do
 	case "$strategy" in
-	herdr) try_herdr "$@" && exit 0 ;;
 	tmux) try_tmux "$@" && exit 0 ;;
 	ghostty) try_ghostty "$@" && exit 0 ;;
 	*) ;;

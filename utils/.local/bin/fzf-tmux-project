@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
 # Author: Peter Benjamin
-# Description: Fuzzy-find git projects and open each selection in a new tmux window.
-#              The tmux port of fzf-herdr-project: same picker and bindings, with
-#              a window (named after the project) standing in for a workspace.
+# Description: Fuzzy-find git projects and open each selection in a new tmux window,
+#              named after the project.
 #              Pasting a GitHub URL -- a pull request, issue, file, or the repo
 #              itself -- narrows the list to the org/repo it points at.
 #              A project that is not cloned yet is cloned from GitHub into
@@ -61,7 +60,7 @@ SEARCH_ROOTS=(
 DEFAULT_AGENT=claude
 AGENT_KINDS=(claude pi copilot)
 CLONE_ROOT="${HOME}/Projects/github.com"
-MAX_DEPTH="${HERDR_PROJECT_DEPTH:-5}"
+MAX_DEPTH="${PROJECT_DEPTH:-5}"
 
 # fzf picks its 256-colour theme whenever TERM mentions "256" (tmux-256color),
 # but the 16-colour ANSI theme under xterm-ghostty. Pin the ANSI theme so the
