@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { basename, dirname } from "node:path";
 import { promisify } from "node:util";
 import type {
   ExtensionAPI,
@@ -36,7 +35,7 @@ const icons = {
   copilotWarn: "\uf4ba",
 };
 
-type RepoInfo = { label: string; slug?: string; branch?: string };
+type RepoInfo = { slug?: string; branch?: string };
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
   try {
@@ -54,44 +53,20 @@ async function git(cwd: string, ...args: string[]): Promise<string> {
 }
 
 async function repoInfo(cwd: string): Promise<RepoInfo> {
-  const [root, common, branch, remote] = await Promise.all([
-    git(cwd, "rev-parse", "--show-toplevel"),
-    git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+  const [branch, remote] = await Promise.all([
     git(cwd, "branch", "--show-current"),
     git(cwd, "remote", "get-url", "origin"),
   ]);
-  const primary = basename(common) === ".git" ? dirname(common) : root;
-  const label = basename(primary || cwd);
   // Only an unambiguous GitHub origin can be used for the repo/branch fallback.
   const slug =
     /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([^/\s]+\/[^/\s]+?)(?:\.git)?\/?$/.exec(
       remote,
     )?.[1];
-  return { label, slug, branch: branch || undefined };
+  return { slug, branch: branch || undefined };
 }
 
 function separator(theme: Theme): string {
   return ` ${theme.fg("dim", "·")} `;
-}
-
-function header(ctx: ExtensionContext, info: RepoInfo, theme: Theme): string {
-  const parts: string[] = [];
-  if (ctx.model) {
-    const model = ctx.model.name || ctx.model.id;
-    parts.push(theme.bold(model.toLowerCase().replaceAll(" ", "-")));
-  }
-  if (info.label)
-    parts.push(
-      `${info.label}${info.branch ? ` ${theme.fg("dim", info.branch)}` : ""}`,
-    );
-  const percent = ctx.getContextUsage()?.percent;
-  if (percent != null) {
-    const color = percent > 90 ? "error" : percent > 75 ? "warning" : "text";
-    parts.push(
-      `${theme.fg("dim", "ctx")} ${theme.fg(color, `${Math.round(percent)}%`)}`,
-    );
-  }
-  return parts.join(separator(theme));
 }
 
 function prRow(pr: Snapshot, theme: Theme, now: number): string {
@@ -142,8 +117,7 @@ export default function ghPrStatus(pi: ExtensionAPI) {
   let generation = 0;
   let requestRender: (() => void) | undefined;
   let snapshots: Snapshot[] = [];
-  let info: RepoInfo = { label: "" };
-  let activeContext: ExtensionContext | undefined;
+  let info: RepoInfo = {};
 
   function stop(ctx?: ExtensionContext) {
     generation++;
@@ -151,7 +125,6 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     timer = undefined;
     requestRender = undefined;
     snapshots = [];
-    activeContext = undefined;
     if (ctx?.mode === "tui") ctx.ui.setWidget(WIDGET, undefined);
   }
 
@@ -182,9 +155,8 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     await watches.stopAll();
     if (ctx.mode !== "tui") return;
     const current = generation;
-    activeContext = ctx;
     const session = ctx.sessionManager.getSessionId();
-    info = { label: basename(ctx.cwd) };
+    info = {};
     ctx.ui.setWidget(
       WIDGET,
       (tui, theme): Component => {
@@ -194,10 +166,9 @@ export default function ghPrStatus(pi: ExtensionAPI) {
           render(width: number): string[] {
             if (width <= 0) return [];
             const now = Date.now() / 1000;
-            const rows = [
-              header(activeContext ?? ctx, info, theme),
-              ...snapshots.slice(0, MAX_PRS).map((pr) => prRow(pr, theme, now)),
-            ];
+            const rows = snapshots
+              .slice(0, MAX_PRS)
+              .map((pr) => prRow(pr, theme, now));
             if (snapshots.length > MAX_PRS)
               rows.push(theme.fg("dim", `+${snapshots.length - MAX_PRS} more`));
             return rows.map((row) => truncateToWidth(row, width, "…"));
@@ -234,10 +205,6 @@ export default function ghPrStatus(pi: ExtensionAPI) {
       }, REFRESH_MS);
   });
 
-  pi.on("model_select", (_event, ctx) => {
-    activeContext = ctx;
-    requestRender?.();
-  });
   pi.on("agent_end", () => requestRender?.());
   pi.on("session_shutdown", async (_event, ctx) => {
     stop(ctx);

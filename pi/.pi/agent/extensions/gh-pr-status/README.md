@@ -1,12 +1,12 @@
 # Pi PR status widget
 
 Loaded automatically from `~/.pi/agent/extensions/gh-pr-status/`. In interactive
-Pi sessions, shows the active model, repo/branch, context usage, and up to five
-watched PRs below the editor. Reads `${XDG_CACHE_HOME:-~/.cache}/gh-pr` every 30
-seconds; it never calls GitHub. PRs watched by this Pi session
-(`watcher.pi_session`) are included across repos, with the current origin
-repo/branch as a fallback. Missing, old (>15 min), or malformed snapshots are
-ignored.
+Pi sessions, shows up to five watched PRs below the editor. Pi's own status line
+already provides the active model, repo/branch, and context usage. The widget
+reads `${XDG_CACHE_HOME:-~/.cache}/gh-pr` every 30 seconds; it never calls
+GitHub. PRs watched by this Pi session (`watcher.pi_session`) are included
+across repos, with the current origin repo/branch as a fallback. Missing, old
+(>15 min), or malformed snapshots are ignored.
 
 Use `/watch-pr` for the current branch's PR, `/watch-pr 42` for a PR in the
 current repo, or `/watch-pr https://github.com/owner/repo/pull/42` for another
