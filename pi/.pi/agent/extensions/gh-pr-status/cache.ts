@@ -63,6 +63,7 @@ export function parseSnapshot(
   repo: string | undefined,
   branch: string | undefined,
   now: number,
+  watched: ReadonlySet<string> = new Set(),
 ): Snapshot | undefined {
   const data = record(value);
   if (
@@ -82,7 +83,11 @@ export function parseSnapshot(
     return undefined;
 
   const watcher = record(data.watcher);
-  const sessionMatch = !!session && watcher?.pi_session === session;
+  // A snapshot has one writer: a concurrent Claude watcher can replace Pi's
+  // attribution between polls. Our managed watches are also session matches.
+  const sessionMatch =
+    (!!session && watcher?.pi_session === session) ||
+    watched.has(`${data.repo}#${data.number as number}`);
   if (
     !sessionMatch &&
     !(repo && branch && data.repo === repo && data.branch === branch)
@@ -169,6 +174,7 @@ export async function readSnapshots(
   repo: string | undefined,
   branch: string | undefined,
   now = Date.now() / 1000,
+  watched: ReadonlySet<string> = new Set(),
 ): Promise<Snapshot[]> {
   const snapshots: Snapshot[] = [];
   for (const owner of await directories(root)) {
@@ -191,6 +197,7 @@ export async function readSnapshots(
               repo,
               branch,
               now,
+              watched,
             );
             if (pr) snapshots.push(pr);
           } catch {
