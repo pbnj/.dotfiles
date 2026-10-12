@@ -14,12 +14,41 @@
 #              that are actually installed.
 #              <ALT-O>/<ALT-P>/<ALT-A> open the highlighted project's GitHub
 #              repo, pull request, or Actions page in the browser.
+#              A pasted deep link (pull request, issue, file) is typed into the
+#              agent's prompt once it starts, ready to be added to and sent.
 # Dependencies: brew install fd fzf gh tmux
 # Usage: fzf-tmux-project [initial query]
 #        Bind with display-popup -E so the picker closes once a window is opened.
 
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
+
+SHELLS_RE='^-?(bash|zsh|fish|sh)$'
+
+# prefill_pane <pane> <text> -- waits for the agent to take over the pane and
+# settle (the screen unchanged across two samples), then types <text> into its
+# prompt without pressing Enter. Run detached via `tmux run-shell -b`, because
+# the popup -- and anything it started -- is gone by the time the agent is up.
+# Gives up after ~30s, e.g. while a folder-trust dialog is waiting on an answer.
+prefill_pane() {
+  local pane="${1}" text="${2}" prev="" cur cmd i
+  for ((i = 0; i < 60; i++)); do
+    sleep 0.5
+    cmd="$(tmux display-message -p -t "${pane}" '#{pane_current_command}' 2>/dev/null)" || return 0
+    [[ "${cmd}" =~ ${SHELLS_RE} ]] && continue
+    cur="$(tmux capture-pane -p -t "${pane}" 2>/dev/null)" || return 0
+    if [[ -n "${cur//[[:space:]]/}" && "${cur}" == "${prev}" && "${cur,,}" != *trust* ]]; then
+      tmux send-keys -t "${pane}" -l "${text}"
+      return 0
+    fi
+    prev="${cur}"
+  done
+}
+
+if [[ "${1:-}" == "--prefill" ]]; then
+  prefill_pane "${2}" "${3}"
+  exit 0
+fi
 
 QUERY="${1:-}"
 SEARCH_ROOTS=(
@@ -130,11 +159,18 @@ normalize_spec() {
 # Bound to fzf's change event: a pasted GitHub URL becomes the "org/repo" it
 # names, which fuzzy-matches the org/repo column the picker displays. Anything
 # that is not a URL is echoed back untouched, so typing is unaffected.
+# A deep link is saved to PASTED_URL_FILE first, since the rewrite loses it.
 query_from_url() {
-  local query="${1:-}" spec
+  local query="${1:-}" spec url
   if [[ "${query}" == *github.com[/:]* ]]; then
     spec="$(normalize_spec "${query}")"
-    [[ -n "${spec}" ]] && query="${spec}"
+    if [[ -n "${spec}" ]]; then
+      url="${query#"${query%%[![:space:]]*}"}"
+      url="${url%"${url##*[![:space:]]}"}"
+      [[ "${url}" =~ github\.com/[^/]+/[^/]+/[^/?#]+ ]] &&
+        printf '%s\n%s\n' "${spec}" "${url}" >"${PASTED_URL_FILE}"
+      query="${spec}"
+    fi
   fi
   printf '%s\n' "${query}"
 }
@@ -234,6 +270,15 @@ launch_agent_in_pane() {
   fi
 }
 
+# Hands the pasted deep link to a detached prefill_pane, but only for the
+# project it points at -- not every window of a multi-select.
+prefill_if_linked() {
+  local pane="${1}" dir="${2}"
+  [[ -n "${PREFILL_URL}" ]] || return 0
+  [[ "${dir,,}" == */"${PREFILL_SPEC,,}" ]] || return 0
+  tmux run-shell -b "$(printf '%q ' "${BASH_SOURCE[0]}" --prefill "${pane}" "${PREFILL_URL}")"
+}
+
 # Matched on the foreground command, which for a node-based agent can be
 # "node" -- so an agent is also recognised by the pane title it sets.
 window_has_agent() {
@@ -247,7 +292,7 @@ window_has_agent() {
 # busy is never typed over. Prints nothing when every pane is taken.
 free_pane_in_window() {
   tmux list-panes -t "${1}" -F '#{pane_id} #{pane_current_command}' 2>/dev/null |
-    awk '$2 ~ /^-?(bash|zsh|fish|sh)$/ { print $1; exit }'
+    awk -v re="${SHELLS_RE}" '$2 ~ re { print $1; exit }'
 }
 
 # open_windows <agent-kind> <dir>... -- an empty kind opens a bare shell.
@@ -276,7 +321,7 @@ open_windows() {
       if [[ -n "${kind}" ]] && ! window_has_agent "${existing}"; then
         pane="$(free_pane_in_window "${existing}")"
         if [[ -n "${pane}" ]]; then
-          launch_agent_in_pane "${kind}" "${pane}" "${dir}" || true
+          launch_agent_in_pane "${kind}" "${pane}" "${dir}" && prefill_if_linked "${pane}" "${dir}"
         else
           echo "No free pane in ${label}; skipping ${kind}." >&2
         fi
@@ -286,12 +331,17 @@ open_windows() {
 
     # -d keeps every window but the last in the background. The agent is the
     # window's own process, so quitting it closes the window.
-    tmux new-window -t "${SESSION}:" -c "${dir}" -n "${label}" ${bg[@]+"${bg[@]}"} \
-      ${kind:+-- "${kind}"} || continue
+    pane="$(tmux new-window -t "${SESSION}:" -c "${dir}" -n "${label}" -P -F '#{pane_id}' \
+      ${bg[@]+"${bg[@]}"} ${kind:+-- "${kind}"})" || continue
+    [[ -n "${kind}" ]] && prefill_if_linked "${pane}" "${dir}"
   done
 }
 
 export -f project_preview project_pull project_browse open_url normalize_spec query_from_url
+
+PASTED_URL_FILE="$(mktemp)"
+export PASTED_URL_FILE
+trap 'rm -f "${PASTED_URL_FILE}"' EXIT
 
 QUERY="$(query_from_url "${QUERY}")"
 
@@ -330,6 +380,11 @@ done < <(
 TYPED_QUERY="${OUTPUT[0]}"
 KEY="${OUTPUT[1]:-}"
 SELECTED=("${OUTPUT[@]:2}")
+
+# The last deep link pasted, as "org/repo" and the URL itself.
+PREFILL_SPEC=""
+PREFILL_URL=""
+{ IFS= read -r PREFILL_SPEC && IFS= read -r PREFILL_URL; } <"${PASTED_URL_FILE}" || true
 
 if [[ "${KEY}" == "ctrl-y" ]]; then
   SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
