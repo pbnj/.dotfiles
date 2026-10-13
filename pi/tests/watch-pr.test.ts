@@ -93,8 +93,14 @@ console.log('https://github.com/owner/repo/pull/42');
 
   const events: { text: string; level: string }[] = [];
   const actions: string[] = [];
+  const renderStates: string[][] = [];
+  const managerRef: { current?: WatchManager } = {};
   const notify: Notify = (text, level) => events.push({ text, level });
-  const manager = new WatchManager();
+  const manager = new WatchManager(() => {
+    const active = managerRef.current?.getActivePRs() ?? [];
+    renderStates.push(active.map(({ repo, number }) => `${repo}#${number}`));
+  });
+  managerRef.current = manager;
   try {
     await manager.start(
       "42 -R owner/repo --fresh",
@@ -105,6 +111,7 @@ console.log('https://github.com/owner/repo/pull/42');
         actions.push(line);
       },
     );
+    assert.deepEqual(renderStates[0], ["owner/repo#42"]);
     await manager.start(
       "https://github.com/owner/repo/pull/42",
       dir,
@@ -135,6 +142,19 @@ console.log('https://github.com/owner/repo/pull/42');
       "owner/repo#42",
       "owner/repo#43",
     ]);
+    assert.deepEqual(manager.getActivePRs(), [
+      {
+        repo: "owner/repo",
+        number: 43,
+        url: "https://github.com/owner/repo/pull/43",
+      },
+      {
+        repo: "owner/repo",
+        number: 42,
+        url: "https://github.com/owner/repo/pull/42",
+      },
+    ]);
+    assert.ok(renderStates.length >= 4);
     assert.equal(
       events.filter(({ text }) => text.startsWith("Watching ")).length,
       2,
@@ -147,6 +167,7 @@ console.log('https://github.com/owner/repo/pull/42');
     );
     await manager.stopAll();
     assert.equal(manager.getWatchedPRs().size, 0);
+    assert.deepEqual(manager.getActivePRs(), []);
     assert.throws(() => process.kill(child.pid, 0), { code: "ESRCH" });
     assert.ok(!events.some(({ text }) => text.includes("watch stopped")));
   } finally {
@@ -173,6 +194,7 @@ void test("reports startup errors and allows another watch after exit", async ()
     );
     await until(() => events.some((text) => text.includes("watch stopped")));
     assert.match(events.at(-1)!, /gh auth failed/);
+    assert.deepEqual(manager.getActivePRs(), []);
     await manager.start(
       "https://github.com/owner/repo/pull/42",
       dir,

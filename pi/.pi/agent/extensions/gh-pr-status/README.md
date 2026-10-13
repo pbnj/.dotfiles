@@ -6,9 +6,11 @@ already provides the active model, repo/branch, and context usage. The widget
 reads `${XDG_CACHE_HOME:-~/.cache}/gh-pr` every 30 seconds; it never calls
 GitHub. PRs watched by this Pi session (`watcher.pi_session`) and PRs started
 with `/watch-pr` are included across repos, with the current origin repo/branch
-as a fallback. The managed-watch list is needed because another agent watching
-the same PR can overwrite the snapshot's single `watcher` field. Missing, old
-(>15 min), or malformed snapshots are ignored.
+as a fallback. Active `/watch-pr` targets appear as linked PR numbers
+immediately; check and review details fill in when a cache snapshot becomes
+available. The managed-watch list is needed because another agent watching the
+same PR can overwrite the snapshot's single `watcher` field. Missing, old (>15
+min), or malformed snapshots are ignored.
 
 Use `/watch-pr` for the current branch's PR, `/watch-pr 42` for a PR in the
 current repo, or `/watch-pr https://github.com/owner/repo/pull/42` for another

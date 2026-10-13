@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 import {
   parseSnapshot,
+  prioritizeWatchedPRs,
   readSnapshots,
   selectSnapshots,
 } from "../.pi/agent/extensions/gh-pr-status/cache.ts";
@@ -175,6 +176,37 @@ void test("managed watches survive another agent overwriting snapshot attributio
     ),
     undefined,
   );
+});
+
+void test("prioritizes watched PR links before metadata arrives and reuses matching snapshots", () => {
+  const snapshotPR = parseSnapshot(
+    snapshot(),
+    "mine",
+    undefined,
+    undefined,
+    now,
+  )!;
+  const watched = [
+    {
+      repo: "else/other",
+      number: 42,
+      url: "https://github.com/else/other/pull/42",
+    },
+    {
+      repo: "owner/.dotfiles",
+      number: 10,
+      url: "https://github.com/owner/.dotfiles/pull/10",
+    },
+  ];
+
+  const ordered = prioritizeWatchedPRs([snapshotPR], watched);
+  assert.deepEqual(
+    ordered.map(({ repo, number }) => `${repo}#${number}`),
+    ["else/other#42", "owner/.dotfiles#10"],
+  );
+  assert.equal("fetchedAt" in ordered[0]!, false);
+  assert.equal(ordered[0]?.url, watched[0]?.url);
+  assert.equal(ordered[1], snapshotPR);
 });
 
 void test("deduplicates newest snapshot and orders by CI, review, threads, pending, then number", () => {

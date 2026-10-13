@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
 import { promisify } from "node:util";
+import type { PRReference } from "./cache.ts";
 
 const exec = promisify(execFile);
 const REPO = /^[\w.-]+\/[\w.-]+$/;
@@ -18,7 +19,8 @@ export type WatchArgs = {
   fresh: boolean;
   autoFix: boolean;
 };
-type Watch = { child: ChildProcess; stopped: boolean };
+export type WatchedPR = PRReference;
+type Watch = { child: ChildProcess; stopped: boolean; pr: WatchedPR };
 
 export function parseWatchArgs(raw: string): WatchArgs {
   const parts = raw.trim().split(/\s+/).filter(Boolean);
@@ -159,14 +161,28 @@ function kill(watch: Watch, signal: NodeJS.Signals): void {
 
 export class WatchManager {
   private readonly watches = new Map<string, Watch>();
-  private readonly starting = new Set<string>();
+  private readonly starting = new Map<string, WatchedPR>();
   // Other agents can overwrite the same PR's single cache file, including its
   // watcher attribution. Keep our own watched PRs until this session ends.
   private readonly watched = new Set<string>();
   private generation = 0;
+  private readonly onChange?: () => void;
+
+  constructor(onChange?: () => void) {
+    this.onChange = onChange;
+  }
 
   getWatchedPRs(): ReadonlySet<string> {
     return new Set(this.watched);
+  }
+
+  getActivePRs(): WatchedPR[] {
+    const active = new Map<string, WatchedPR>();
+    for (const watch of this.watches.values())
+      active.set(`${watch.pr.repo}#${watch.pr.number}`, watch.pr);
+    for (const pr of this.starting.values())
+      active.set(`${pr.repo}#${pr.number}`, pr);
+    return [...active.values()].reverse();
   }
 
   async start(
@@ -184,18 +200,25 @@ export class WatchManager {
       notify(`Already watching ${url}`, "info");
       return;
     }
-    this.starting.add(url);
+    const match =
+      /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/([1-9]\d*)$/.exec(url);
+    if (!match) throw new Error("Expected a resolved GitHub pull request URL");
+    const pr: WatchedPR = {
+      repo: match[1]!,
+      number: Number(match[2]),
+      url,
+    };
+    const label = `${pr.repo}#${pr.number}`;
+    this.starting.set(url, pr);
+    this.onChange?.();
     try {
       const executable = await watcherPath();
       if (generation !== this.generation) return;
-      const label = url
-        .slice("https://github.com/".length)
-        .replace("/pull/", "#");
       const command = [
         "-R",
-        label.split("#")[0]!,
+        pr.repo,
         ...(args.fresh ? ["--fresh"] : []),
-        label.split("#")[1]!,
+        String(pr.number),
       ];
       const child = spawn(executable, command, {
         cwd,
@@ -203,7 +226,7 @@ export class WatchManager {
         stdio: ["ignore", "pipe", "pipe"],
         detached: process.platform !== "win32",
       });
-      const watch: Watch = { child, stopped: false };
+      const watch: Watch = { child, stopped: false, pr };
       this.watches.set(url, watch);
       this.watched.add(label);
       let error: string | undefined;
@@ -230,7 +253,10 @@ export class WatchManager {
         error = cause.message;
       });
       child.on("close", (code, signal) => {
-        if (this.watches.get(url) === watch) this.watches.delete(url);
+        if (this.watches.get(url) === watch) {
+          this.watches.delete(url);
+          this.onChange?.();
+        }
         if (
           !watch.stopped &&
           generation === this.generation &&
@@ -243,6 +269,7 @@ export class WatchManager {
       notify(`Watching ${url}${args.fresh ? " (fresh)" : ""}`, "info");
     } finally {
       this.starting.delete(url);
+      this.onChange?.();
     }
   }
 
@@ -252,6 +279,7 @@ export class WatchManager {
     this.watched.clear();
     const pending = [...this.watches.values()];
     this.watches.clear();
+    this.onChange?.();
     await Promise.all(
       pending.map(async (watch) => {
         watch.stopped = true;

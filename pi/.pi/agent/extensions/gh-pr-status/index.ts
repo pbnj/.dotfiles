@@ -13,7 +13,9 @@ import {
 import {
   cacheDirectory,
   MAX_PRS,
+  prioritizeWatchedPRs,
   readSnapshots,
+  type PRReference,
   type Snapshot,
 } from "./cache.ts";
 import {
@@ -74,13 +76,17 @@ function separator(theme: Theme): string {
   return ` ${theme.fg("dim", "·")} `;
 }
 
+function prSummary(pr: PRReference, theme: Theme): string {
+  return `${hyperlink(theme.bold(`#${pr.number}`), pr.url)} ${pr.repo.split("/")[1]}`;
+}
+
 function prRow(pr: Snapshot, theme: Theme, now: number): string {
   const dim = (text: string) => theme.fg("dim", text);
   const green = (text: string) => theme.fg("success", text);
   const orange = (text: string) => theme.fg("warning", text);
   const red = (text: string) => theme.fg("error", text);
   const parts = [
-    `${hyperlink(theme.bold(`#${pr.number}`), pr.url)} ${pr.repo.split("/")[1]}${pr.state === "draft" ? ` ${dim(icons.draft)}` : ""}`,
+    `${prSummary(pr, theme)}${pr.state === "draft" ? ` ${dim(icons.draft)}` : ""}`,
   ];
   if (pr.ci === "fail") parts.push(red(`${icons.fail} ${pr.ciCounts.fail}`));
   else if (pr.ci === "pending")
@@ -117,12 +123,13 @@ function prRow(pr: Snapshot, theme: Theme, now: number): string {
 }
 
 export default function ghPrStatus(pi: ExtensionAPI) {
-  const watches = new WatchManager();
+  let requestRender: (() => void) | undefined;
+  const watches = new WatchManager(() => requestRender?.());
   let timer: ReturnType<typeof setInterval> | undefined;
   let generation = 0;
-  let requestRender: (() => void) | undefined;
   let snapshots: Snapshot[] = [];
   let info: RepoInfo = {};
+  let refreshSnapshots: (() => Promise<void>) | undefined;
   let actionContext: ExtensionContext | undefined;
   let actionInFlight = false;
   const pendingActions: WatchActionTask[] = [];
@@ -163,6 +170,7 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     if (timer) clearInterval(timer);
     timer = undefined;
     requestRender = undefined;
+    refreshSnapshots = undefined;
     snapshots = [];
     actionQueue.cancel();
     pendingActions.length = 0;
@@ -186,6 +194,7 @@ export default function ghPrStatus(pi: ExtensionAPI) {
           },
           (message) => actionQueue.enqueue(message),
         );
+        void refreshSnapshots?.();
       } catch (error) {
         ctx.ui.notify(
           `watch-pr: ${error instanceof Error ? error.message : String(error)}`,
@@ -212,11 +221,19 @@ export default function ghPrStatus(pi: ExtensionAPI) {
           render(width: number): string[] {
             if (width <= 0) return [];
             const now = Date.now() / 1000;
-            const rows = snapshots
+            const ordered = prioritizeWatchedPRs(
+              snapshots,
+              watches.getActivePRs(),
+            );
+            const rows = ordered
               .slice(0, MAX_PRS)
-              .map((pr) => prRow(pr, theme, now));
-            if (snapshots.length > MAX_PRS)
-              rows.push(theme.fg("dim", `+${snapshots.length - MAX_PRS} more`));
+              .map((pr) =>
+                "fetchedAt" in pr
+                  ? prRow(pr, theme, now)
+                  : prSummary(pr, theme),
+              );
+            if (ordered.length > MAX_PRS)
+              rows.push(theme.fg("dim", `+${ordered.length - MAX_PRS} more`));
             return rows.map((row) => truncateToWidth(row, width, "…"));
           },
         };
@@ -246,6 +263,7 @@ export default function ghPrStatus(pi: ExtensionAPI) {
         refreshing = false;
       }
     };
+    refreshSnapshots = refresh;
     await refresh();
     if (generation === current)
       timer = setInterval(() => {
