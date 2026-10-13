@@ -16,11 +16,13 @@ repo. `-R owner/repo` selects a repo for a number or branch. `--fresh` clears
 that PR's shared notification history and re-reports existing events, which can
 also re-trigger agent tasks; use it only when that is intended. By default, new
 CI failures/cancellations and review threads, replies, or reviews are batched
-into agent tasks as well as Pi notifications. The agent fetches full details and
-validates them before making changes. Use `--notify-only` to disable agent tasks
-for a watch. One watcher per PR runs in the background. It inherits Pi's session
-ID via `PI_SESSION_ID`, stops when the PR closes (or the Scalr apply watch
-finishes), and is terminated on session switch, reload, or exit.
+into agent tasks as well as Pi notifications. Each queued task contains only the
+emitted event text, without a generated follow-up prompt. The agent must still
+fetch current details and validate before making changes. Use `--notify-only` to
+disable agent tasks for a watch. One watcher per PR runs in the background and
+inherits Pi's session ID via `PI_SESSION_ID`. It stops when the PR closes (or
+the Scalr apply watch finishes), and is terminated on session switch, reload, or
+exit.
 
 The command looks for `~/.local/bin/gh-pr-watch` or the checkout at
 `~/Projects/github.com/komodohealth/security-automation/plugins/security-dev/skills/gh/scripts/gh-pr-watch/gh-pr-watch`.
