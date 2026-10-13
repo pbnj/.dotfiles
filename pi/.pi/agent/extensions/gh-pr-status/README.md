@@ -1,33 +1,40 @@
-# Pi PR status widget
+# Pi PR status widget and Monitor tool
 
 Loaded automatically from `~/.pi/agent/extensions/gh-pr-status/`. In interactive
-Pi sessions, shows up to five watched PRs below the editor. Pi's own status line
-already provides the active model, repo/branch, and context usage. The widget
-reads `${XDG_CACHE_HOME:-~/.cache}/gh-pr` every 30 seconds; it never calls
-GitHub. PRs watched by this Pi session (`watcher.pi_session`) and PRs started
-with `/watch-pr` are included across repos, with the current origin repo/branch
-as a fallback. The managed-watch list is needed because another agent watching
-the same PR can overwrite the snapshot's single `watcher` field. Missing, old
-(>15 min), or malformed snapshots are ignored.
+Pi sessions, the widget shows up to five monitored PRs below the editor. Pi's
+own status line already provides the active model, repo/branch, and context
+usage. The widget reads `${XDG_CACHE_HOME:-~/.cache}/gh-pr` every 30 seconds; it
+never calls GitHub. PR snapshots are included across repos when they match this
+Pi session or a PR identity parsed from a `Monitor` description such as
+`CI and reviews on owner/repo#42` (or a `gh-pr-watch` command); the current
+origin repo/branch is a fallback. Active monitor targets appear as linked PR
+numbers immediately, and the normal CI/review details fill in when a cache
+snapshot becomes available. The managed PR list is retained for the session
+because another agent can overwrite a snapshot's single `watcher` field.
+Missing, old (>15 min), or malformed snapshots are ignored.
 
-Use `/watch-pr` for the current branch's PR, `/watch-pr 42` for a PR in the
-current repo, or `/watch-pr https://github.com/owner/repo/pull/42` for another
-repo. `-R owner/repo` selects a repo for a number or branch. `--fresh` clears
-that PR's shared notification history and re-reports existing events, which can
-also re-trigger agent tasks; use it only when that is intended. By default, new
-CI failures/cancellations and review threads, replies, or reviews are batched
-into agent tasks as well as Pi notifications. Each queued task contains only the
-emitted event text, without a generated follow-up prompt. The agent must still
-fetch current details and validate before making changes. Use `--notify-only` to
-disable agent tasks for a watch. One watcher per PR runs in the background and
-inherits Pi's session ID via `PI_SESSION_ID`. It stops when the PR closes (or
-the Scalr apply watch finishes), and is terminated on session switch, reload, or
-exit.
+The former `/watch-pr` command is replaced by the model-callable `Monitor` tool.
+For example, pass the absolute watcher path and a PR description:
 
-The command looks for `~/.local/bin/gh-pr-watch` or the checkout at
-`~/Projects/github.com/komodohealth/security-automation/plugins/security-dev/skills/gh/scripts/gh-pr-watch/gh-pr-watch`.
-Set `GH_PR_WATCH` to an absolute executable path to override that lookup. You
-can still start an external watcher instead; the widget only reads cache.
+```json
+{
+  "command": "/absolute/path/to/gh-pr-watch -R owner/repo 42 --fresh",
+  "description": "CI and reviews on owner/repo#42",
+  "timeout_ms": 1800000
+}
+```
+
+`Monitor` also accepts a WebSocket source (`ws: { url, protocols? }`) instead of
+`command`. Command stdout/stderr lines and WebSocket messages are delivered to
+the agent as asynchronous, explicitly untrusted monitor events. Monitors default
+to five minutes and cap at 30 minutes in TUI sessions or 10 minutes in
+UI-capable RPC sessions; `MonitorStop` stops one by its returned `monitor_id`.
+No-UI modes reject monitors because they cannot deliver events or request
+approval. TUI/RPC sessions confirm command and WebSocket access before launch;
+WebSocket targets resolving to private, link-local, or reserved addresses are
+rejected. Commands execute as the current user and are not sandboxed; the
+`Monitor` tool is marked open-world and destructive for permission extensions.
+Monitors stop on session switch, reload, or shutdown.
 
 The widget does not render Scalr runs yet: the current `gh-pr-watch` cache
 writer does not publish `scalr.runs` and deletes the PR snapshot at merge. Add

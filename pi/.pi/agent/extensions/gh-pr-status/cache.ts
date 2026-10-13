@@ -18,6 +18,9 @@ export type Snapshot = {
   sessionMatch: boolean;
 };
 
+export type PRReference = Pick<Snapshot, "repo" | "number" | "url">;
+export type StatusPR = Snapshot | PRReference;
+
 export const MAX_AGE_SECONDS = 900;
 export const MAX_PRS = 5;
 const MAX_SNAPSHOT_BYTES = 512 * 1024;
@@ -156,6 +159,25 @@ export function selectSnapshots(snapshots: Snapshot[]): Snapshot[] {
     }
     return a.repo.localeCompare(b.repo);
   });
+}
+
+export function prioritizeWatchedPRs(
+  snapshots: Snapshot[],
+  watched: readonly PRReference[],
+): StatusPR[] {
+  const snapshotsByPR = new Map(
+    snapshots.map((pr) => [`${pr.repo}#${pr.number}`, pr] as const),
+  );
+  const ordered = new Map<string, StatusPR>();
+  for (const pr of watched) {
+    const key = `${pr.repo}#${pr.number}`;
+    if (!ordered.has(key)) ordered.set(key, snapshotsByPR.get(key) ?? pr);
+  }
+  for (const pr of snapshots) {
+    const key = `${pr.repo}#${pr.number}`;
+    if (!ordered.has(key)) ordered.set(key, pr);
+  }
+  return [...ordered.values()];
 }
 
 async function directories(path: string): Promise<string[]> {
