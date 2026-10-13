@@ -17,7 +17,7 @@ import {
   type Snapshot,
 } from "./cache.ts";
 import {
-  formatWatchActionPrompt,
+  formatWatchActionMessage,
   WatchActionQueue,
   type WatchActionTask,
 } from "./automation.ts";
@@ -131,11 +131,11 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     const ctx = actionContext;
     if (!ctx || actionInFlight || pendingActions.length === 0) return;
     const task = pendingActions.shift()!;
-    const prompt = formatWatchActionPrompt(task, ctx.cwd);
+    const message = formatWatchActionMessage(task);
     actionInFlight = true;
     try {
       pi.sendUserMessage(
-        prompt,
+        message,
         ctx.isIdle() ? undefined : { deliverAs: "followUp" },
       );
       const prs = task.groups.map((group) => group.label).join(", ");
