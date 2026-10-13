@@ -16,6 +16,11 @@ import {
   readSnapshots,
   type Snapshot,
 } from "./cache.ts";
+import {
+  formatWatchActionPrompt,
+  WatchActionQueue,
+  type WatchActionTask,
+} from "./automation.ts";
 import { WatchManager } from "./watch.ts";
 
 const gitExec = promisify(execFile);
@@ -118,6 +123,40 @@ export default function ghPrStatus(pi: ExtensionAPI) {
   let requestRender: (() => void) | undefined;
   let snapshots: Snapshot[] = [];
   let info: RepoInfo = {};
+  let actionContext: ExtensionContext | undefined;
+  let actionInFlight = false;
+  const pendingActions: WatchActionTask[] = [];
+
+  function dispatchNextAction() {
+    const ctx = actionContext;
+    if (!ctx || actionInFlight || pendingActions.length === 0) return;
+    const task = pendingActions.shift()!;
+    const prompt = formatWatchActionPrompt(task, ctx.cwd);
+    actionInFlight = true;
+    try {
+      pi.sendUserMessage(
+        prompt,
+        ctx.isIdle() ? undefined : { deliverAs: "followUp" },
+      );
+      const prs = task.groups.map((group) => group.label).join(", ");
+      ctx.ui.notify(
+        `watch-pr: agent queued ${task.eventCount} actionable event(s) for ${prs}`,
+        "info",
+      );
+    } catch (error) {
+      actionInFlight = false;
+      ctx.ui.notify(
+        `watch-pr: could not start agent task: ${error instanceof Error ? error.message : String(error)}`,
+        "error",
+      );
+      dispatchNextAction();
+    }
+  }
+
+  const actionQueue = new WatchActionQueue((task) => {
+    pendingActions.push(task);
+    dispatchNextAction();
+  });
 
   function stop(ctx?: ExtensionContext) {
     generation++;
@@ -125,11 +164,16 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     timer = undefined;
     requestRender = undefined;
     snapshots = [];
+    actionQueue.cancel();
+    pendingActions.length = 0;
+    actionInFlight = false;
+    actionContext = undefined;
     if (ctx?.mode === "tui") ctx.ui.setWidget(WIDGET, undefined);
   }
 
   pi.registerCommand("watch-pr", {
-    description: "Watch a PR's CI and reviews; show updates as notifications",
+    description:
+      "Watch a PR; automatically investigate CI failures and review feedback",
     handler: async (args, ctx) => {
       if (ctx.mode !== "tui") return;
       try {
@@ -140,6 +184,7 @@ export default function ghPrStatus(pi: ExtensionAPI) {
           (message, level) => {
             ctx.ui.notify(message, level);
           },
+          (message) => actionQueue.enqueue(message),
         );
       } catch (error) {
         ctx.ui.notify(
@@ -154,6 +199,7 @@ export default function ghPrStatus(pi: ExtensionAPI) {
     stop(ctx);
     await watches.stopAll();
     if (ctx.mode !== "tui") return;
+    actionContext = ctx;
     const current = generation;
     const session = ctx.sessionManager.getSessionId();
     info = {};
@@ -208,6 +254,11 @@ export default function ghPrStatus(pi: ExtensionAPI) {
   });
 
   pi.on("agent_end", () => requestRender?.());
+  pi.on("agent_settled", () => {
+    actionInFlight = false;
+    dispatchNextAction();
+    requestRender?.();
+  });
   pi.on("session_shutdown", async (_event, ctx) => {
     stop(ctx);
     await watches.stopAll();

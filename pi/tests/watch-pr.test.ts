@@ -42,11 +42,19 @@ void test("validates arguments and refuses extra options", () => {
     pr: undefined,
     repo: undefined,
     fresh: false,
+    autoFix: true,
   });
   assert.deepEqual(parseWatchArgs("-R owner/repo 42 --fresh"), {
     pr: "42",
     repo: "owner/repo",
     fresh: true,
+    autoFix: true,
+  });
+  assert.deepEqual(parseWatchArgs("42 --notify-only"), {
+    pr: "42",
+    repo: undefined,
+    fresh: false,
+    autoFix: false,
   });
   assert.throws(() => parseWatchArgs("42 other"));
   assert.throws(() => parseWatchArgs("--interval 1"));
@@ -84,10 +92,19 @@ console.log('https://github.com/owner/repo/pull/42');
   process.env.WATCH_TEST_RESULT = result;
 
   const events: { text: string; level: string }[] = [];
+  const actions: string[] = [];
   const notify: Notify = (text, level) => events.push({ text, level });
   const manager = new WatchManager();
   try {
-    await manager.start("42 -R owner/repo --fresh", dir, "pi-123", notify);
+    await manager.start(
+      "42 -R owner/repo --fresh",
+      dir,
+      "pi-123",
+      notify,
+      (line) => {
+        actions.push(line);
+      },
+    );
     await manager.start(
       "https://github.com/owner/repo/pull/42",
       dir,
@@ -99,11 +116,21 @@ console.log('https://github.com/owner/repo/pull/42');
     assert.deepEqual(child.args, ["-R", "owner/repo", "--fresh", "42"]);
     assert.equal(child.session, "pi-123");
     await manager.start(
-      "https://github.com/owner/repo/pull/43",
+      "https://github.com/owner/repo/pull/43 --notify-only",
       dir,
       "pi-123",
       notify,
+      (line) => actions.push(line),
     );
+    await until(() =>
+      events.some(({ text }) => text.startsWith("owner/repo#43: CI fail:")),
+    );
+    const notifyOnlyChild = JSON.parse(await readFile(result, "utf8"));
+    assert.deepEqual(notifyOnlyChild.args, ["-R", "owner/repo", "43"]);
+    assert.ok(
+      actions.some((line) => line.startsWith("owner/repo#42: CI fail:")),
+    );
+    assert.ok(!actions.some((line) => line.startsWith("owner/repo#43:")));
     assert.deepEqual([...manager.getWatchedPRs()].sort(), [
       "owner/repo#42",
       "owner/repo#43",

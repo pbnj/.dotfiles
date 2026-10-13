@@ -12,7 +12,12 @@ const MAX_LINE = 700;
 
 type Severity = "info" | "warning" | "error";
 export type Notify = (text: string, severity: Severity) => void;
-export type WatchArgs = { pr?: string; repo?: string; fresh: boolean };
+export type WatchArgs = {
+  pr?: string;
+  repo?: string;
+  fresh: boolean;
+  autoFix: boolean;
+};
 type Watch = { child: ChildProcess; stopped: boolean };
 
 export function parseWatchArgs(raw: string): WatchArgs {
@@ -20,6 +25,7 @@ export function parseWatchArgs(raw: string): WatchArgs {
   let pr: string | undefined;
   let repo: string | undefined;
   let fresh = false;
+  let autoFix = true;
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]!;
     if (part === "-R" || part === "--repo") {
@@ -27,13 +33,15 @@ export function parseWatchArgs(raw: string): WatchArgs {
       repo = parts[++i];
       if (!repo || !REPO.test(repo))
         throw new Error(
-          "Usage: /watch-pr [PR number|URL|branch] [-R owner/repo] [--fresh]",
+          "Usage: /watch-pr [PR number|URL|branch] [-R owner/repo] [--fresh] [--notify-only]",
         );
     } else if (part === "--fresh") {
       fresh = true;
+    } else if (part === "--notify-only") {
+      autoFix = false;
     } else if (part.startsWith("-") || pr) {
       throw new Error(
-        "Usage: /watch-pr [PR number|URL|branch] [-R owner/repo] [--fresh]",
+        "Usage: /watch-pr [PR number|URL|branch] [-R owner/repo] [--fresh] [--notify-only]",
       );
     } else {
       pr = part;
@@ -46,7 +54,7 @@ export function parseWatchArgs(raw: string): WatchArgs {
   ) {
     throw new Error("PR must be a number, GitHub URL, or branch name");
   }
-  return { pr, repo, fresh };
+  return { pr, repo, fresh, autoFix };
 }
 
 function prUrl(value: string): string {
@@ -166,6 +174,7 @@ export class WatchManager {
     cwd: string,
     session: string,
     notify: Notify,
+    onAction?: (message: string) => void,
   ): Promise<void> {
     const generation = this.generation;
     const args = parseWatchArgs(raw);
@@ -204,7 +213,9 @@ export class WatchManager {
         (line) => {
           const message = clean(line);
           if (!watch.stopped && generation === this.generation && message) {
-            notify(`${label}: ${message}`, severity(message));
+            const watchLine = `${label}: ${message}`;
+            notify(watchLine, severity(message));
+            if (args.autoFix) onAction?.(watchLine);
           }
         },
       );
