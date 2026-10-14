@@ -2,14 +2,14 @@
 
 # Author: Peter Benjamin
 # Description: Fuzzy-find git projects and open each selection in a new Ghostty
-#              tab, in the window the picker runs in. The Ghostty counterpart of
+#              split pane beside the one the picker runs in. The Ghostty counterpart of
 #              fzf-tmux-project, driven through Ghostty's AppleScript dictionary.
 #              Pasting a GitHub URL -- a pull request, issue, file, or the repo
 #              itself -- narrows the list to the org/repo it points at.
 #              A project that is not cloned yet is cloned from GitHub into
 #              ~/Projects/github.com/<org>/<repo> by <ENTER> (and then opened
 #              with the agent), or by <CTRL-Y> (opened with a bare shell).
-#              <ENTER> opens the tab and starts DEFAULT_AGENT in it;
+#              <ENTER> opens the pane and starts DEFAULT_AGENT in it;
 #              <ALT-ENTER> picks the agent instead, from the AGENT_KINDS below
 #              that are actually installed.
 #              <ALT-O>/<ALT-P>/<ALT-A> open the highlighted project's GitHub
@@ -18,7 +18,7 @@
 #              agent's prompt once it starts, ready to be added to and sent.
 # Dependencies: brew install fd fzf gh; Ghostty 1.3+ (macOS only)
 # Usage: fzf-ghostty-project [initial query]
-#        Run from a shell in a Ghostty tab; the first run asks for permission
+#        Run from a shell in a Ghostty pane; the first run asks for permission
 #        to automate Ghostty.
 
 set -euo pipefail
@@ -32,7 +32,7 @@ ghostty_osa() {
   osascript - "$@" <<<"${script}"
 }
 
-# A shell at its prompt titles the tab with its cwd (~/... or /...), and with
+# A shell at its prompt titles its pane with its cwd (~/... or /...), and with
 # the command line while one runs; an agent replaces both with its own title.
 # prefill_terminal <terminal-id> <text> -- waits for that title to show up and
 # settle (unchanged across two samples), then pastes <text> into the agent's
@@ -70,7 +70,7 @@ SEARCH_ROOTS=(
   "${HOME}/.dotfiles"
 )
 # DEFAULT_AGENT is what <ENTER> starts; AGENT_KINDS are offered by <ALT-ENTER>,
-# in this order. Each entry is typed into the new tab's shell, so it must be
+# in this order. Each entry is typed into the new pane's shell, so it must be
 # the executable's own name.
 DEFAULT_AGENT=claude
 AGENT_KINDS=(claude pi copilot)
@@ -215,7 +215,7 @@ resolve_spec() {
 }
 
 # Prints the project directory on success so the caller can hand it to
-# open_tabs. Already-cloned repos short-circuit instead of erroring.
+# open_panes. Already-cloned repos short-circuit instead of erroring.
 clone_repo() {
   local spec="${1:-}" dir="${CLONE_ROOT}/${1:-}"
 
@@ -262,27 +262,29 @@ pick_agent_kind() {
   printf '%s\n' "${kinds[@]}" |
     fzf --reverse \
       --prompt="Agent> " \
-      --header='<ENTER>: start this agent in the tab / <ESC>: shell only' ||
+      --header='<ENTER>: start this agent in the pane / <ESC>: shell only' ||
     true
 }
 
-# The window the picker runs in; every tab lands here. Falls back to a new
+# The window and terminal the picker runs in; the first pane splits off that
+# terminal, and each later one off the pane before it. Falls back to a new
 # window when Ghostty has none, e.g. when run from another terminal.
-WINDOW="$(ghostty_osa 'tell application "Ghostty"
-  if (count of windows) is 0 then return id of (new window)
-  return id of front window
-end tell')"
+read -r WINDOW ORIGIN < <(ghostty_osa 'tell application "Ghostty"
+  if (count of windows) is 0 then new window
+  set w to front window
+  return (id of w) & " " & (id of focused terminal of selected tab of w)
+end tell')
 
-# find_terminal <dir> -- prints "<tab-id> <terminal-id>" for the first
-# terminal in WINDOW whose cwd is <dir>, or nothing. Ghostty tab titles are
-# read-only, so a project's tab is recognised by where it is, not its name.
+# find_terminal <dir> -- prints the id of the first terminal in WINDOW whose
+# cwd is <dir>, or nothing. Ghostty titles are read-only, so a project's pane
+# is recognised by where it is, not its name.
 find_terminal() {
   ghostty_osa 'on run argv
   tell application "Ghostty"
     set w to window id (item 1 of argv)
     repeat with t in tabs of w
       repeat with term in terminals of t
-        if working directory of term is (item 2 of argv) then return (id of t) & " " & (id of term)
+        if working directory of term is (item 2 of argv) then return id of term
       end repeat
     end repeat
   end tell
@@ -290,20 +292,8 @@ find_terminal() {
 end run' "${WINDOW}" "${1}"
 }
 
-# new_tab <dir> <input> / split_terminal <terminal-id> <dir> <input> -- print
-# the new terminal's id. <input> is typed into the new shell once it starts.
-new_tab() {
-  ghostty_osa 'on run argv
-  tell application "Ghostty"
-    set cfg to new surface configuration
-    set initial working directory of cfg to item 2 of argv
-    if item 3 of argv is not "" then set initial input of cfg to item 3 of argv
-    set t to new tab in (window id (item 1 of argv)) with configuration cfg
-    return id of focused terminal of t
-  end tell
-end run' "${WINDOW}" "${1}" "${2}"
-}
-
+# split_terminal <terminal-id> <dir> <input> -- prints the new terminal's id.
+# <input> is typed into the new shell once it starts.
 split_terminal() {
   ghostty_osa 'on run argv
   tell application "Ghostty"
@@ -336,7 +326,7 @@ agent_running_in() {
 }
 
 # Hands the pasted deep link to a detached prefill_terminal, but only for the
-# project it points at -- not every tab of a multi-select.
+# project it points at -- not every pane of a multi-select.
 prefill_if_linked() {
   local term="${1}" dir="${2}"
   [[ -n "${PREFILL_URL}" ]] || return 0
@@ -345,21 +335,21 @@ prefill_if_linked() {
   disown
 }
 
-# open_tabs <agent-kind> <dir>... -- an empty kind opens a bare shell.
-open_tabs() {
+# open_panes <agent-kind> <dir>... -- an empty kind opens a bare shell.
+open_panes() {
   local kind="${1}"
   shift
-  local dir existing term input focus=""
+  local dir existing term input focus="" anchor="${ORIGIN}"
 
   for dir in "$@"; do
     [[ -d "${dir}" ]] || continue
 
-    # Reuse the tab already sitting in this project instead of duplicating it.
+    # Reuse the pane already sitting in this project instead of duplicating it.
     existing="$(find_terminal "${dir}")"
     if [[ -n "${existing}" ]]; then
-      focus="${existing#* }"
+      focus="${existing}"
       # An agent is already at work here -- focusing it is the whole job.
-      # Otherwise the agent gets a split of its own: whether the tab's shell is
+      # Otherwise the agent gets a split of its own: whether the pane's shell is
       # idle cannot be told, so it is never typed into.
       if [[ -n "${kind}" ]] && ! agent_running_in "${dir}"; then
         term="$(split_terminal "${focus}" "${dir}" "${kind}"$'\n')" || continue
@@ -369,15 +359,16 @@ open_tabs() {
       continue
     fi
 
-    # exec makes the agent the tab's own process, so quitting it closes the tab.
+    # exec makes the agent the pane's own process, so quitting it closes the pane.
     input=""
     [[ -n "${kind}" ]] && input="exec ${kind}"$'\n'
-    term="$(new_tab "${dir}" "${input}")" || continue
+    term="$(split_terminal "${anchor}" "${dir}" "${input}")" || continue
+    anchor="${term}"
     focus="${term}"
     [[ -n "${kind}" ]] && prefill_if_linked "${term}" "${dir}"
   done
 
-  # New tabs take focus as they open; the last pick is the one left in front.
+  # New panes take focus as they open; the last pick is the one left in front.
   [[ -z "${focus}" ]] || focus_terminal "${focus}"
 }
 
@@ -433,7 +424,7 @@ PREFILL_URL=""
 if [[ "${KEY}" == "ctrl-y" ]]; then
   SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
   DIR="$(clone_repo "${SPEC}")" || exit 1
-  open_tabs "" "${DIR}"
+  open_panes "" "${DIR}"
   exit 0
 fi
 
@@ -467,4 +458,4 @@ else
   KIND=""
 fi
 
-open_tabs "${KIND}" "${SELECTED[@]}"
+open_panes "${KIND}" "${SELECTED[@]}"
