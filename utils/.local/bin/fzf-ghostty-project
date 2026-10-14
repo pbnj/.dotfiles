@@ -1,0 +1,470 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Fuzzy-find git projects and open each selection in a new Ghostty
+#              tab, in the window the picker runs in. The Ghostty counterpart of
+#              fzf-tmux-project, driven through Ghostty's AppleScript dictionary.
+#              Pasting a GitHub URL -- a pull request, issue, file, or the repo
+#              itself -- narrows the list to the org/repo it points at.
+#              A project that is not cloned yet is cloned from GitHub into
+#              ~/Projects/github.com/<org>/<repo> by <ENTER> (and then opened
+#              with the agent), or by <CTRL-Y> (opened with a bare shell).
+#              <ENTER> opens the tab and starts DEFAULT_AGENT in it;
+#              <ALT-ENTER> picks the agent instead, from the AGENT_KINDS below
+#              that are actually installed.
+#              <ALT-O>/<ALT-P>/<ALT-A> open the highlighted project's GitHub
+#              repo, pull request, or Actions page in the browser.
+#              A pasted deep link (pull request, issue, file) is typed into the
+#              agent's prompt once it starts, ready to be added to and sent.
+# Dependencies: brew install fd fzf gh; Ghostty 1.3+ (macOS only)
+# Usage: fzf-ghostty-project [initial query]
+#        Run from a shell in a Ghostty tab; the first run asks for permission
+#        to automate Ghostty.
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+# ghostty_osa <script> [arg]... -- runs AppleScript against Ghostty with the
+# args as argv, so paths and URLs are never spliced into the script source.
+ghostty_osa() {
+  local script="${1}"
+  shift
+  osascript - "$@" <<<"${script}"
+}
+
+# A shell at its prompt titles the tab with its cwd (~/... or /...), and with
+# the command line while one runs; an agent replaces both with its own title.
+# prefill_terminal <terminal-id> <text> -- waits for that title to show up and
+# settle (unchanged across two samples), then pastes <text> into the agent's
+# prompt without pressing Enter. Runs detached, since the picker exits long
+# before the agent is up. Gives up after ~30s.
+prefill_terminal() {
+  local term="${1}" text="${2}" prev="" cur i
+  for ((i = 0; i < 60; i++)); do
+    sleep 0.5
+    cur="$(ghostty_osa 'on run argv
+  tell application "Ghostty" to return name of terminal id (item 1 of argv)
+end run' "${term}" 2>/dev/null)" || return 0
+    if [[ -z "${cur//[[:space:]]/}" || "${cur}" == */* || "${cur}" == "~"* || "${cur}" =~ ^(exec\ )?[a-z_-]+$ ]]; then
+      prev=""
+      continue
+    fi
+    if [[ "${cur}" == "${prev}" ]]; then
+      ghostty_osa 'on run argv
+  tell application "Ghostty" to input text (item 2 of argv) to terminal id (item 1 of argv)
+end run' "${term}" "${text}" >/dev/null
+      return 0
+    fi
+    prev="${cur}"
+  done
+}
+
+if [[ "${1:-}" == "--prefill" ]]; then
+  prefill_terminal "${2}" "${3}"
+  exit 0
+fi
+
+QUERY="${1:-}"
+SEARCH_ROOTS=(
+  "${HOME}/Projects"
+  "${HOME}/.dotfiles"
+)
+# DEFAULT_AGENT is what <ENTER> starts; AGENT_KINDS are offered by <ALT-ENTER>,
+# in this order. Each entry is typed into the new tab's shell, so it must be
+# the executable's own name.
+DEFAULT_AGENT=claude
+AGENT_KINDS=(claude pi copilot)
+CLONE_ROOT="${HOME}/Projects/github.com"
+MAX_DEPTH="${PROJECT_DEPTH:-5}"
+
+project_list() {
+  fd --hidden --no-ignore --type d --max-depth "${MAX_DEPTH}" '^\.git$' "${SEARCH_ROOTS[@]}" \
+    -x dirname {} | sort -u
+}
+
+project_preview() {
+  local dir="${1:-}"
+  echo "${dir}"
+  echo
+  git -C "${dir}" log --oneline --decorate --color=always -10 2>/dev/null || true
+  echo
+  git -C "${dir}" status --short --branch 2>/dev/null || true
+}
+
+open_url() {
+  local url="${1:-}"
+  [[ -n "${url}" ]] || return 0
+  if command -v open >/dev/null 2>&1; then
+    open "${url}"
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "${url}"
+  else
+    echo "No opener found for ${url}." >&2
+    return 1
+  fi
+}
+
+# project_browse <repo|pr|actions> <dir> -- gh reads the repo from the cwd, so
+# every call runs in a subshell that has cd'd into the project. A branch with no
+# PR falls back to the repo's pull request list rather than failing.
+project_browse() {
+  local target="${1:-repo}" dir="${2:-}" url pr_url
+  [[ -d "${dir}/.git" ]] || return 0
+
+  url="$(cd "${dir}" && gh repo view --json url --jq .url 2>/dev/null)" || true
+  if [[ -z "${url}" ]]; then
+    echo "${dir} is not a GitHub repo." >&2
+    return 1
+  fi
+
+  case "${target}" in
+  pr)
+    pr_url="$(cd "${dir}" && gh pr view --json url --jq .url 2>/dev/null)" || true
+    url="${pr_url:-${url}/pulls}"
+    ;;
+  actions) url="${url}/actions" ;;
+  esac
+
+  open_url "${url}"
+}
+
+project_pull() {
+  local dir
+  for dir in "$@"; do
+    git -C "${dir}" pull --rebase --autostash --prune --quiet 2>/dev/null || true
+  done
+}
+
+# Reduce anything that names a GitHub repo -- org/repo, a clone URL, an https
+# URL, including deep links into one such as a pull request, issue, or file -- to
+# the bare "org/repo" the clone path is built from. Prints nothing when the input
+# is not a fully qualified repo, which is the signal to fall back to a GitHub
+# search.
+normalize_spec() {
+  local spec="${1:-}" url=""
+  spec="${spec#"${spec%%[![:space:]]*}"}"
+  spec="${spec%"${spec##*[![:space:]]}"}"
+  spec="${spec#git@github.com:}"
+  spec="${spec#http://}"
+  spec="${spec#https://}"
+  spec="${spec#www.}"
+  if [[ "${spec}" == github.com/* ]]; then
+    url=1
+    spec="${spec#github.com/}"
+  fi
+  spec="${spec%%[?#]*}"
+  spec="${spec%.git}"
+  spec="${spec%/}"
+  # Only a URL may carry a path past the repo: /pull/123, /issues/4, /blob/...
+  # A bare "a/b/c" is left alone, so it still searches rather than guessing.
+  if [[ -n "${url}" && "${spec}" =~ ^([^/]+/[^/]+)/ ]]; then
+    spec="${BASH_REMATCH[1]}"
+    spec="${spec%.git}"
+  fi
+  [[ "${spec}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || return 0
+  printf '%s\n' "${spec}"
+}
+
+# Bound to fzf's change event: a pasted GitHub URL becomes the "org/repo" it
+# names, which fuzzy-matches the org/repo column the picker displays. Anything
+# that is not a URL is echoed back untouched, so typing is unaffected.
+# A deep link is saved to PASTED_URL_FILE first, since the rewrite loses it.
+query_from_url() {
+  local query="${1:-}" spec url
+  if [[ "${query}" == *github.com[/:]* ]]; then
+    spec="$(normalize_spec "${query}")"
+    if [[ -n "${spec}" ]]; then
+      url="${query#"${query%%[![:space:]]*}"}"
+      url="${url%"${url##*[![:space:]]}"}"
+      [[ "${url}" =~ github\.com/[^/]+/[^/]+/[^/?#]+ ]] &&
+        printf '%s\n%s\n' "${spec}" "${url}" >"${PASTED_URL_FILE}"
+      query="${spec}"
+    fi
+  fi
+  printf '%s\n' "${query}"
+}
+
+# Literal first: an exact org/repo clones without a network round-trip. Anything
+# else goes through `gh search repos` so the repo is confirmed to exist before
+# git touches the disk.
+resolve_spec() {
+  local query="${1:-}" spec
+  if [[ -z "${query}" ]]; then
+    echo "Nothing to clone: type an org/repo (or a repo name to search) first." >&2
+    return 1
+  fi
+
+  spec="$(normalize_spec "${query}")"
+  if [[ -n "${spec}" ]]; then
+    printf '%s\n' "${spec}"
+    return 0
+  fi
+
+  spec="$(gh search repos --limit 30 --json fullName --jq '.[].fullName' "${query}" 2>/dev/null |
+    fzf --reverse \
+      --prompt="GitHub repo> " \
+      --header='<ENTER>: clone into '"${CLONE_ROOT}"'/<org>/<repo>' \
+      --preview='gh repo view {}' \
+      --preview-window='bottom,60%' || true)"
+
+  if [[ -z "${spec}" ]]; then
+    echo "No GitHub repo matched '${query}'." >&2
+    return 1
+  fi
+  printf '%s\n' "${spec}"
+}
+
+# Prints the project directory on success so the caller can hand it to
+# open_tabs. Already-cloned repos short-circuit instead of erroring.
+clone_repo() {
+  local spec="${1:-}" dir="${CLONE_ROOT}/${1:-}"
+
+  if [[ -d "${dir}/.git" ]]; then
+    echo "Already cloned: ${dir}" >&2
+    printf '%s\n' "${dir}"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${dir}")"
+  if ! gh repo clone "${spec}" "${dir}"; then
+    echo "Failed to clone ${spec} into ${dir}." >&2
+    return 1
+  fi
+  printf '%s\n' "${dir}"
+}
+
+installed_agent_kinds() {
+  local kind
+  for kind in "${AGENT_KINDS[@]}"; do
+    command -v "${kind}" >/dev/null 2>&1 && printf '%s\n' "${kind}"
+  done
+}
+
+# Prints the chosen `--kind`, or nothing when the user escapes out -- which the
+# callers read as "just open the shell", not as an error.
+pick_agent_kind() {
+  local kinds=()
+  while IFS= read -r kind; do
+    kinds+=("${kind}")
+  done < <(installed_agent_kinds)
+
+  case "${#kinds[@]}" in
+  0)
+    echo "No agent from '${AGENT_KINDS[*]}' is installed; opening a shell." >&2
+    return 0
+    ;;
+  1)
+    printf '%s\n' "${kinds[0]}"
+    return 0
+    ;;
+  esac
+
+  printf '%s\n' "${kinds[@]}" |
+    fzf --reverse \
+      --prompt="Agent> " \
+      --header='<ENTER>: start this agent in the tab / <ESC>: shell only' ||
+    true
+}
+
+# The window the picker runs in; every tab lands here. Falls back to a new
+# window when Ghostty has none, e.g. when run from another terminal.
+WINDOW="$(ghostty_osa 'tell application "Ghostty"
+  if (count of windows) is 0 then return id of (new window)
+  return id of front window
+end tell')"
+
+# find_terminal <dir> -- prints "<tab-id> <terminal-id>" for the first
+# terminal in WINDOW whose cwd is <dir>, or nothing. Ghostty tab titles are
+# read-only, so a project's tab is recognised by where it is, not its name.
+find_terminal() {
+  ghostty_osa 'on run argv
+  tell application "Ghostty"
+    set w to window id (item 1 of argv)
+    repeat with t in tabs of w
+      repeat with term in terminals of t
+        if working directory of term is (item 2 of argv) then return (id of t) & " " & (id of term)
+      end repeat
+    end repeat
+  end tell
+  return ""
+end run' "${WINDOW}" "${1}"
+}
+
+# new_tab <dir> <input> / split_terminal <terminal-id> <dir> <input> -- print
+# the new terminal's id. <input> is typed into the new shell once it starts.
+new_tab() {
+  ghostty_osa 'on run argv
+  tell application "Ghostty"
+    set cfg to new surface configuration
+    set initial working directory of cfg to item 2 of argv
+    if item 3 of argv is not "" then set initial input of cfg to item 3 of argv
+    set t to new tab in (window id (item 1 of argv)) with configuration cfg
+    return id of focused terminal of t
+  end tell
+end run' "${WINDOW}" "${1}" "${2}"
+}
+
+split_terminal() {
+  ghostty_osa 'on run argv
+  tell application "Ghostty"
+    set cfg to new surface configuration
+    set initial working directory of cfg to item 2 of argv
+    if item 3 of argv is not "" then set initial input of cfg to item 3 of argv
+    return id of (split (terminal id (item 1 of argv)) direction right with configuration cfg)
+  end tell
+end run' "${1}" "${2}" "${3}"
+}
+
+focus_terminal() {
+  ghostty_osa 'on run argv
+  tell application "Ghostty" to focus terminal id (item 1 of argv)
+end run' "${1}" >/dev/null
+}
+
+# Ghostty does not say what a terminal is running, so an agent is found by its
+# process instead: one of AGENT_KINDS (or node running one) whose cwd is <dir>.
+agent_running_in() {
+  local dir="${1}" pids kinds
+  kinds="$(printf '%s|' "${AGENT_KINDS[@]}")"
+  pids="$(ps -axo pid=,args= | awk -v re="^(${kinds%|})$" '{
+      n = split($2, a, "/"); cmd = a[n]
+      if (cmd == "node" && NF > 2) { n = split($3, a, "/"); cmd = a[n] }
+      if (cmd ~ re) { printf "%s%s", sep, $1; sep = "," }
+    }')"
+  [[ -n "${pids}" ]] || return 1
+  lsof -a -p "${pids}" -d cwd -Fn 2>/dev/null | grep -qxF "n${dir}"
+}
+
+# Hands the pasted deep link to a detached prefill_terminal, but only for the
+# project it points at -- not every tab of a multi-select.
+prefill_if_linked() {
+  local term="${1}" dir="${2}"
+  [[ -n "${PREFILL_URL}" ]] || return 0
+  [[ "${dir,,}" == */"${PREFILL_SPEC,,}" ]] || return 0
+  nohup "${BASH_SOURCE[0]}" --prefill "${term}" "${PREFILL_URL}" >/dev/null 2>&1 &
+  disown
+}
+
+# open_tabs <agent-kind> <dir>... -- an empty kind opens a bare shell.
+open_tabs() {
+  local kind="${1}"
+  shift
+  local dir existing term input focus=""
+
+  for dir in "$@"; do
+    [[ -d "${dir}" ]] || continue
+
+    # Reuse the tab already sitting in this project instead of duplicating it.
+    existing="$(find_terminal "${dir}")"
+    if [[ -n "${existing}" ]]; then
+      focus="${existing#* }"
+      # An agent is already at work here -- focusing it is the whole job.
+      # Otherwise the agent gets a split of its own: whether the tab's shell is
+      # idle cannot be told, so it is never typed into.
+      if [[ -n "${kind}" ]] && ! agent_running_in "${dir}"; then
+        term="$(split_terminal "${focus}" "${dir}" "${kind}"$'\n')" || continue
+        focus="${term}"
+        prefill_if_linked "${term}" "${dir}"
+      fi
+      continue
+    fi
+
+    # exec makes the agent the tab's own process, so quitting it closes the tab.
+    input=""
+    [[ -n "${kind}" ]] && input="exec ${kind}"$'\n'
+    term="$(new_tab "${dir}" "${input}")" || continue
+    focus="${term}"
+    [[ -n "${kind}" ]] && prefill_if_linked "${term}" "${dir}"
+  done
+
+  # New tabs take focus as they open; the last pick is the one left in front.
+  [[ -z "${focus}" ]] || focus_terminal "${focus}"
+}
+
+export -f project_preview project_pull project_browse open_url normalize_spec query_from_url
+
+PASTED_URL_FILE="$(mktemp)"
+export PASTED_URL_FILE
+trap 'rm -f "${PASTED_URL_FILE}"' EXIT
+
+QUERY="$(query_from_url "${QUERY}")"
+
+# One binding group per line: a single line overflows the picker and gets cut off.
+HEADER="<ENTER>: open/clone with ${DEFAULT_AGENT}  <ALT-ENTER>: pick ${AGENT_KINDS[*]}
+<TAB>: multi-select  <CTRL-G>: git pull  <CTRL-Y>: clone from GitHub
+<ALT-O>: repo  <ALT-P>: pull request  <ALT-A>: actions (in browser)"
+
+# --print-query and --expect make the first two output lines the typed query and
+# the key that closed fzf; the selections follow.
+OUTPUT=()
+while IFS= read -r line; do
+  OUTPUT+=("${line}")
+done < <(
+  project_list | fzf \
+    --multi \
+    --reverse \
+    --prompt="Project> " \
+    --query="${QUERY}" \
+    --header="${HEADER}" \
+    --preview='project_preview {}' \
+    --preview-window='bottom,60%' \
+    --bind='ctrl-g:execute-silent(project_pull {+})+refresh-preview' \
+    --bind='alt-o:execute-silent(project_browse repo {})+abort' \
+    --bind='alt-p:execute-silent(project_browse pr {})+abort' \
+    --bind='alt-a:execute-silent(project_browse actions {})+abort' \
+    --bind='change:transform-query(query_from_url {q})' \
+    --with-nth=-2.. \
+    --delimiter=/ \
+    --print-query \
+    --expect=ctrl-y,alt-enter || true
+)
+
+[[ ${#OUTPUT[@]} -eq 0 ]] && exit 0
+
+TYPED_QUERY="${OUTPUT[0]}"
+KEY="${OUTPUT[1]:-}"
+SELECTED=("${OUTPUT[@]:2}")
+
+# The last deep link pasted, as "org/repo" and the URL itself.
+PREFILL_SPEC=""
+PREFILL_URL=""
+{ IFS= read -r PREFILL_SPEC && IFS= read -r PREFILL_URL; } <"${PASTED_URL_FILE}" || true
+
+if [[ "${KEY}" == "ctrl-y" ]]; then
+  SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
+  DIR="$(clone_repo "${SPEC}")" || exit 1
+  open_tabs "" "${DIR}"
+  exit 0
+fi
+
+# A query naming a repo that is not cloned -- typically a pasted GitHub URL --
+# can still fuzzy-match a different local project, so the highlighted line is
+# not trusted then: <ENTER> clones the named repo instead. `gh repo view` keeps
+# a partly typed "org/repo" that happens to look qualified from turning into a
+# clone of nothing, and it only runs in this not-cloned case.
+if [[ ${#SELECTED[@]} -le 1 ]]; then
+  SPEC="$(normalize_spec "${TYPED_QUERY}")"
+  if [[ -n "${SPEC}" && ! -d "${CLONE_ROOT}/${SPEC}/.git" && "${SELECTED[0]:-}" != */"${SPEC}" ]] &&
+    gh repo view "${SPEC}" --json name >/dev/null 2>&1; then
+    SELECTED=()
+  fi
+fi
+
+# Nothing matched: clone what the query names, then open it like any other pick.
+if [[ ${#SELECTED[@]} -eq 0 ]]; then
+  [[ -n "${TYPED_QUERY}" ]] || exit 0
+  SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
+  DIR="$(clone_repo "${SPEC}")" || exit 1
+  SELECTED=("${DIR}")
+fi
+
+if [[ "${KEY}" == "alt-enter" ]]; then
+  KIND="$(pick_agent_kind)"
+elif command -v "${DEFAULT_AGENT}" >/dev/null 2>&1; then
+  KIND="${DEFAULT_AGENT}"
+else
+  echo "${DEFAULT_AGENT} is not installed; opening a shell." >&2
+  KIND=""
+fi
+
+open_tabs "${KIND}" "${SELECTED[@]}"

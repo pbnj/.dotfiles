@@ -19,6 +19,9 @@ alias okta='nvim -c Okta'
 # tmux
 alias tm="tmux -u a || tmux -u"
 
+# ghostty
+alias gop=fzf-ghostty-project # Ghostty: Open Project
+
 alias pig="pi --model glean"
 
 # terraform
