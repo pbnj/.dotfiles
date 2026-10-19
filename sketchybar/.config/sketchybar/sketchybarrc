@@ -112,8 +112,23 @@ sketchybar --add item front_app left \
 # right (added right-to-left)
 sketchybar --add item clock right \
   --set clock update_freq=10 icon= script="$PLUGIN_DIR/clock.sh" \
-  click_script="open -a Calendar" \
-  --add item battery right \
+  click_script="open -a Calendar"
+
+# twingate login needs helpers/bin/twingate_menu, which needs Accessibility. It
+# is only built when missing: a rebuild changes its signature and revokes the
+# grant.
+TWINGATE_MENU="$CONFIG_DIR/helpers/bin/twingate_menu"
+if [ ! -x "$TWINGATE_MENU" ]; then
+  mkdir -p "$(dirname "$TWINGATE_MENU")"
+  swiftc -O "$CONFIG_DIR/helpers/twingate_menu.swift" -o "$TWINGATE_MENU"
+fi
+
+sketchybar --add item twingate right \
+  --set twingate update_freq=10 icon=󰦝 icon.padding_right=6 label.drawing=off \
+  script="$PLUGIN_DIR/twingate.sh" click_script="$PLUGIN_DIR/twingate_click.sh" \
+  --subscribe twingate system_woke
+
+sketchybar --add item battery right \
   --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
   click_script="open x-apple.systempreferences:com.apple.Battery-Settings.extension" \
   --subscribe battery system_woke power_source_change \
@@ -134,48 +149,37 @@ sketchybar --add item clock right \
 sketchybar --add bracket stats cpu memory disk \
   --set stats background.color="$ITEM_BG" background.corner_radius=6 background.height=24
 
-# docker: hidden unless Docker Desktop is running. plugins/docker.sh, run by the
-# whale item, sets all three counts.
-docker_item=(
-  drawing=off
+# docker: just the whale, hidden unless Docker Desktop is running; a click
+# drops down the container, image and volume counts (plugins/docker.sh, run by
+# the whale, fills them in), and a row opens Docker Desktop.
+docker_row=(
+  background.drawing=off
+  icon.font="$FONT:Bold:15.0"
+  icon.color="$ACCENT"
+  icon.padding_left=8
+  label.padding_right=10
   padding_left=0
   padding_right=0
-  background.drawing=off
-  icon.font="$FONT:Bold:11.0"
-  icon.color="$ACCENT"
-  click_script="open 'docker-desktop://dashboard/open'"
+  click_script="open 'docker-desktop://dashboard/open'; sketchybar --set docker popup.drawing=off"
 )
-sketchybar --add item docker.volumes right \
-  --set docker.volumes "${docker_item[@]}" icon=󰋊 icon.font="$FONT:Bold:15.0" \
-  --add item docker.images right \
-  --set docker.images "${docker_item[@]}" icon=󰮄 icon.font="$FONT:Bold:15.0" \
-  --add item docker.containers right \
-  --set docker.containers "${docker_item[@]}" icon=󰆧 icon.font="$FONT:Bold:15.0" \
-  --add item docker right \
-  --set docker "${docker_item[@]}" icon= icon.font="$FONT:Bold:15.0" icon.color=0xff2496ed \
-  label.drawing=off update_freq=10 script="$PLUGIN_DIR/docker.sh" \
-  --add bracket docker_group docker docker.containers docker.images docker.volumes \
-  --set docker_group background.color="$ITEM_BG" background.corner_radius=6 background.height=24
-
-# twingate login needs helpers/bin/twingate_menu, which needs Accessibility. It
-# is only built when missing: a rebuild changes its signature and revokes the
-# grant.
-TWINGATE_MENU="$CONFIG_DIR/helpers/bin/twingate_menu"
-if [ ! -x "$TWINGATE_MENU" ]; then
-  mkdir -p "$(dirname "$TWINGATE_MENU")"
-  swiftc -O "$CONFIG_DIR/helpers/twingate_menu.swift" -o "$TWINGATE_MENU"
-fi
-
-sketchybar --add item twingate right \
-  --set twingate update_freq=10 icon=󰦝 icon.padding_right=6 label.drawing=off \
-  script="$PLUGIN_DIR/twingate.sh" click_script="$PLUGIN_DIR/twingate_click.sh" \
-  --subscribe twingate system_woke
+sketchybar --add item docker right \
+  --set docker drawing=off icon= icon.color=0xff2496ed icon.padding_right=6 label.drawing=off \
+  update_freq=10 script="$PLUGIN_DIR/docker.sh" \
+  click_script="sketchybar --set docker popup.drawing=toggle" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
+  --add item docker.containers popup.docker \
+  --set docker.containers "${docker_row[@]}" icon=󰆧 \
+  --add item docker.images popup.docker \
+  --set docker.images "${docker_row[@]}" icon=󰮄 \
+  --add item docker.volumes popup.docker \
+  --set docker.volumes "${docker_row[@]}" icon=󰋊
 
 # claude: session state on the icon (idle/working/blocked) and the 5h / 7d
 # usage limits as a grouped pill like the stats, published by the Claude Code
 # "usage" mod. plugins/claude.sh, run by the icon item, sets all three.
-# clicking the icon jumps to the session that needs you; the limits open the
-# usage page.
+# left-clicking the icon lists every Claude pane in tmux, right-clicking jumps
+# to the session that needs you; the limits open the usage page.
 claude_window=(
   drawing=off
   padding_left=0
@@ -194,6 +198,8 @@ sketchybar --add event claude_update \
   --set claude padding_left=0 padding_right=0 background.drawing=off update_freq=60 \
   icon=:claude: icon.font="sketchybar-app-font:Regular:16.0" icon.padding_left=8 \
   label.drawing=off script="$PLUGIN_DIR/claude.sh" click_script="$PLUGIN_DIR/claude_click.sh" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
   --subscribe claude claude_update \
   --add bracket claude_group claude claude.5h claude.7d \
   --set claude_group background.color="$ITEM_BG" background.corner_radius=6 background.height=24
