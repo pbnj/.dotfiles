@@ -17,4 +17,12 @@ if echo "$BATT" | grep -q 'AC Power'; then
   ICON=""
 fi
 
-sketchybar --set "$NAME" icon="$ICON" label="${PERCENTAGE}%"
+# tokyonight: green full, orange charging (or plugged in but holding below
+# full, e.g. optimized charging), yellow discharging
+case "$BATT" in
+  *"; charged;"* | *"100%;"*) COLOR=0xff9ece6a ;;
+  *"; charging;"* | *"AC Power"*) COLOR=0xffff9e64 ;;
+  *) COLOR=0xffe0af68 ;;
+esac
+
+sketchybar --set "$NAME" icon="$ICON" label="${PERCENTAGE}%" icon.color="$COLOR" label.color="$COLOR"
