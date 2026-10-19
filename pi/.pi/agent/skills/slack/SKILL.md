@@ -41,25 +41,36 @@ app, raw Slack APIs, or other connectors as a fallback.
 - Use Pi's `codemode` tool for every Claude CLI invocation, including connector
   checks. Invoke the external process with `await tools.bash(...)` inside the
   codemode script; do not call the Bash tool directly to run Claude.
+- Prefer **one codemode call per Slack request**. Sequence the installation
+  check, any necessary connector checks, the Claude query, and result/error
+  handling inside that single script with `await tools.bash(...)`. Do not split
+  preflight checks and the query into separate codemode calls merely to confirm
+  connectivity. A separate call is appropriate when user clarification, restored
+  access, or new information is needed before continuing.
 - Codemode runs JavaScript in QuickJS, not a shell or Node.js. It has no direct
   process, filesystem, network, or package-import APIs. Claude runs as an
   external process through `tools.bash`, not inside QuickJS. This routing does
   not sandbox Claude or bypass permissions.
 - If codemode is unavailable, explain that and ask the user to enable it; do not
   silently switch to a direct Bash invocation.
-- Check that `claude` is installed through codemode. If connector status is
-  uncertain or a call fails, run
+- Check that `claude` is installed through codemode. Reuse Slack connectivity
+  already confirmed in the current session instead of routinely running
+  `claude mcp list` before every query. Only check the connector when its status
+  is uncertain or the query indicates a connection/authentication failure; an
+  unsupported Slack capability is not itself a connectivity failure.
+- When a connector check is needed, run
   `await tools.bash({ command: "cd /tmp && claude mcp list", timeout: 30 })`
-  through codemode and confirm that Slack is connected. Check `exit_code` and
-  report only relevant, sanitized connection status or brief diagnostics. Do not
-  inspect or print credential/config files.
+  within the same codemode script as the query or its failure handling. Confirm
+  that Slack is connected, check `exit_code`, and report only relevant,
+  sanitized connection status or brief diagnostics. Do not inspect or print
+  credential/config files.
 - Run from `/tmp` with user-level Claude settings, no built-in tools, and no
   persisted Claude session. Preserve the request in a correctly escaped
   JavaScript string, then pass it in a quoted here-document so shell syntax in
   user text is not executed:
 
 ```js
-// @options: {"max_output_tokens": 3000, "timeout_ms": 210000}
+// @options: {"max_output_tokens": 3000, "timeout_ms": 240000}
 const installed = await tools.bash({
   command: "command -v claude",
   timeout: 10,
@@ -70,6 +81,8 @@ if (installed.exit_code !== 0) {
   );
 }
 
+// If Slack connectivity is uncertain, add the connector check here in this
+// same script. Skip it when connectivity is already confirmed for this session.
 const request = "<insert the user's request verbatim>";
 let delimiter = "SLACK_PROMPT";
 while (request.includes(delimiter)) delimiter += "_";
@@ -93,8 +106,10 @@ const command = [
 
 const result = await tools.bash({ command, timeout: 180 });
 if (result.exit_code !== 0) {
+  // Perform any needed connection/authentication diagnostics here, in this
+  // script, before reporting the failure. Do not silently retry the query.
   throw new Error(
-    `Claude exited with code ${result.exit_code}; check the Slack connector before retrying.`,
+    `Claude exited with code ${result.exit_code}; the Slack query did not complete.`,
   );
 }
 if (result.truncated) {
