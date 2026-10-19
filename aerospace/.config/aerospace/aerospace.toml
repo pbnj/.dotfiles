@@ -1,0 +1,214 @@
+# https://nikitabobko.github.io/AeroSpace/guide
+#
+# every binding is hyper = cmd+ctrl+alt (+shift), which Raycast maps to Caps
+# Lock (Settings → Advanced → Hyper Key, shift not included). plain alt stays
+# free for Ghostty (macos-option-as-alt), tmux and Neovim's <M-…> maps.
+#
+# workspaces: 1-9 are free-form; letters are homes for app types, see the
+# [[on-window-detected]] rules at the bottom.
+#   T terminal  B browser  S slack  M mail+calendar  D docker  Z zoom
+#   L linear
+#   A activity monitor
+
+config-version = 2
+
+start-at-login = true
+
+# kept alive when empty; sketchybar builds its workspace items from this
+# list (aerospace list-workspaces --all). keep in sync with the bindings.
+persistent-workspaces = [
+  '1', '2', '3', '4', '5', '6', '7', '8', '9',
+  'A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+]
+
+# sketchybar draws the bar; the native menu bar is auto-hidden
+after-startup-command = []
+exec-on-workspace-change = [
+  '/bin/bash', '-c',
+  'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE',
+]
+
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+accordion-padding = 30
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+automatically-unhide-macos-hidden-apps = false
+
+[key-mapping]
+preset = 'qwerty'
+
+[gaps]
+inner.horizontal = 8
+inner.vertical = 8
+outer.left = 0
+outer.right = 0
+outer.bottom = 0
+# sketchybar is 32px tall. the built-in display already reserves the 32pt
+# notch strip, which sketchybar sits in
+outer.top = [{ monitor."built-in" = 0 }, 32]
+
+[mode.main.binding]
+cmd-ctrl-alt-slash = 'layout tiles horizontal vertical'
+cmd-ctrl-alt-comma = 'layout accordion horizontal vertical'
+cmd-ctrl-alt-f = 'fullscreen'
+
+cmd-ctrl-alt-left = 'focus left'
+cmd-ctrl-alt-down = 'focus down'
+cmd-ctrl-alt-up = 'focus up'
+cmd-ctrl-alt-right = 'focus right'
+
+cmd-ctrl-alt-shift-left = 'move left'
+cmd-ctrl-alt-shift-down = 'move down'
+cmd-ctrl-alt-shift-up = 'move up'
+cmd-ctrl-alt-shift-right = 'move right'
+
+cmd-ctrl-alt-minus = 'resize smart -50'
+cmd-ctrl-alt-equal = 'resize smart +50'
+
+# f is taken above, so it is not a workspace
+cmd-ctrl-alt-1 = 'workspace 1'
+cmd-ctrl-alt-2 = 'workspace 2'
+cmd-ctrl-alt-3 = 'workspace 3'
+cmd-ctrl-alt-4 = 'workspace 4'
+cmd-ctrl-alt-5 = 'workspace 5'
+cmd-ctrl-alt-6 = 'workspace 6'
+cmd-ctrl-alt-7 = 'workspace 7'
+cmd-ctrl-alt-8 = 'workspace 8'
+cmd-ctrl-alt-9 = 'workspace 9'
+# app homes (see the top of the file) switch there and launch/focus the app
+cmd-ctrl-alt-a = ['workspace A', 'exec-and-forget open -a "Activity Monitor"']
+cmd-ctrl-alt-b = ['workspace B', 'exec-and-forget open -a "Brave Browser"']
+cmd-ctrl-alt-c = 'workspace C'
+cmd-ctrl-alt-d = ['workspace D', 'exec-and-forget open docker-desktop://dashboard/open']
+cmd-ctrl-alt-e = 'workspace E'
+cmd-ctrl-alt-g = 'workspace G'
+cmd-ctrl-alt-h = 'workspace H'
+cmd-ctrl-alt-i = 'workspace I'
+cmd-ctrl-alt-j = 'workspace J'
+cmd-ctrl-alt-k = 'workspace K'
+cmd-ctrl-alt-l = ['workspace L', 'exec-and-forget open -a Linear']
+cmd-ctrl-alt-m = ['workspace M', 'exec-and-forget open -a Mail']
+cmd-ctrl-alt-n = 'workspace N'
+cmd-ctrl-alt-o = 'workspace O'
+cmd-ctrl-alt-p = 'workspace P'
+cmd-ctrl-alt-q = 'workspace Q'
+cmd-ctrl-alt-r = 'workspace R'
+cmd-ctrl-alt-s = ['workspace S', 'exec-and-forget open -a Slack']
+cmd-ctrl-alt-t = ['workspace T', 'exec-and-forget open -a Ghostty']
+cmd-ctrl-alt-u = 'workspace U'
+cmd-ctrl-alt-v = 'workspace V'
+cmd-ctrl-alt-w = 'workspace W'
+cmd-ctrl-alt-x = 'workspace X'
+cmd-ctrl-alt-y = 'workspace Y'
+cmd-ctrl-alt-z = ['workspace Z', 'exec-and-forget open -a zoom.us']
+
+cmd-ctrl-alt-shift-1 = 'move-node-to-workspace 1'
+cmd-ctrl-alt-shift-2 = 'move-node-to-workspace 2'
+cmd-ctrl-alt-shift-3 = 'move-node-to-workspace 3'
+cmd-ctrl-alt-shift-4 = 'move-node-to-workspace 4'
+cmd-ctrl-alt-shift-5 = 'move-node-to-workspace 5'
+cmd-ctrl-alt-shift-6 = 'move-node-to-workspace 6'
+cmd-ctrl-alt-shift-7 = 'move-node-to-workspace 7'
+cmd-ctrl-alt-shift-8 = 'move-node-to-workspace 8'
+cmd-ctrl-alt-shift-9 = 'move-node-to-workspace 9'
+cmd-ctrl-alt-shift-a = 'move-node-to-workspace A'
+cmd-ctrl-alt-shift-b = 'move-node-to-workspace B'
+cmd-ctrl-alt-shift-c = 'move-node-to-workspace C'
+cmd-ctrl-alt-shift-d = 'move-node-to-workspace D'
+cmd-ctrl-alt-shift-e = 'move-node-to-workspace E'
+cmd-ctrl-alt-shift-g = 'move-node-to-workspace G'
+cmd-ctrl-alt-shift-h = 'move-node-to-workspace H'
+cmd-ctrl-alt-shift-i = 'move-node-to-workspace I'
+cmd-ctrl-alt-shift-j = 'move-node-to-workspace J'
+cmd-ctrl-alt-shift-k = 'move-node-to-workspace K'
+cmd-ctrl-alt-shift-l = 'move-node-to-workspace L'
+cmd-ctrl-alt-shift-m = 'move-node-to-workspace M'
+cmd-ctrl-alt-shift-n = 'move-node-to-workspace N'
+cmd-ctrl-alt-shift-o = 'move-node-to-workspace O'
+cmd-ctrl-alt-shift-p = 'move-node-to-workspace P'
+cmd-ctrl-alt-shift-q = 'move-node-to-workspace Q'
+cmd-ctrl-alt-shift-r = 'move-node-to-workspace R'
+cmd-ctrl-alt-shift-s = 'move-node-to-workspace S'
+cmd-ctrl-alt-shift-t = 'move-node-to-workspace T'
+cmd-ctrl-alt-shift-u = 'move-node-to-workspace U'
+cmd-ctrl-alt-shift-v = 'move-node-to-workspace V'
+cmd-ctrl-alt-shift-w = 'move-node-to-workspace W'
+cmd-ctrl-alt-shift-x = 'move-node-to-workspace X'
+cmd-ctrl-alt-shift-y = 'move-node-to-workspace Y'
+cmd-ctrl-alt-shift-z = 'move-node-to-workspace Z'
+
+cmd-ctrl-alt-tab = 'workspace-back-and-forth'
+cmd-ctrl-alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
+
+cmd-ctrl-alt-shift-semicolon = 'mode service'
+
+# one-shot commands: hyper+shift+; then a key
+[mode.service.binding]
+esc = ['reload-config', 'mode main']
+r = ['flatten-workspace-tree', 'mode main'] # reset layout
+f = ['layout floating tiling', 'mode main'] # toggle floating
+backspace = ['close-all-windows-but-current', 'mode main']
+
+cmd-ctrl-alt-shift-left = ['join-with left', 'mode main']
+cmd-ctrl-alt-shift-down = ['join-with down', 'mode main']
+cmd-ctrl-alt-shift-up = ['join-with up', 'mode main']
+cmd-ctrl-alt-shift-right = ['join-with right', 'mode main']
+
+# app homes
+[[on-window-detected]]
+if.app-id = 'com.mitchellh.ghostty'
+run = 'move-node-to-workspace T'
+
+[[on-window-detected]]
+if.app-id = 'com.brave.Browser'
+run = 'move-node-to-workspace B'
+
+[[on-window-detected]]
+if.app-id = 'org.mozilla.firefox'
+run = 'move-node-to-workspace B'
+
+[[on-window-detected]]
+if.app-id = 'com.tinyspeck.slackmacgap'
+run = 'move-node-to-workspace S'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.mail'
+run = 'move-node-to-workspace M'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.iCal'
+run = 'move-node-to-workspace M'
+
+[[on-window-detected]]
+if.app-id = 'com.electron.dockerdesktop'
+run = 'move-node-to-workspace D'
+
+[[on-window-detected]]
+if.app-id = 'com.linear'
+run = 'move-node-to-workspace L'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.ActivityMonitor'
+run = 'move-node-to-workspace A'
+
+# meeting windows resize themselves; keep them floating
+[[on-window-detected]]
+if.app-id = 'us.zoom.xos'
+run = ['layout floating', 'move-node-to-workspace Z']
+
+# small utility windows float wherever they open
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.1password.1password'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.twingate.macos'
+run = 'layout floating'
