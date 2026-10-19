@@ -171,4 +171,31 @@ sketchybar --add item twingate right \
   script="$PLUGIN_DIR/twingate.sh" click_script="$PLUGIN_DIR/twingate_click.sh" \
   --subscribe twingate system_woke
 
+# claude: session state on the icon (idle/working/blocked) and the 5h / 7d
+# usage limits as a grouped pill like the stats, published by the Claude Code
+# "usage" mod. plugins/claude.sh, run by the icon item, sets all three.
+# clicking the icon jumps to the session that needs you; the limits open the
+# usage page.
+claude_window=(
+  drawing=off
+  padding_left=0
+  padding_right=0
+  background.drawing=off
+  icon.font="$FONT:Bold:11.0"
+  icon.color="$ACCENT"
+  click_script="open https://claude.ai/settings/usage"
+)
+sketchybar --add event claude_update \
+  --add item claude.7d right \
+  --set claude.7d "${claude_window[@]}" icon=7d \
+  --add item claude.5h right \
+  --set claude.5h "${claude_window[@]}" icon=5h \
+  --add item claude right \
+  --set claude padding_left=0 padding_right=0 background.drawing=off update_freq=60 \
+  icon=:claude: icon.font="sketchybar-app-font:Regular:16.0" icon.padding_left=8 \
+  label.drawing=off script="$PLUGIN_DIR/claude.sh" click_script="$PLUGIN_DIR/claude_click.sh" \
+  --subscribe claude claude_update \
+  --add bracket claude_group claude claude.5h claude.7d \
+  --set claude_group background.color="$ITEM_BG" background.corner_radius=6 background.height=24
+
 sketchybar --update
