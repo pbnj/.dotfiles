@@ -11,6 +11,9 @@
 #              <ENTER> opens the window and starts DEFAULT_AGENT in it;
 #              <ALT-ENTER> picks the agent instead, from the AGENT_KINDS below
 #              that are actually installed.
+#              <CTRL-T> toggles the list between local projects and a fuzzy
+#              GitHub repo search (re-run as you type); picking a GitHub repo
+#              clones it like above and opens it the same way.
 #              <ALT-O>/<ALT-P>/<ALT-A> open the highlighted project's GitHub
 #              repo, pull request, or Actions page in the browser.
 #              A pasted deep link (pull request, issue, file) is typed into the
@@ -99,6 +102,16 @@ open_url() {
 # PR falls back to the repo's pull request list rather than failing.
 project_browse() {
   local target="${1:-repo}" dir="${2:-}" url pr_url
+  # A GitHub search result is a bare org/repo, not a directory.
+  if [[ ! -d "${dir}" && "${dir}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+    url="https://github.com/${dir}"
+    case "${target}" in
+    pr) url="${url}/pulls" ;;
+    actions) url="${url}/actions" ;;
+    esac
+    open_url "${url}"
+    return
+  fi
   [[ -d "${dir}/.git" ]] || return 0
 
   url="$(cd "${dir}" && gh repo view --json url --jq .url 2>/dev/null)" || true
@@ -172,6 +185,43 @@ query_from_url() {
     fi
   fi
   printf '%s\n' "${query}"
+}
+
+# The GitHub source for <CTRL-T>: org/repo lines for the query. The sleep is a
+# debounce -- fzf kills a running reload when the next keystroke starts another,
+# so only a pause in typing reaches the search API. An exact org/repo (or a
+# pasted URL, already rewritten to one) is looked up directly, since search
+# ranks by text and may bury it.
+github_list() {
+  local query="${1:-}" spec
+  [[ -n "${query//[[:space:]]/}" ]] || return 0
+  sleep 0.3
+  spec="$(normalize_spec "${query}")"
+  if [[ -n "${spec}" ]] &&
+    gh repo view "${spec}" --json nameWithOwner --jq .nameWithOwner 2>/dev/null; then
+    return 0
+  fi
+  gh search repos --limit 50 --json fullName --jq '.[].fullName' -- "${query}" 2>/dev/null || true
+}
+
+# Bound to <CTRL-T>: flips SOURCE_FILE between "local" and "github" and prints
+# the fzf actions that swap the list, prompt, and preview to match.
+toggle_source() {
+  if [[ "$(<"${SOURCE_FILE}")" == github ]]; then
+    echo local >"${SOURCE_FILE}"
+    # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+    printf '%s' 'change-prompt(Project> )+change-preview(project_preview {})+reload(cat "${LOCAL_LIST_FILE}")'
+  else
+    echo github >"${SOURCE_FILE}"
+    printf '%s' 'change-prompt(GitHub> )+change-preview(gh repo view {})+reload(github_list {q})'
+  fi
+}
+
+# Bound to fzf's change event after query_from_url: in GitHub mode every edit to
+# the query re-runs the search; locally fzf's own filtering is all it takes.
+reload_if_github() {
+  [[ "$(<"${SOURCE_FILE}")" == github ]] || return 0
+  printf '%s' 'reload(github_list {q})'
 }
 
 # Literal first: an exact org/repo clones without a network round-trip. Anything
@@ -336,17 +386,25 @@ open_windows() {
   done
 }
 
-export -f project_preview project_pull project_browse open_url normalize_spec query_from_url
+export -f project_preview project_pull project_browse open_url normalize_spec query_from_url \
+  github_list toggle_source reload_if_github
 
 PASTED_URL_FILE="$(mktemp)"
-export PASTED_URL_FILE
-trap 'rm -f "${PASTED_URL_FILE}"' EXIT
+# Which list the picker shows: "local" or "github", flipped by <CTRL-T>.
+SOURCE_FILE="$(mktemp)"
+# The local project list, kept so <CTRL-T> can switch back without a rescan.
+LOCAL_LIST_FILE="$(mktemp)"
+export PASTED_URL_FILE SOURCE_FILE LOCAL_LIST_FILE
+trap 'rm -f "${PASTED_URL_FILE}" "${SOURCE_FILE}" "${LOCAL_LIST_FILE}"' EXIT
+echo local >"${SOURCE_FILE}"
+project_list >"${LOCAL_LIST_FILE}"
 
 QUERY="$(query_from_url "${QUERY}")"
 
 # One binding group per line: a single line overflows the popup and gets cut off.
 HEADER="<ENTER>: open/clone with ${DEFAULT_AGENT}  <ALT-ENTER>: pick ${AGENT_KINDS[*]}
 <TAB>: multi-select  <CTRL-G>: git pull  <CTRL-Y>: clone from GitHub
+<CTRL-T>: toggle local projects / GitHub repo search
 <ALT-O>: repo  <ALT-P>: pull request  <ALT-A>: actions (in browser)"
 
 # --print-query and --expect make the first two output lines the typed query and
@@ -355,7 +413,7 @@ OUTPUT=()
 while IFS= read -r line; do
   OUTPUT+=("${line}")
 done < <(
-  project_list | fzf \
+  fzf <"${LOCAL_LIST_FILE}" \
     --multi \
     --reverse \
     --prompt="Project> " \
@@ -367,7 +425,8 @@ done < <(
     --bind='alt-o:execute-silent(project_browse repo {})+abort' \
     --bind='alt-p:execute-silent(project_browse pr {})+abort' \
     --bind='alt-a:execute-silent(project_browse actions {})+abort' \
-    --bind='change:transform-query(query_from_url {q})' \
+    --bind='change:transform-query(query_from_url {q})+transform(reload_if_github)' \
+    --bind='ctrl-t:transform(toggle_source)' \
     --with-nth=-2.. \
     --delimiter=/ \
     --print-query \
@@ -385,6 +444,21 @@ PREFILL_SPEC=""
 PREFILL_URL=""
 { IFS= read -r PREFILL_SPEC && IFS= read -r PREFILL_URL; } <"${PASTED_URL_FILE}" || true
 
+# GitHub mode: every selection is an org/repo -- clone each (or find the
+# existing clone) and carry on with the directories, as if picked locally.
+if [[ "$(<"${SOURCE_FILE}")" == github && ${#SELECTED[@]} -gt 0 ]]; then
+  DIRS=()
+  for SPEC in "${SELECTED[@]}"; do
+    DIR="$(clone_repo "${SPEC}")" && DIRS+=("${DIR}")
+  done
+  [[ ${#DIRS[@]} -gt 0 ]] || exit 1
+  SELECTED=("${DIRS[@]}")
+  if [[ "${KEY}" == "ctrl-y" ]]; then
+    open_windows "" "${SELECTED[@]}"
+    exit 0
+  fi
+fi
+
 if [[ "${KEY}" == "ctrl-y" ]]; then
   SPEC="$(resolve_spec "${TYPED_QUERY}")" || exit 1
   DIR="$(clone_repo "${SPEC}")" || exit 1
@@ -397,7 +471,7 @@ fi
 # not trusted then: <ENTER> clones the named repo instead. `gh repo view` keeps
 # a partly typed "org/repo" that happens to look qualified from turning into a
 # clone of nothing, and it only runs in this not-cloned case.
-if [[ ${#SELECTED[@]} -le 1 ]]; then
+if [[ "$(<"${SOURCE_FILE}")" == local && ${#SELECTED[@]} -le 1 ]]; then
   SPEC="$(normalize_spec "${TYPED_QUERY}")"
   if [[ -n "${SPEC}" && ! -d "${CLONE_ROOT}/${SPEC}/.git" && "${SELECTED[0]:-}" != */"${SPEC}" ]] &&
     gh repo view "${SPEC}" --json name >/dev/null 2>&1; then
