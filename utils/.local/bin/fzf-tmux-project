@@ -329,12 +329,12 @@ prefill_if_linked() {
 }
 
 # Matched on the foreground command, which for a node-based agent can be
-# "node" -- so an agent is also recognised by the pane title it sets.
+# "node" -- so an agent is also recognised by the pane title it sets. Only
+# match the requested agent: a different agent in this repo must not block it.
 window_has_agent() {
-  local window="${1}" kinds
-  kinds="$(printf '%s|' "${AGENT_KINDS[@]}")"
+  local window="${1}" kind="${2}"
   tmux list-panes -t "${window}" -F '#{pane_current_command} #{pane_title}' 2>/dev/null |
-    grep -qiE "(^|[^a-z])(${kinds%|})([^a-z]|$)"
+    grep -qiE "(^|[^[:alnum:]_])${kind}([^[:alnum:]_]|$)"
 }
 
 # The first pane of the window sitting at a shell prompt, so a pane that is
@@ -366,13 +366,17 @@ open_windows() {
     if [[ -n "${existing}" ]]; then
       [[ -n "${focus}" ]] && tmux select-window -t "${existing}"
 
-      # An agent is already at work here -- focusing it is the whole job.
-      if [[ -n "${kind}" ]] && ! window_has_agent "${existing}"; then
+      # Focus an agent of the requested kind if it is already running. A
+      # different agent does not block this one: use an idle shell pane, or
+      # split the window so both agents can work in the same checkout.
+      if [[ -n "${kind}" ]] && ! window_has_agent "${existing}" "${kind}"; then
         pane="$(free_pane_in_window "${existing}")"
         if [[ -n "${pane}" ]]; then
           launch_agent_in_pane "${kind}" "${pane}" "${dir}" && prefill_if_linked "${pane}" "${dir}"
         else
-          echo "No free pane in ${label}; skipping ${kind}." >&2
+          pane="$(tmux split-window -t "${existing}" -c "${dir}" -P -F '#{pane_id}' \
+            ${bg[@]+"${bg[@]}"} -- "${kind}")" || continue
+          prefill_if_linked "${pane}" "${dir}"
         fi
       fi
       continue

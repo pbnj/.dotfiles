@@ -204,4 +204,15 @@ sketchybar --add event claude_update \
   --add bracket claude_group claude claude.5h claude.7d \
   --set claude_group background.color="$ITEM_BG" background.corner_radius=6 background.height=24
 
+# pi: the user extension publishes a per-session working/idle/blocked state.
+# The icon color shows the most urgent state; clicking it lists every Pi
+# session and focuses its tmux pane in Ghostty when available.
+sketchybar --add item pi right \
+  --set pi drawing=off icon=π icon.font="$FONT:Bold:15.0" icon.padding_left=8 \
+  label.drawing=off update_freq=5 script="$PLUGIN_DIR/pi.sh" \
+  click_script="$PLUGIN_DIR/pi_click.sh" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
+  --subscribe pi system_woke
+
 sketchybar --update

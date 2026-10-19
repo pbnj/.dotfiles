@@ -11,6 +11,22 @@ brew() {
 paws() (
         # run in a subshell so the exported config, the trap, and the
         # temp file never leak into the interactive shell
+        if [ "$#" -eq 0 ]; then
+                echo "usage: paws <aws args...>   e.g. paws sts get-caller-identity" >&2
+                echo "  runs aws with a temporary SSO login, using the config in op://Employee/aws/config" >&2
+                exit 2
+        fi
+        for _paws_cmd in aws op; do
+                if ! command -v "$_paws_cmd" >/dev/null 2>&1; then
+                        echo "paws: '$_paws_cmd' is not on PATH. Install it (brew install $([ "$_paws_cmd" = op ] && echo 1password-cli || echo awscli)) or fix PATH." >&2
+                        exit 1
+                fi
+        done
+        if [ -z "${OP_ACCOUNT:-}" ]; then
+                echo "paws: OP_ACCOUNT is not set. Run: OP_ACCOUNT=komodohealth.1password.com paws $*  (or export it in your shell rc)" >&2
+                exit 1
+        fi
+
         _paws_home="$(mktemp -d)"
         AWS_CONFIG_FILE="${_paws_home}/config"
 
@@ -29,7 +45,11 @@ paws() (
 
         # read the config before HOME is redirected -- op needs the real one
         (umask 077 && : >"${AWS_CONFIG_FILE}") || exit 1
-        op read "op://Employee/aws/config" >"${AWS_CONFIG_FILE}" || exit 1
+        if ! op read "op://Employee/aws/config" >"${AWS_CONFIG_FILE}"; then
+                echo "paws: could not read op://Employee/aws/config from 1Password account '$OP_ACCOUNT'." >&2
+                echo "  Check that OP_ACCOUNT names the account holding the Employee vault, then sign in: op signin --account \"$OP_ACCOUNT\"" >&2
+                exit 1
+        fi
 
         # sandbox HOME so the privileged SSO token and any credentials it
         # mints land in $_paws_home/.aws/{sso,cli}/cache instead of ~/.aws
@@ -50,7 +70,8 @@ paws() (
                 _paws_prev="$_paws_arg"
         done
 
-        command aws sso login "${_paws_profile[@]}" || exit 1
+        # stdout goes to stderr so `paws ... | jq` sees only the command's output
+        command aws sso login "${_paws_profile[@]}" >&2 || exit 1
         command aws "$@"
 )
 complete -C 'aws_completer' paws # for shell tab-completion
