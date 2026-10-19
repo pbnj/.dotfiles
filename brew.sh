@@ -8,7 +8,9 @@ brew install --cask 1password-cli # password manager
 brew install --cask alacritty     # terminal
 brew install --cask docker        # containers
 brew install --cask firefox       # browser
-brew install --cask raycast       # better spotlight + window management + clipboard history + more...
+brew tap abue-ammar/tinycast
+brew trust --cask abue-ammar/tinycast/tinycast
+brew install --cask abue-ammar/tinycast/tinycast # launcher + hotkeys + clipboard history + hyper key (caps lock)
 brew install --cask slack         # chat
 brew install --cask spotify       # music
 
