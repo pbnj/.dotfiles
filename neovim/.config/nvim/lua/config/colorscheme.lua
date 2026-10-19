@@ -1,7 +1,7 @@
 -- Colorscheme
 
 -- Autocmd to toggle neovim background based on system theme
-local function get_system_theme()
+local function get_system_theme() -- luacheck: ignore 211 (kept for the disabled autocmd below)
   if vim.loop.os_uname().sysname:match("Darwin") then
     if
       vim.fn.systemlist({
@@ -17,16 +17,16 @@ local function get_system_theme()
   end
 end
 
-vim.api.nvim_create_autocmd("ColorScheme", {
-  group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
-  pattern = "*",
-  callback = function()
-    vim.api.nvim_set_hl(0, "Normal", { bg = nil })
-    vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
-    vim.schedule(function()
-      vim.o.background = get_system_theme()
-    end)
-  end,
-})
+-- vim.api.nvim_create_autocmd("ColorScheme", {
+--   group = vim.api.nvim_create_augroup("colorscheme_change", { clear = true }),
+--   pattern = "*",
+--   callback = function()
+--     vim.api.nvim_set_hl(0, "Normal", { bg = nil })
+--     vim.api.nvim_set_hl(0, "Visual", { link = "CursorLine" })
+--     vim.schedule(function()
+--       vim.o.background = get_system_theme()
+--     end)
+--   end,
+-- })
 
-vim.cmd.colorscheme("default")
+-- vim.cmd.colorscheme("default")
