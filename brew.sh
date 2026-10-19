@@ -12,6 +12,13 @@ brew install --cask raycast       # better spotlight + window management + clipb
 brew install --cask slack         # chat
 brew install --cask spotify       # music
 
+# menu bar
+
+brew tap FelixKratz/formulae
+brew trust --formula felixkratz/formulae/sketchybar
+brew install sketchybar # custom menu bar
+brew install --cask font-sketchybar-app-font # app icons for sketchybar spaces
+
 # essentials
 
 brew install bash              # newer version of bash

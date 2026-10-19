@@ -1,5 +1,5 @@
 .PHONY: osx
-osx: osx-disable-ds-store osx-disable-press-and-hold osx-disable-special-chars ## disable all osx settings
+osx: osx-disable-ds-store osx-disable-press-and-hold osx-disable-special-chars osx-hide-menu-bar ## disable all osx settings
 
 .PHONY: osx-disable-ds-store
 osx-disable-ds-store: ## disable .DS-Store
@@ -13,6 +13,11 @@ osx-disable-press-and-hold: ## disable press-and-hold
 osx-disable-special-chars: ## disable special characters, like emdash & smart quotes
 	defaults write 'Apple Global Domain' NSAutomaticQuoteSubstitutionEnabled 0
 	defaults write 'Apple Global Domain' NSAutomaticDashSubstitutionEnabled 0
+
+.PHONY: osx-hide-menu-bar
+osx-hide-menu-bar: ## auto-hide the menu bar (sketchybar replaces it)
+	defaults write NSGlobalDomain _HIHideMenuBar -bool true
+	killall SystemUIServer
 
 # not part of `make osx`: needs sudo, and running hot in a closed bag is opt-in.
 # disablesleep is GLOBAL despite the -b/-c flags: it never lands in either

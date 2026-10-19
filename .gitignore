@@ -47,3 +47,4 @@ pi/.pi/agent/models-store.json
 pi/.pi/agent/models.json
 *.bak*
 utils/.local/bin/claude-statusline
+sketchybar/.config/sketchybar/helpers/bin/
