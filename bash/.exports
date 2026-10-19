@@ -22,10 +22,6 @@ export GODEBUG=x509ignoreCN=0
 export GOPATH="${HOME}/go"
 [[ ":${PATH}:" != *":${GOPATH}/bin:"* ]] && PATH="${GOPATH}/bin:${PATH}"
 
-# mise: shims resolve each tool to the version pinned by the nearest mise.toml,
-# falling back to the next one on PATH where no version is set
-[[ ":${PATH}:" != *":${HOME}/.local/share/mise/shims:"* ]] && PATH="${HOME}/.local/share/mise/shims:${PATH}"
-
 # Native macOS SSH agent, instead of routing Git through the 1Password agent.
 # launchd hands SSH_AUTH_SOCK to GUI-launched processes via SecureSocketWithKey,
 # which `launchctl getenv` cannot see -- so trust the inherited value whenever a
