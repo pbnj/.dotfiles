@@ -1,9 +1,9 @@
 vim.pack.add({
-	"https://github.com/selimacerbas/markdown-preview.nvim",
-	"https://github.com/selimacerbas/live-server.nvim",
+  "https://github.com/selimacerbas/mdkite.nvim",
+  "https://github.com/selimacerbas/kitehost.nvim",
 })
 
-if not vim.g.loaded_markdown_preview then
-	vim.g.loaded_markdown_preview = true
-	require("markdown_preview").setup()
+if not vim.g.mdkite_setup then
+  vim.g.mdkite_setup = true
+  require("mdkite").setup()
 end
