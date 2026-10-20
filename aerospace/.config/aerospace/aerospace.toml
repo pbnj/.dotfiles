@@ -6,7 +6,7 @@
 #
 # workspaces: 1-9 are free-form; letters are homes for app types, see the
 # [[on-window-detected]] rules at the bottom.
-#   T terminal  B browser  S slack  M mail+calendar  D docker  Z zoom
+#   T terminal  B browser  S slack  M mail+calendar+messages  D docker  Z zoom
 #   L linear  Y youtube (Brave web app)
 #   A activity monitor
 
@@ -181,6 +181,10 @@ run = 'move-node-to-workspace M'
 
 [[on-window-detected]]
 if.app-id = 'com.apple.iCal'
+run = 'move-node-to-workspace M'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.MobileSMS'
 run = 'move-node-to-workspace M'
 
 [[on-window-detected]]
