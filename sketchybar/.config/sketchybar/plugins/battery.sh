@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# shellcheck source=../colors.sh
+. "$CONFIG_DIR/colors.sh"
+
 BATT="$(pmset -g batt)"
 PERCENTAGE="$(echo "$BATT" | grep -Eo '[0-9]+%' | cut -d% -f1)"
 
@@ -20,9 +23,9 @@ fi
 # tokyonight: green full, orange charging (or plugged in but holding below
 # full, e.g. optimized charging), yellow discharging
 case "$BATT" in
-  *"; charged;"* | *"100%;"*) COLOR=0xff9ece6a ;;
-  *"; charging;"* | *"AC Power"*) COLOR=0xffff9e64 ;;
-  *) COLOR=0xffe0af68 ;;
+  *"; charged;"* | *"100%;"*) COLOR=$GREEN ;;
+  *"; charging;"* | *"AC Power"*) COLOR=$ORANGE ;;
+  *) COLOR=$YELLOW ;;
 esac
 
 sketchybar --set "$NAME" icon="$ICON" label="${PERCENTAGE}%" icon.color="$COLOR" label.color="$COLOR"

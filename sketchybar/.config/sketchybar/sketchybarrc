@@ -4,12 +4,11 @@
 PLUGIN_DIR="$CONFIG_DIR/plugins"
 FONT="JetBrainsMono Nerd Font"
 
-# tokyonight (night)
-BG=0xe61a1b26
-FG=0xffc0caf5
-ITEM_BG=0xff24283b
-ACCENT=0xff7aa2f7
-SELECTED_BG=0xff414868
+# shellcheck source=colors.sh
+source "$CONFIG_DIR/colors.sh"
+
+sketchybar --add event theme_refresh \
+  --add event theme_change AppleInterfaceThemeChangedNotification
 
 sketchybar --bar \
   position=top \
@@ -19,6 +18,7 @@ sketchybar --bar \
   padding_left=8 \
   padding_right=8
 
+# Paired content has equal outer padding; the two 2px inner pads form a 4px gap.
 default=(
   padding_left=4
   padding_right=4
@@ -26,30 +26,40 @@ default=(
   label.font="$FONT:Bold:13.0"
   icon.color="$FG"
   label.color="$FG"
-  icon.padding_left=6
+  icon.padding_left=8
   icon.padding_right=2
   label.padding_left=2
-  label.padding_right=6
+  label.padding_right=8
   background.color="$ITEM_BG"
   background.corner_radius=6
   background.height=24
 )
 sketchybar --default "${default[@]}"
 
-RED=0xfff7768e
-GREEN=0xff9ece6a
+# A hidden label contributes no padding, so icon-only items need both edges.
+icon_only=(icon.padding_left=8 icon.padding_right=8 label.drawing=off)
+
+# Group members share a 4px gap, not two full 8px pill insets. Only the
+# first/last visible member gets the group's 8px outer content padding.
+group_member=(
+  padding_left=0
+  padding_right=0
+  background.drawing=off
+  icon.padding_left=2
+  label.padding_right=2
+)
 
 # left: apple menu
 popup_item=(
   background.drawing=off
   icon.padding_left=8
-  label.padding_right=10
+  label.padding_right=8
   padding_left=0
   padding_right=0
 )
 sketchybar --add item apple.logo left \
   --set apple.logo icon= icon.font="$FONT:Bold:17.0" icon.color="$GREEN" \
-  background.drawing=off label.drawing=off \
+  background.drawing=off "${icon_only[@]}" \
   click_script="sketchybar --set apple.logo popup.drawing=toggle" \
   popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
   popup.background.border_width=2 popup.background.corner_radius=8 \
@@ -76,8 +86,8 @@ for ws in "${WORKSPACES[@]}"; do
   space=(
     drawing=off
     icon="$ws"
-    icon.padding_left=10
-    icon.padding_right=10
+    icon.padding_left=8
+    icon.padding_right=8
     icon.highlight_color="$RED"
     padding_left=0
     padding_right=0
@@ -103,10 +113,10 @@ sketchybar --add bracket spaces '/space\..*/' \
 # open/close/focus so the app icons stay current
 sketchybar --add item space_windows left \
   --set space_windows drawing=off script="$PLUGIN_DIR/aerospace.sh" \
-  --subscribe space_windows aerospace_workspace_change space_windows_change front_app_switched system_woke
+  --subscribe space_windows aerospace_workspace_change space_windows_change front_app_switched system_woke theme_refresh
 
 sketchybar --add item front_app left \
-  --set front_app icon.drawing=off background.drawing=off script="$PLUGIN_DIR/front_app.sh" \
+  --set front_app icon.drawing=off label.padding_left=8 background.drawing=off script="$PLUGIN_DIR/front_app.sh" \
   --subscribe front_app front_app_switched
 
 # right (added right-to-left)
@@ -124,29 +134,50 @@ if [ ! -x "$TWINGATE_MENU" ]; then
 fi
 
 sketchybar --add item twingate right \
-  --set twingate update_freq=10 icon=󰦝 icon.padding_right=6 label.drawing=off \
+  --set twingate update_freq=10 icon=󰦝 "${icon_only[@]}" \
   script="$PLUGIN_DIR/twingate.sh" click_script="$PLUGIN_DIR/twingate_click.sh" \
-  --subscribe twingate system_woke
+  --subscribe twingate system_woke theme_refresh
+
+sketchybar --add item wifi right \
+  --set wifi update_freq=10 icon=󰤭 "${icon_only[@]}" \
+  script="$PLUGIN_DIR/wifi.sh" \
+  click_script="open x-apple.systempreferences:com.apple.wifi-settings-extension" \
+  --subscribe wifi wifi_change system_woke theme_refresh
+
+# Audio stays icon-only; its popup shows volume and the default I/O devices.
+audio_row=(
+  "${popup_item[@]}"
+  click_script="open x-apple.systempreferences:com.apple.Sound-Settings.extension; sketchybar --set volume popup.drawing=off"
+)
+sketchybar --add item volume right \
+  --set volume icon=󰕾 "${icon_only[@]}" update_freq=5 script="$PLUGIN_DIR/volume.sh" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
+  --subscribe volume volume_change mouse.clicked system_woke theme_refresh \
+  --add item volume.level popup.volume \
+  --set volume.level "${audio_row[@]}" icon=󰕾 label="Volume: …" \
+  --add item volume.output popup.volume \
+  --set volume.output "${audio_row[@]}" icon=󰓃 label="Output: …" \
+  --add item volume.input popup.volume \
+  --set volume.input "${audio_row[@]}" icon= label="Input: …" \
+  --add item volume.settings popup.volume \
+  --set volume.settings "${audio_row[@]}" icon= label="Sound Settings"
 
 sketchybar --add item battery right \
-  --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+  --set battery "${group_member[@]}" label.padding_right=8 update_freq=120 script="$PLUGIN_DIR/battery.sh" \
   click_script="open x-apple.systempreferences:com.apple.Battery-Settings.extension" \
-  --subscribe battery system_woke power_source_change \
-  --add item volume right \
-  --set volume script="$PLUGIN_DIR/volume.sh" \
-  click_script="open x-apple.systempreferences:com.apple.Sound-Settings.extension" \
-  --subscribe volume volume_change \
+  --subscribe battery system_woke power_source_change theme_refresh \
   --add item disk right \
-  --set disk padding_left=0 padding_right=0 background.drawing=off update_freq=60 icon=SSD icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/disk.sh" \
+  --set disk "${group_member[@]}" update_freq=60 icon=SSD icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/disk.sh" \
   click_script="open 'x-apple.systempreferences:com.apple.settings.Storage'" \
   --add item memory right \
-  --set memory padding_left=0 padding_right=0 background.drawing=off update_freq=5 icon=MEM icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/memory.sh" \
+  --set memory "${group_member[@]}" update_freq=5 icon=MEM icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/memory.sh" \
   click_script="open -a 'Activity Monitor'" \
   --add item cpu right \
-  --set cpu padding_left=0 padding_right=0 background.drawing=off update_freq=5 icon=CPU icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/cpu.sh" \
+  --set cpu "${group_member[@]}" icon.padding_left=8 update_freq=5 icon=CPU icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/cpu.sh" \
   click_script="open -a 'Activity Monitor'"
 
-sketchybar --add bracket stats cpu memory disk \
+sketchybar --add bracket stats cpu memory disk battery \
   --set stats background.color="$ITEM_BG" background.corner_radius=6 background.height=24
 
 # docker: just the whale, hidden unless Docker Desktop is running; a click
@@ -157,13 +188,13 @@ docker_row=(
   icon.font="$FONT:Bold:15.0"
   icon.color="$ACCENT"
   icon.padding_left=8
-  label.padding_right=10
+  label.padding_right=8
   padding_left=0
   padding_right=0
   click_script="open 'docker-desktop://dashboard/open'; sketchybar --set docker popup.drawing=off"
 )
 sketchybar --add item docker right \
-  --set docker drawing=off icon= icon.color=0xff2496ed icon.padding_right=6 label.drawing=off \
+  --set docker drawing=off icon= icon.color="$ACCENT" "${icon_only[@]}" \
   update_freq=10 script="$PLUGIN_DIR/docker.sh" \
   click_script="sketchybar --set docker popup.drawing=toggle" \
   popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
@@ -177,14 +208,13 @@ sketchybar --add item docker right \
 
 # claude: session state on the icon (idle/working/blocked) and the 5h / 7d
 # usage limits as a grouped pill like the stats, published by the Claude Code
-# "usage" mod. plugins/claude.sh, run by the icon item, sets all three.
+# "usage" mod. plugins/claude.sh, run by the icon item, sets all three. It runs
+# only on the mod's claude_update events, never on a timer.
 # left-clicking the icon lists every Claude pane in tmux, right-clicking jumps
 # to the session that needs you; the limits open the usage page.
 claude_window=(
   drawing=off
-  padding_left=0
-  padding_right=0
-  background.drawing=off
+  "${group_member[@]}"
   icon.font="$FONT:Bold:11.0"
   icon.color="$ACCENT"
   click_script="open https://claude.ai/settings/usage"
@@ -195,12 +225,12 @@ sketchybar --add event claude_update \
   --add item claude.5h right \
   --set claude.5h "${claude_window[@]}" icon=5h \
   --add item claude right \
-  --set claude padding_left=0 padding_right=0 background.drawing=off update_freq=60 \
-  icon=:claude: icon.font="sketchybar-app-font:Regular:16.0" icon.padding_left=8 \
-  label.drawing=off script="$PLUGIN_DIR/claude.sh" click_script="$PLUGIN_DIR/claude_click.sh" \
+  --set claude "${group_member[@]}" \
+  icon=:claude: icon.font="sketchybar-app-font:Regular:16.0" "${icon_only[@]}" \
+  script="$PLUGIN_DIR/claude.sh" \
   popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
   popup.background.border_width=2 popup.background.corner_radius=8 \
-  --subscribe claude claude_update \
+  --subscribe claude claude_update mouse.clicked theme_refresh \
   --add bracket claude_group claude claude.5h claude.7d \
   --set claude_group background.color="$ITEM_BG" background.corner_radius=6 background.height=24
 
@@ -208,11 +238,17 @@ sketchybar --add event claude_update \
 # The icon color shows the most urgent state; clicking it lists every Pi
 # session and focuses its tmux pane in Ghostty when available.
 sketchybar --add item pi right \
-  --set pi drawing=off icon=π icon.font="$FONT:Bold:15.0" icon.padding_left=8 \
-  label.drawing=off update_freq=5 script="$PLUGIN_DIR/pi.sh" \
+  --set pi drawing=off icon=π icon.font="$FONT:Bold:15.0" "${icon_only[@]}" \
+  update_freq=5 script="$PLUGIN_DIR/pi.sh" \
   click_script="$PLUGIN_DIR/pi_click.sh" \
   popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
   popup.background.border_width=2 popup.background.corner_radius=8 \
-  --subscribe pi system_woke
+  --subscribe pi system_woke theme_refresh
+
+# One native macOS appearance listener; no polling. The updater fans out a
+# separate event after applying base colors so stateful plugins cannot race it.
+sketchybar --add item theme_watcher left \
+  --set theme_watcher drawing=off updates=on script="$PLUGIN_DIR/theme.sh" \
+  --subscribe theme_watcher theme_change system_woke
 
 sketchybar --update

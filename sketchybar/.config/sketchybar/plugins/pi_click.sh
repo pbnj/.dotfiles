@@ -5,29 +5,40 @@ NOW="$(date +%s)"
 STALE=300
 FONT="JetBrainsMono Nerd Font"
 
-# tokyonight
-DIM=0xff737aa2
-ORANGE=0xffff9e64
-RED=0xfff7768e
+# shellcheck source=../colors.sh
+source "$CONFIG_DIR/colors.sh"
 
-if [ "$(sketchybar --query pi 2>/dev/null | jq -r '.popup.drawing // "off"')" = "on" ]; then
+REFRESH=false
+[ "${SENDER:-}" = theme_refresh ] && REFRESH=true
+QUERY="$(sketchybar --query pi 2>/dev/null)"
+POPUP="$(jq -r '.popup.drawing // "off"' <<<"$QUERY")"
+if $REFRESH; then
+  [ "$POPUP" = on ] || exit 0
+elif [ "$POPUP" = on ]; then
   sketchybar --set pi popup.drawing=off
   exit 0
 fi
 
 row=(
   background.drawing=off
-  icon.padding_left=10
+  icon.padding_left=8
   icon.font="$FONT:Bold:13.0"
-  label.padding_right=12
+  label.padding_right=8
+  label.color="$FG"
   padding_left=0
   padding_right=0
 )
 args=()
-item_count="$(sketchybar --query pi 2>/dev/null | jq -r '.popup.items | length' 2>/dev/null)"
-if [[ "$item_count" =~ ^[0-9]+$ ]] && ((item_count > 0)); then
-  args+=(--remove '/pi\.row\..*/')
-fi
+ROW_NAMES=()
+OLD_ITEMS="$(jq -r '.popup.items[]? | select(startswith("pi.row."))' <<<"$QUERY")"
+set_row() {
+  local item="pi.row.$1"
+  if ! grep -Fxq "$item" <<<"$OLD_ITEMS"; then
+    args+=(--add item "$item" popup.pi)
+  fi
+  ROW_NAMES+=("$item")
+  args+=(--set "$item" "${row[@]}" "${@:2}")
+}
 
 JUMP_SCRIPT="$CONFIG_DIR/plugins/pi_jump.sh"
 printf -v jump_script_q '%q' "$JUMP_SCRIPT"
@@ -88,20 +99,21 @@ for file in "$DIR"/*.json; do
   printf -v socket_q '%q' "$socket"
   printf -v pane_q '%q' "$pane"
   click_script="sketchybar --set pi popup.drawing=off; $jump_script_q $socket_q $pane_q"
-  args+=(
-    --add item "pi.row.$i" popup.pi
-    --set "pi.row.$i" "${row[@]}" icon="$dot" icon.color="$color"
+  set_row "$i" icon="$dot" icon.color="$color" \
     label="$label" click_script="$click_script"
-  )
   i=$((i + 1))
 done
 
 if ((i == 0)); then
-  args+=(
-    --add item pi.row.empty popup.pi
-    --set pi.row.empty "${row[@]}" icon="○" icon.color="$DIM"
-    label="No active Pi sessions"
-  )
+  set_row empty icon="○" icon.color="$DIM" label="No active Pi sessions"
 fi
 
-sketchybar "${args[@]}" --set pi popup.drawing=on
+# Reuse existing rows so a theme update cannot disrupt popup mouse tracking.
+while IFS= read -r item; do
+  [ -n "$item" ] || continue
+  [[ " ${ROW_NAMES[*]} " == *" $item "* ]] || args+=(--remove "$item")
+done <<<"$OLD_ITEMS"
+
+# A refresh must not reopen a menu that was closed while we read session state.
+$REFRESH || args+=(--set pi popup.drawing=on)
+sketchybar "${args[@]}"

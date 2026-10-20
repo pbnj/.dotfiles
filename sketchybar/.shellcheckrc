@@ -1,0 +1,3 @@
+# Resolve shared palette/helpers relative to each script, including in hooks.
+source-path=SCRIPTDIR
+external-sources=true

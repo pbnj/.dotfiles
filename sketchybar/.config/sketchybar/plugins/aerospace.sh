@@ -11,9 +11,8 @@ icon_result=""
 
 FOCUSED="${FOCUSED_WORKSPACE:-$(aerospace list-workspaces --focused)}"
 
-# app pill backgrounds (tokyonight): brighter for the focused workspace
-APPS_BG=0xff414868
-FOCUSED_BG=0xff565f89
+# shellcheck source=../colors.sh
+source "$CONFIG_DIR/colors.sh"
 
 declare -A ICONS
 while IFS='|' read -r ws app; do

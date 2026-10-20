@@ -6,10 +6,8 @@ NAME="${NAME:-pi}"
 NOW="$(date +%s)"
 STALE=300
 
-# tokyonight
-DIM=0xff737aa2
-ORANGE=0xffff9e64
-RED=0xfff7768e
+# shellcheck source=../colors.sh
+source "$CONFIG_DIR/colors.sh"
 
 # Most urgent state across Pi sessions: blocked > working > idle.
 RANK=0
@@ -51,3 +49,8 @@ else
   args+=(drawing=off)
 fi
 sketchybar "${args[@]}"
+
+# Recolor an open popup without treating the update as a click.
+if [ "${SENDER:-}" = theme_refresh ]; then
+  "$CONFIG_DIR/plugins/pi_click.sh"
+fi
