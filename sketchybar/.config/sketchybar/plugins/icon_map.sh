@@ -60,9 +60,6 @@ function __icon_map() {
    "AirVPN" | "Eddie")
         icon_result=":airvpn:"
         ;;
-   "Alacritty")
-        icon_result=":alacritty:"
-        ;;
    "Alfred")
         icon_result=":alfred:"
         ;;

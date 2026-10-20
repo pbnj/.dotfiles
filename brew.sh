@@ -5,7 +5,6 @@
 
 brew install --cask 1password     # password manager
 brew install --cask 1password-cli # password manager
-brew install --cask alacritty     # terminal
 brew install --cask docker        # containers
 brew install --cask firefox       # browser
 brew tap abue-ammar/tinycast
