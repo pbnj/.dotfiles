@@ -20,12 +20,17 @@ if echo "$BATT" | grep -q 'AC Power'; then
   ICON=""
 fi
 
-# tokyonight: green full, orange charging (or plugged in but holding below
-# full, e.g. optimized charging), yellow discharging
-case "$BATT" in
-  *"; charged;"* | *"100%;"*) COLOR=$GREEN ;;
-  *"; charging;"* | *"AC Power"*) COLOR=$ORANGE ;;
-  *) COLOR=$YELLOW ;;
-esac
+# Charge-level colors apply on battery and AC power alike.
+# 100%: green; remaining charge split into thirds.
+# 67-99%: normal; 34-66%: yellow; 0-33%: red.
+if [ "$PERCENTAGE" -eq 100 ]; then
+  COLOR=$GREEN
+elif [ "$PERCENTAGE" -ge 67 ]; then
+  COLOR=$FG
+elif [ "$PERCENTAGE" -ge 34 ]; then
+  COLOR=$YELLOW
+else
+  COLOR=$RED
+fi
 
 sketchybar --set "$NAME" icon="$ICON" label="${PERCENTAGE}%" icon.color="$COLOR" label.color="$COLOR"

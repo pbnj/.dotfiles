@@ -434,19 +434,53 @@ class ThemeTests(unittest.TestCase):
             ["volume_change", "mouse.clicked", "system_woke", "theme_refresh"],
         )
 
-    def test_battery_and_vpn_state_colors_follow_both_palettes(self):
+    def test_battery_charge_thresholds_follow_both_palettes(self):
         for appearance in ("Dark", "Light"):
             self.data["appearance"] = appearance
             colors = self.palette()
-            for status, token in (
-                ("100%; charged;", "GREEN"),
-                ("80%; charging; AC Power", "ORANGE"),
-                ("80%; discharging;", "YELLOW"),
+            for percentage, token, icon in (
+                (0, "RED", ""),
+                (33, "RED", ""),
+                (34, "YELLOW", ""),
+                (66, "YELLOW", ""),
+                (67, "FG", ""),
+                (99, "FG", ""),
+                (100, "GREEN", ""),
             ):
-                self.data["battery"] = status
-                self.clear_calls()
-                self.plugin("battery.sh", NAME="battery")
-                self.assertIn("label.color=" + colors[token], self.calls()[-1])
+                for source, state in (
+                    ("Battery Power", "discharging"),
+                    ("AC Power", "charging"),
+                    ("AC Power", "not charging"),
+                ):
+                    with self.subTest(
+                        appearance=appearance,
+                        percentage=percentage,
+                        source=source,
+                        state=state,
+                    ):
+                        self.data["battery"] = (
+                            f"Now drawing from '{source}'\n"
+                            f" -InternalBattery-0 {percentage}%; {state};"
+                        )
+                        self.clear_calls()
+                        self.plugin("battery.sh", NAME="battery")
+                        self.assertEqual(len(self.calls()), 1)
+                        args = self.calls()[0]
+                        self.assertIn("icon.color=" + colors[token], args)
+                        self.assertIn("label.color=" + colors[token], args)
+                        self.assertIn(f"label={percentage}%", args)
+                        expected_icon = "" if source == "AC Power" else icon
+                        self.assertIn("icon=" + expected_icon, args)
+
+    def test_battery_without_percentage_does_not_update(self):
+        self.data["battery"] = "Now drawing from 'AC Power'"
+        self.plugin("battery.sh", NAME="battery")
+        self.assertEqual(self.calls(), [])
+
+    def test_vpn_state_colors_follow_both_palettes(self):
+        for appearance in ("Dark", "Light"):
+            self.data["appearance"] = appearance
+            colors = self.palette()
             for status, token in (
                 ("Connected", "GREEN"),
                 ("Connecting", "YELLOW"),
