@@ -210,6 +210,11 @@ class ThemeTests(unittest.TestCase):
             "twingate",
             "wifi",
             "battery",
+            "battery.level",
+            "battery.source",
+            "battery.status",
+            "battery.time",
+            "battery.settings",
             "volume",
             "volume.level",
             "volume.output",
@@ -232,8 +237,7 @@ class ThemeTests(unittest.TestCase):
         grouped_edges = {
             "cpu": ("8", "2"),
             "memory": ("2", "2"),
-            "disk": ("2", "2"),
-            "battery": ("2", "8"),
+            "disk": ("2", "8"),
             "claude.5h": ("2", "2"),
             "claude.7d": ("2", "2"),
         }
@@ -247,6 +251,16 @@ class ThemeTests(unittest.TestCase):
                 right = item["label.padding_right" if label else "icon.padding_right"]
                 self.assertEqual((left, right), grouped_edges.get(name, ("8", "8")))
                 self.assertEqual(item["padding_left"], item["padding_right"])
+        self.assertEqual(items["battery"]["label.drawing"], "off")
+        self.assertEqual(items["battery"]["icon.padding_left"], "8")
+        self.assertEqual(items["battery"]["icon.padding_right"], "8")
+        self.assertEqual(items["battery"]["padding_left"], "4")
+        self.assertEqual(
+            items["battery"]["background.color"], self.palette()["ITEM_BG"]
+        )
+        self.assertEqual(items["battery"].get("background.drawing", "on"), "on")
+        self.assertNotIn("click_script", items["battery"])
+        self.assertIn("Battery-Settings", items["battery.settings"]["click_script"])
         self.assertEqual(items["volume"]["label.drawing"], "off")
         self.assertEqual(items["volume"]["update_freq"], "5")
         self.assertEqual(items["clock"]["icon.padding_right"], "2")
@@ -257,7 +271,7 @@ class ThemeTests(unittest.TestCase):
                 self.assertEqual(items[name]["background.drawing"], "off")
                 self.assertEqual(items[name]["padding_left"], "0")
                 self.assertEqual(items[name]["padding_right"], "0")
-        for left, right in (("cpu", "memory"), ("memory", "disk"), ("disk", "battery")):
+        for left, right in (("cpu", "memory"), ("memory", "disk")):
             self.assertEqual(
                 int(items[left]["label.padding_right"])
                 + int(items[right]["icon.padding_left"]),
@@ -290,9 +304,9 @@ class ThemeTests(unittest.TestCase):
                         len(call),
                     )
                     members = call[index + 3 : end]
-        self.assertEqual(members, ["cpu", "memory", "disk", "battery"])
+        self.assertEqual(members, ["cpu", "memory", "disk"])
         positions = sorted(order.index(name) for name in members)
-        self.assertEqual(positions, list(range(positions[0], positions[0] + 4)))
+        self.assertEqual(positions, list(range(positions[0], positions[0] + 3)))
         self.assertEqual([order[i] for i in positions], list(reversed(members)))
 
     def test_palette_follows_dark_and_missing_light_preference(self):
@@ -372,11 +386,13 @@ class ThemeTests(unittest.TestCase):
                         "twingate",
                         "wifi",
                         "volume",
+                        "battery",
                         "pi",
                     ),
                 )
         self.assertIn("popup.background.color=" + colors["BG"], settings["volume"])
-        self.assertNotIn("battery", settings)
+        self.assertIn("background.color=" + colors["ITEM_BG"], settings["battery"])
+        self.assertIn("popup.background.color=" + colors["BG"], settings["battery"])
         self.assertIn("/space[.].*/", settings)
 
     def test_startup_registers_events_before_subscribing(self):
@@ -434,23 +450,48 @@ class ThemeTests(unittest.TestCase):
             ["volume_change", "mouse.clicked", "system_woke", "theme_refresh"],
         )
 
+        self.assertIn("mouse.clicked", subscriptions["battery"])
+
     def test_battery_charge_thresholds_follow_both_palettes(self):
+        charging_icons = (
+            "󰢟",
+            "󰢜",
+            "󰂆",
+            "󰂇",
+            "󰂈",
+            "󰢝",
+            "󰂉",
+            "󰢞",
+            "󰂊",
+            "󰂋",
+            "󰂅",
+        )
         for appearance in ("Dark", "Light"):
             self.data["appearance"] = appearance
             colors = self.palette()
             for percentage, token, icon in (
                 (0, "RED", ""),
+                (9, "RED", ""),
+                (10, "RED", ""),
+                (29, "RED", ""),
+                (30, "RED", ""),
                 (33, "RED", ""),
                 (34, "YELLOW", ""),
+                (59, "YELLOW", ""),
+                (60, "YELLOW", ""),
                 (66, "YELLOW", ""),
                 (67, "FG", ""),
+                (89, "FG", ""),
+                (90, "FG", ""),
                 (99, "FG", ""),
                 (100, "GREEN", ""),
             ):
                 for source, state in (
                     ("Battery Power", "discharging"),
                     ("AC Power", "charging"),
+                    ("AC Power", "finishing charge"),
                     ("AC Power", "not charging"),
+                    ("AC Power", "charged"),
                 ):
                     with self.subTest(
                         appearance=appearance,
@@ -467,15 +508,25 @@ class ThemeTests(unittest.TestCase):
                         self.assertEqual(len(self.calls()), 1)
                         args = self.calls()[0]
                         self.assertIn("icon.color=" + colors[token], args)
-                        self.assertIn("label.color=" + colors[token], args)
-                        self.assertIn(f"label={percentage}%", args)
-                        expected_icon = "" if source == "AC Power" else icon
-                        self.assertIn("icon=" + expected_icon, args)
+                        self.assertIn("label.drawing=off", args)
+                        self.assertIn("label=", args)
+                        pill_args = args[2 : args.index("--set", 2)]
+                        self.assertFalse(any("%" in arg for arg in pill_args))
+                        if state in ("charging", "finishing charge"):
+                            bar_icon = charging_icons[percentage // 10]
+                        elif source == "AC Power":
+                            bar_icon = ""
+                        else:
+                            bar_icon = icon
+                        self.assertIn("icon=" + bar_icon, pill_args)
+                        self.assertIn("icon=" + icon, args[len(pill_args) + 2 :])
+                        self.assertIn(f"label=Charge: {percentage}%", args)
 
-    def test_battery_without_percentage_does_not_update(self):
+    def test_battery_without_percentage_reports_unavailable(self):
         self.data["battery"] = "Now drawing from 'AC Power'"
         self.plugin("battery.sh", NAME="battery")
-        self.assertEqual(self.calls(), [])
+        self.assertIn("label=Charge: Unavailable", self.calls()[0])
+        self.assertIn("icon=", self.calls()[0])
 
     def test_vpn_state_colors_follow_both_palettes(self):
         for appearance in ("Dark", "Light"):

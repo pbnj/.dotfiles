@@ -32,6 +32,15 @@ a popup row to open Sound settings. Device names come from macOS's built-in
 The popup refreshes on volume changes and every 5 seconds while open, without
 reopening a closed popup.
 
+The battery has its own icon-only pill: five fill levels on battery power, a
+battery with a lightning bolt while charging (including finishing charge), and a
+plug when connected to power but not charging. Charging icons track the fill in
+10% steps, with an outline below 10%. The dropdown keeps the charge-level icon.
+Green is reserved for 100%; 67–99% uses the normal text color, 34–66% is yellow,
+and 0–33% is red, regardless of power source. Click for charge percentage, power
+source, charging status, the macOS time estimate, and Battery Settings. Routine
+and theme updates refresh the rows without reopening the dropdown.
+
 After editing the config, run `sketchybar --reload` once. To reapply the current
 system theme without reloading, run `sketchybar --trigger theme_change`.
 

@@ -14,10 +14,10 @@ args=(
 
 # Setting background.color implicitly enables drawing in SketchyBar. Only
 # recolor the real pills/brackets, not transparent children or popup rows.
-for item in spaces stats claude_group clock twingate wifi volume pi; do
+for item in spaces stats claude_group clock twingate wifi volume battery pi; do
   args+=(--set "$item" background.color="$ITEM_BG")
 done
-for item in apple.logo volume docker claude pi; do
+for item in apple.logo volume battery docker claude pi; do
   args+=(--set "$item" popup.background.color="$BG" popup.background.border_color="$SELECTED_BG")
 done
 args+=(--set apple.logo icon.color="$GREEN")

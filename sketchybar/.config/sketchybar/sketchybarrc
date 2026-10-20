@@ -164,11 +164,23 @@ sketchybar --add item volume right \
   --set volume.settings "${audio_row[@]}" icon= label="Sound Settings"
 
 sketchybar --add item battery right \
-  --set battery "${group_member[@]}" label.padding_right=8 update_freq=120 script="$PLUGIN_DIR/battery.sh" \
-  click_script="open x-apple.systempreferences:com.apple.Battery-Settings.extension" \
-  --subscribe battery system_woke power_source_change theme_refresh \
+  --set battery "${icon_only[@]}" update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
+  --subscribe battery system_woke power_source_change mouse.clicked theme_refresh \
+  --add item battery.level popup.battery \
+  --set battery.level "${popup_item[@]}" icon= label="Charge: …" \
+  --add item battery.source popup.battery \
+  --set battery.source "${popup_item[@]}" icon= label="Power source: …" \
+  --add item battery.status popup.battery \
+  --set battery.status "${popup_item[@]}" icon= label="Status: …" \
+  --add item battery.time popup.battery \
+  --set battery.time "${popup_item[@]}" icon= label="Time estimate: …" \
+  --add item battery.settings popup.battery \
+  --set battery.settings "${popup_item[@]}" icon= label="Battery Settings" \
+  click_script="open x-apple.systempreferences:com.apple.Battery-Settings.extension; sketchybar --set battery popup.drawing=off" \
   --add item disk right \
-  --set disk "${group_member[@]}" update_freq=60 icon=SSD icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/disk.sh" \
+  --set disk "${group_member[@]}" label.padding_right=8 update_freq=60 icon=SSD icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/disk.sh" \
   click_script="open 'x-apple.systempreferences:com.apple.settings.Storage'" \
   --add item memory right \
   --set memory "${group_member[@]}" update_freq=5 icon=MEM icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/memory.sh" \
@@ -177,7 +189,7 @@ sketchybar --add item battery right \
   --set cpu "${group_member[@]}" icon.padding_left=8 update_freq=5 icon=CPU icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/cpu.sh" \
   click_script="open -a 'Activity Monitor'"
 
-sketchybar --add bracket stats cpu memory disk battery \
+sketchybar --add bracket stats cpu memory disk \
   --set stats background.color="$ITEM_BG" background.corner_radius=6 background.height=24
 
 # docker: just the whale, hidden unless Docker Desktop is running; a click
