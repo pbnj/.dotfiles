@@ -139,17 +139,32 @@ class ClaudeStateTests(unittest.TestCase):
         path = self.root / "calls.jsonl"
         return [json.loads(line) for line in path.read_text().splitlines()]
 
-    def test_usage_group_padding_tracks_visible_windows(self):
+    def session_labels(self):
+        args = self.calls()[-1]
+        labels = []
+        for index, argument in enumerate(args):
+            if argument != "--set" or not args[index + 1].startswith("claude.row."):
+                continue
+            end = next(
+                (i for i in range(index + 2, len(args)) if args[i].startswith("--")),
+                len(args),
+            )
+            labels.extend(
+                arg for arg in args[index + 2 : end] if arg.startswith("label=")
+            )
+        return labels
+
+    def test_usage_line_handles_missing_and_expired_windows_without_gaps(self):
         active = {"percentUsed": 10}
         expired = {"percentUsed": 10, "resetsAt": "2000-01-01T00:00:00Z"}
         settings = {}
         for usage, visible in (
             ({}, []),
-            ({"five_hour": active}, ["claude.5h"]),
-            ({"five_hour": active, "seven_day": active}, ["claude.5h", "claude.7d"]),
-            ({"seven_day": active}, ["claude.7d"]),
-            ({"five_hour": active}, ["claude.5h"]),
-            ({"five_hour": expired, "seven_day": active}, ["claude.7d"]),
+            ({"five_hour": active}, ["five_hour"]),
+            ({"five_hour": active, "seven_day": active}, ["five_hour", "seven_day"]),
+            ({"seven_day": active}, ["seven_day"]),
+            ({"five_hour": active}, ["five_hour"]),
+            ({"five_hour": expired, "seven_day": active}, ["seven_day"]),
             ({"five_hour": expired}, []),
         ):
             with self.subTest(visible=visible, usage=usage):
@@ -170,19 +185,75 @@ class ClaudeStateTests(unittest.TestCase):
                     settings.setdefault(args[index + 1], {}).update(
                         arg.split("=", 1) for arg in args[index + 2 : end]
                     )
+                self.assertEqual(settings["claude"]["icon.padding_right"], "8")
+                self.assertEqual(settings["claude"]["label.drawing"], "off")
+                self.assertNotIn("label", settings["claude"])
+                self.assertNotIn("label.color", settings["claude"])
+                usage_row = settings["claude.usage"]
+                five, seven = "five_hour" in visible, "seven_day" in visible
+                self.assertEqual(usage_row["drawing"], "on" if visible else "off")
+                self.assertEqual(usage_row["icon.drawing"], "on" if five else "off")
+                self.assertEqual(usage_row["label.drawing"], "on" if seven else "off")
+                self.assertEqual(usage_row["icon"], "5h: 10%" if five else "")
+                label = ("· " if five else "") + "7d: 10%" if seven else ""
+                self.assertEqual(usage_row["label"], label)
                 self.assertEqual(
-                    settings["claude"]["icon.padding_right"],
-                    "2" if visible else "8",
+                    usage_row["icon.padding_right"], "8" if five and not seven else "2"
                 )
-                for item in ("claude.5h", "claude.7d"):
-                    self.assertEqual(
-                        settings[item]["drawing"], "on" if item in visible else "off"
+                self.assertEqual(
+                    usage_row["label.padding_left"], "8" if seven and not five else "2"
+                )
+                self.assertNotIn("claude.5h", args)
+                self.assertNotIn("claude.7d", args)
+                self.assertNotIn("popup.drawing=on", args)
+
+    def test_usage_line_keeps_independent_threshold_colors_in_both_themes(self):
+        for appearance, normal, yellow, red in (
+            ("Dark", "0xffc8d3f5", "0xffffc777", "0xffff757f"),
+            ("Light", "0xff344c8c", "0xff6b4b16", "0xff982346"),
+        ):
+            self.data["appearance"] = appearance
+            for percent, color in ((69, normal), (70, yellow), (89, yellow), (90, red)):
+                with self.subTest(appearance=appearance, percent=percent):
+                    (self.cache.parent / "usage.json").write_text(
+                        json.dumps({"five_hour": {"percentUsed": percent}})
                     )
-                    if item in visible:
-                        self.assertEqual(
-                            settings[item]["label.padding_right"],
-                            "8" if item == visible[-1] else "2",
-                        )
+                    self.run_plugin("claude.sh")
+                    args = self.calls()[-1]
+                    self.assertIn(f"icon=5h: {percent}%", args)
+                    self.assertIn("icon.color=" + color, args)
+                    self.assertIn("icon.padding_right=8", args)
+                    self.assertNotIn("popup.drawing=on", args)
+
+    def test_open_dropdown_keeps_usage_and_session_rows_together(self):
+        (self.cache.parent / "usage.json").write_text(
+            json.dumps(
+                {"five_hour": {"percentUsed": 25}, "seven_day": {"percentUsed": 50}}
+            )
+        )
+        self.click()
+        args = self.calls()[-1]
+        self.assertIn("claude.usage", args)
+        self.assertNotIn("claude.5h", args)
+        self.assertNotIn("claude.7d", args)
+        self.assertIn("claude.row.0", args)
+        self.assertIn("icon=5h: 25%", args)
+        self.assertIn("label=· 7d: 50%", args)
+        self.assertEqual(args[-2:], ["claude", "popup.drawing=on"])
+
+    def test_combined_usage_line_keeps_each_windows_warning_color(self):
+        (self.cache.parent / "usage.json").write_text(
+            json.dumps(
+                {"five_hour": {"percentUsed": 75}, "seven_day": {"percentUsed": 95}}
+            )
+        )
+        self.run_plugin("claude.sh")
+        args = self.calls()[-1]
+        self.assertIn("icon=5h: 75%", args)
+        self.assertIn("icon.color=0xffffc777", args)
+        self.assertIn("label=· 7d: 95%", args)
+        self.assertIn("label.color=0xffff757f", args)
+        self.assertNotIn("popup.drawing=on", args)
 
     def test_mod_working_and_blocked_states(self):
         self.mod("working")
@@ -309,15 +380,13 @@ class ClaudeStateTests(unittest.TestCase):
     def test_orphaned_cache_record_does_not_create_blank_menu_row(self):
         self.mod(tmux={"socket": self.pane["socket_path"], "pane": "%19"})
         self.click()
-        labels = [arg for arg in self.calls()[-1] if arg.startswith("label=")]
-        self.assertEqual(labels, ["label=3:marmot  Marmot Threat Model"])
+        self.assertEqual(self.session_labels(), ["label=3:marmot  Marmot Threat Model"])
 
     def test_orphaned_cache_record_does_not_hide_empty_menu_message(self):
         self.mod()
         self.data["panes"] = []
         self.click()
-        labels = [arg for arg in self.calls()[-1] if arg.startswith("label=")]
-        self.assertEqual(labels, ["label=No Claude sessions in tmux"])
+        self.assertEqual(self.session_labels(), ["label=No Claude sessions in tmux"])
 
     def test_refresh_updates_existing_rows_without_recreating_them(self):
         self.mod("working")
@@ -370,8 +439,7 @@ class ClaudeStateTests(unittest.TestCase):
     def test_window_name_with_separator_keeps_fields(self):
         self.pane["window_name"] = "a|b"
         self.click()
-        labels = [arg for arg in self.calls()[-1] if arg.startswith("label=")]
-        self.assertEqual(labels, ["label=3:a|b  Marmot Threat Model"])
+        self.assertEqual(self.session_labels(), ["label=3:a|b  Marmot Threat Model"])
 
     def test_click_still_closes_open_menu(self):
         self.data["popup"] = "on"

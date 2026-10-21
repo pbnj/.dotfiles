@@ -12,6 +12,7 @@ CONFIG = Path(__file__).resolve().parents[1] / ".config/sketchybar"
 PALETTE_KEYS = [
     "THEME",
     "BG",
+    "BAR_BG",
     "FG",
     "ITEM_BG",
     "SELECTED_BG",
@@ -209,19 +210,29 @@ class ThemeTests(unittest.TestCase):
             "clock",
             "twingate",
             "wifi",
+            "wifi.status",
+            "wifi.address",
+            "wifi.interface",
+            "wifi.settings",
             "battery",
+            "battery.level",
+            "battery.source",
+            "battery.status",
+            "battery.time",
+            "battery.settings",
+            "copilot",
             "volume",
             "volume.level",
             "volume.output",
             "volume.input",
             "volume.settings",
             "docker",
+            "github",
             "cpu",
             "memory",
             "disk",
             "claude",
-            "claude.5h",
-            "claude.7d",
+            "claude.usage",
             "pi",
             "front_app",
             "space.W",
@@ -232,10 +243,7 @@ class ThemeTests(unittest.TestCase):
         grouped_edges = {
             "cpu": ("8", "2"),
             "memory": ("2", "2"),
-            "disk": ("2", "2"),
-            "battery": ("2", "8"),
-            "claude.5h": ("2", "2"),
-            "claude.7d": ("2", "2"),
+            "disk": ("2", "8"),
         }
         for name, item in items.items():
             with self.subTest(item=name):
@@ -247,23 +255,46 @@ class ThemeTests(unittest.TestCase):
                 right = item["label.padding_right" if label else "icon.padding_right"]
                 self.assertEqual((left, right), grouped_edges.get(name, ("8", "8")))
                 self.assertEqual(item["padding_left"], item["padding_right"])
+        self.assertEqual(items["battery"]["label.drawing"], "off")
+        self.assertEqual(items["battery"]["icon.padding_left"], "8")
+        self.assertEqual(items["battery"]["icon.padding_right"], "8")
+        self.assertEqual(items["battery"]["padding_left"], "4")
+        self.assertEqual(
+            items["battery"]["background.color"], self.palette()["ITEM_BG"]
+        )
+        self.assertEqual(items["battery"].get("background.drawing", "on"), "on")
+        self.assertNotIn("click_script", items["battery"])
+        self.assertIn("Battery-Settings", items["battery.settings"]["click_script"])
+        self.assertEqual(items["copilot"]["drawing"], "off")
+        self.assertEqual(items["copilot"]["label.drawing"], "off")
+        self.assertEqual(items["copilot"]["icon"], "")
+        self.assertEqual(items["copilot"]["update_freq"], "5")
+        self.assertEqual(items["wifi"]["label.drawing"], "off")
+        self.assertNotIn("click_script", items["wifi"])
+        self.assertNotIn("wifi.network", items)
+        self.assertIn("wifi-settings-extension", items["wifi.settings"]["click_script"])
         self.assertEqual(items["volume"]["label.drawing"], "off")
         self.assertEqual(items["volume"]["update_freq"], "5")
         self.assertEqual(items["clock"]["icon.padding_right"], "2")
         self.assertEqual(items["clock"]["label.padding_left"], "2")
         self.assertEqual(items["space.W"]["label.padding_left"], "8")
-        for name in (*grouped_edges, "claude"):
+        self.assertEqual(items["claude"]["label.drawing"], "off")
+        self.assertEqual(items["claude"]["padding_left"], "4")
+        self.assertEqual(items["claude"].get("background.drawing", "on"), "on")
+        for name in grouped_edges:
             with self.subTest(grouped_item=name):
                 self.assertEqual(items[name]["background.drawing"], "off")
                 self.assertEqual(items[name]["padding_left"], "0")
                 self.assertEqual(items[name]["padding_right"], "0")
-        for left, right in (("cpu", "memory"), ("memory", "disk"), ("disk", "battery")):
+        for left, right in (("cpu", "memory"), ("memory", "disk")):
             self.assertEqual(
                 int(items[left]["label.padding_right"])
                 + int(items[right]["icon.padding_left"]),
                 4,
             )
         for name in (*grouped_edges, "clock"):
+            if items[name]["label.drawing"] == "off":
+                continue
             self.assertEqual(
                 int(items[name]["icon.padding_right"])
                 + int(items[name]["label.padding_left"]),
@@ -290,10 +321,23 @@ class ThemeTests(unittest.TestCase):
                         len(call),
                     )
                     members = call[index + 3 : end]
-        self.assertEqual(members, ["cpu", "memory", "disk", "battery"])
+        self.assertEqual(members, ["cpu", "memory", "disk"])
         positions = sorted(order.index(name) for name in members)
-        self.assertEqual(positions, list(range(positions[0], positions[0] + 4)))
+        self.assertEqual(positions, list(range(positions[0], positions[0] + 3)))
         self.assertEqual([order[i] for i in positions], list(reversed(members)))
+
+    def test_claude_usage_is_one_row_inside_the_dropdown(self):
+        self.run_command(["bash", str(CONFIG / "sketchybarrc")])
+        positions = {}
+        for call in self.calls():
+            self.assertNotIn("claude_group", call)
+            for index, argument in enumerate(call):
+                if argument == "--add" and call[index + 1] == "item":
+                    positions[call[index + 2]] = call[index + 3]
+        self.assertEqual(positions["claude"], "right")
+        self.assertEqual(positions["claude.usage"], "popup.claude")
+        self.assertNotIn("claude.5h", positions)
+        self.assertNotIn("claude.7d", positions)
 
     def test_palette_follows_dark_and_missing_light_preference(self):
         self.assertEqual(self.palette()["THEME"], "moon")
@@ -302,12 +346,29 @@ class ThemeTests(unittest.TestCase):
         self.assertEqual(self.palette()["THEME"], "day")
         self.assertEqual(self.palette()["BG"], "0xffe1e2e7")
 
-    def test_all_text_and_state_colors_have_aa_contrast(self):
+    def test_bar_and_pill_transparency_leave_popup_menus_opaque(self):
+        for appearance in ("Dark", "Light"):
+            with self.subTest(appearance=appearance):
+                self.data["appearance"] = appearance
+                colors = self.palette()
+                self.assertEqual(colors["BAR_BG"], "0x80" + colors["BG"][-6:])
+                self.assertTrue(colors["BG"].startswith("0xff"))
+                self.assertTrue(colors["ITEM_BG"].startswith("0xa6"))
+                self.clear_calls()
+                self.run_command(["bash", str(CONFIG / "sketchybarrc")])
+                bar = next(call for call in self.calls() if call[0] == "--bar")
+                self.assertIn("color=" + colors["BAR_BG"], bar)
+                defaults = next(call for call in self.calls() if call[0] == "--default")
+                self.assertIn("background.color=" + colors["ITEM_BG"], defaults)
+
+    def test_base_palette_text_and_state_colors_have_aa_contrast(self):
+        # Check base RGB colors; translucent pill contrast depends on the wallpaper.
         for appearance in ("Dark", "Light"):
             self.data["appearance"] = appearance
             colors = self.palette()
             for background in ("BG", "ITEM_BG", "APPS_BG", "FOCUSED_BG"):
-                self.assertTrue(colors[background].startswith("0xff"))
+                alpha = "0xa6" if background == "ITEM_BG" else "0xff"
+                self.assertTrue(colors[background].startswith(alpha))
                 for foreground in (
                     "FG",
                     "ACCENT",
@@ -331,7 +392,7 @@ class ThemeTests(unittest.TestCase):
             self.plugin("theme.sh")
             calls = self.calls()
             self.assertEqual(len(calls), 2)
-            self.assertIn("color=" + colors["BG"], calls[0])
+            self.assertIn("color=" + colors["BAR_BG"], calls[0])
             self.assertIn("icon.color=" + colors["ACCENT"], calls[0])
             self.assertIn("popup.background.color=" + colors["BG"], calls[0])
             self.assertEqual(calls[1], ["--trigger", "theme_refresh"])
@@ -358,7 +419,13 @@ class ThemeTests(unittest.TestCase):
             settings["/.*/"],
             ["icon.color=" + colors["FG"], "label.color=" + colors["FG"]],
         )
-        for item in ("cpu", "memory", "disk", "docker", "claude.5h", "claude.7d"):
+        for item in (
+            "cpu",
+            "memory",
+            "disk",
+            "docker",
+            "copilot",
+        ):
             self.assertIn("icon.color=" + colors["ACCENT"], settings[item])
         for item, properties in settings.items():
             if any(prop.startswith("background.color=") for prop in properties):
@@ -367,16 +434,25 @@ class ThemeTests(unittest.TestCase):
                     (
                         "spaces",
                         "stats",
-                        "claude_group",
+                        "claude",
                         "clock",
                         "twingate",
                         "wifi",
                         "volume",
+                        "battery",
+                        "docker",
+                        "github",
+                        "copilot",
                         "pi",
                     ),
                 )
         self.assertIn("popup.background.color=" + colors["BG"], settings["volume"])
-        self.assertNotIn("battery", settings)
+        self.assertIn("popup.background.color=" + colors["BG"], settings["wifi"])
+        self.assertIn("background.color=" + colors["ITEM_BG"], settings["battery"])
+        self.assertIn("popup.background.color=" + colors["BG"], settings["battery"])
+        self.assertIn("background.color=" + colors["ITEM_BG"], settings["claude"])
+        self.assertIn("background.color=" + colors["ITEM_BG"], settings["docker"])
+        self.assertNotIn("claude_group", settings)
         self.assertIn("/space[.].*/", settings)
 
     def test_startup_registers_events_before_subscribing(self):
@@ -423,34 +499,61 @@ class ThemeTests(unittest.TestCase):
             "wifi",
             "volume",
             "claude",
+            "github",
+            "copilot",
             "pi",
         ):
             self.assertIn("theme_refresh", subscriptions[item])
         self.assertEqual(
-            subscriptions["wifi"], ["wifi_change", "system_woke", "theme_refresh"]
+            subscriptions["wifi"],
+            ["wifi_change", "mouse.clicked", "system_woke", "theme_refresh"],
         )
         self.assertEqual(
             subscriptions["volume"],
             ["volume_change", "mouse.clicked", "system_woke", "theme_refresh"],
         )
+        self.assertIn("mouse.clicked", subscriptions["battery"])
 
     def test_battery_charge_thresholds_follow_both_palettes(self):
+        charging_icons = (
+            "󰢟",
+            "󰢜",
+            "󰂆",
+            "󰂇",
+            "󰂈",
+            "󰢝",
+            "󰂉",
+            "󰢞",
+            "󰂊",
+            "󰂋",
+            "󰂅",
+        )
         for appearance in ("Dark", "Light"):
             self.data["appearance"] = appearance
             colors = self.palette()
             for percentage, token, icon in (
                 (0, "RED", ""),
+                (9, "RED", ""),
+                (10, "RED", ""),
+                (29, "RED", ""),
+                (30, "RED", ""),
                 (33, "RED", ""),
                 (34, "YELLOW", ""),
+                (59, "YELLOW", ""),
+                (60, "YELLOW", ""),
                 (66, "YELLOW", ""),
                 (67, "FG", ""),
+                (89, "FG", ""),
+                (90, "FG", ""),
                 (99, "FG", ""),
                 (100, "GREEN", ""),
             ):
                 for source, state in (
                     ("Battery Power", "discharging"),
                     ("AC Power", "charging"),
+                    ("AC Power", "finishing charge"),
                     ("AC Power", "not charging"),
+                    ("AC Power", "charged"),
                 ):
                     with self.subTest(
                         appearance=appearance,
@@ -467,15 +570,25 @@ class ThemeTests(unittest.TestCase):
                         self.assertEqual(len(self.calls()), 1)
                         args = self.calls()[0]
                         self.assertIn("icon.color=" + colors[token], args)
-                        self.assertIn("label.color=" + colors[token], args)
-                        self.assertIn(f"label={percentage}%", args)
-                        expected_icon = "" if source == "AC Power" else icon
-                        self.assertIn("icon=" + expected_icon, args)
+                        self.assertIn("label.drawing=off", args)
+                        self.assertIn("label=", args)
+                        pill_args = args[2 : args.index("--set", 2)]
+                        self.assertFalse(any("%" in arg for arg in pill_args))
+                        if state in ("charging", "finishing charge"):
+                            bar_icon = charging_icons[percentage // 10]
+                        elif source == "AC Power":
+                            bar_icon = ""
+                        else:
+                            bar_icon = icon
+                        self.assertIn("icon=" + bar_icon, pill_args)
+                        self.assertIn("icon=" + icon, args[len(pill_args) + 2 :])
+                        self.assertIn(f"label=Charge: {percentage}%", args)
 
-    def test_battery_without_percentage_does_not_update(self):
+    def test_battery_without_percentage_reports_unavailable(self):
         self.data["battery"] = "Now drawing from 'AC Power'"
         self.plugin("battery.sh", NAME="battery")
-        self.assertEqual(self.calls(), [])
+        self.assertIn("label=Charge: Unavailable", self.calls()[0])
+        self.assertIn("icon=", self.calls()[0])
 
     def test_vpn_state_colors_follow_both_palettes(self):
         for appearance in ("Dark", "Light"):
