@@ -13,7 +13,7 @@ sketchybar --add event theme_refresh \
 sketchybar --bar \
   position=top \
   height=32 \
-  color="$BG" \
+  color="$BAR_BG" \
   blur_radius=20 \
   padding_left=8 \
   padding_right=8
@@ -139,10 +139,19 @@ sketchybar --add item twingate right \
   --subscribe twingate system_woke theme_refresh
 
 sketchybar --add item wifi right \
-  --set wifi update_freq=10 icon=󰤭 "${icon_only[@]}" \
-  script="$PLUGIN_DIR/wifi.sh" \
-  click_script="open x-apple.systempreferences:com.apple.wifi-settings-extension" \
-  --subscribe wifi wifi_change system_woke theme_refresh
+  --set wifi update_freq=10 icon=󰤭 "${icon_only[@]}" script="$PLUGIN_DIR/wifi.sh" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
+  --subscribe wifi wifi_change mouse.clicked system_woke theme_refresh \
+  --add item wifi.status popup.wifi \
+  --set wifi.status "${popup_item[@]}" icon=󰤭 label="Status: …" \
+  --add item wifi.address popup.wifi \
+  --set wifi.address "${popup_item[@]}" icon= label="IP address: …" \
+  --add item wifi.interface popup.wifi \
+  --set wifi.interface "${popup_item[@]}" icon=󰈀 label="Interface: …" \
+  --add item wifi.settings popup.wifi \
+  --set wifi.settings "${popup_item[@]}" icon= label="Wi-Fi Settings" \
+  click_script="open x-apple.systempreferences:com.apple.wifi-settings-extension; sketchybar --set wifi popup.drawing=off"
 
 # Audio stays icon-only; its popup shows volume and the default I/O devices.
 audio_row=(
@@ -164,11 +173,23 @@ sketchybar --add item volume right \
   --set volume.settings "${audio_row[@]}" icon= label="Sound Settings"
 
 sketchybar --add item battery right \
-  --set battery "${group_member[@]}" label.padding_right=8 update_freq=120 script="$PLUGIN_DIR/battery.sh" \
-  click_script="open x-apple.systempreferences:com.apple.Battery-Settings.extension" \
-  --subscribe battery system_woke power_source_change theme_refresh \
+  --set battery "${icon_only[@]}" update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
+  --subscribe battery system_woke power_source_change mouse.clicked theme_refresh \
+  --add item battery.level popup.battery \
+  --set battery.level "${popup_item[@]}" icon= label="Charge: …" \
+  --add item battery.source popup.battery \
+  --set battery.source "${popup_item[@]}" icon= label="Power source: …" \
+  --add item battery.status popup.battery \
+  --set battery.status "${popup_item[@]}" icon= label="Status: …" \
+  --add item battery.time popup.battery \
+  --set battery.time "${popup_item[@]}" icon= label="Time estimate: …" \
+  --add item battery.settings popup.battery \
+  --set battery.settings "${popup_item[@]}" icon= label="Battery Settings" \
+  click_script="open x-apple.systempreferences:com.apple.Battery-Settings.extension; sketchybar --set battery popup.drawing=off" \
   --add item disk right \
-  --set disk "${group_member[@]}" update_freq=60 icon=SSD icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/disk.sh" \
+  --set disk "${group_member[@]}" label.padding_right=8 update_freq=60 icon=SSD icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/disk.sh" \
   click_script="open 'x-apple.systempreferences:com.apple.settings.Storage'" \
   --add item memory right \
   --set memory "${group_member[@]}" update_freq=5 icon=MEM icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/memory.sh" \
@@ -177,7 +198,7 @@ sketchybar --add item battery right \
   --set cpu "${group_member[@]}" icon.padding_left=8 update_freq=5 icon=CPU icon.font="$FONT:Bold:11.0" icon.color="$ACCENT" script="$PLUGIN_DIR/cpu.sh" \
   click_script="open -a 'Activity Monitor'"
 
-sketchybar --add bracket stats cpu memory disk battery \
+sketchybar --add bracket stats cpu memory disk \
   --set stats background.color="$ITEM_BG" background.corner_radius=6 background.height=24
 
 # docker: just the whale, hidden unless Docker Desktop is running; a click
@@ -206,33 +227,34 @@ sketchybar --add item docker right \
   --add item docker.volumes popup.docker \
   --set docker.volumes "${docker_row[@]}" icon=󰋊
 
-# claude: session state on the icon (idle/working/blocked) and the 5h / 7d
-# usage limits as a grouped pill like the stats, published by the Claude Code
-# "usage" mod. plugins/claude.sh, run by the icon item, sets all three. It runs
-# only on the mod's claude_update events, never on a timer.
-# left-clicking the icon lists every Claude pane in tmux, right-clicking jumps
-# to the session that needs you; the limits open the usage page.
-claude_window=(
-  drawing=off
-  "${group_member[@]}"
-  icon.font="$FONT:Bold:11.0"
-  icon.color="$ACCENT"
-  click_script="open https://claude.ai/settings/usage"
-)
+# github: a deduplicated, cross-repository gh-attention count. Click for a
+# cached, paginated PR list; network refreshes never block opening the menu.
+sketchybar --add event github_refresh \
+  --add item github right \
+  --set github icon= label=… update_freq=300 script="$PLUGIN_DIR/github.sh" \
+  popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
+  popup.background.border_width=2 popup.background.corner_radius=8 \
+  --subscribe github mouse.clicked system_woke theme_refresh github_refresh
+
+# claude: an icon-only session-state pill; its dropdown holds usage and
+# live tmux sessions. The Claude Code "usage" mod publishes claude_update.
+# Left-click opens the dropdown; right-click jumps to the session needing you.
 sketchybar --add event claude_update \
-  --add item claude.7d right \
-  --set claude.7d "${claude_window[@]}" icon=7d \
-  --add item claude.5h right \
-  --set claude.5h "${claude_window[@]}" icon=5h \
   --add item claude right \
-  --set claude "${group_member[@]}" \
-  icon=:claude: icon.font="sketchybar-app-font:Regular:16.0" "${icon_only[@]}" \
+  --set claude icon=:claude: icon.font="sketchybar-app-font:Regular:16.0" "${icon_only[@]}" \
   script="$PLUGIN_DIR/claude.sh" \
   popup.align=right popup.background.color="$BG" popup.background.border_color="$SELECTED_BG" \
   popup.background.border_width=2 popup.background.corner_radius=8 \
   --subscribe claude claude_update mouse.clicked theme_refresh \
-  --add bracket claude_group claude claude.5h claude.7d \
-  --set claude_group background.color="$ITEM_BG" background.corner_radius=6 background.height=24
+  --add item claude.usage popup.claude \
+  --set claude.usage "${popup_item[@]}" drawing=off icon.font="$FONT:Bold:13.0" \
+  click_script="open https://claude.ai/settings/usage; sketchybar --set claude popup.drawing=off"
+
+# copilot: show the native Copilot CLI while at least one process is running.
+sketchybar --add item copilot right \
+  --set copilot drawing=off icon= icon.font="$FONT:Bold:15.0" \
+  icon.color="$ACCENT" "${icon_only[@]}" update_freq=5 script="$PLUGIN_DIR/copilot.sh" \
+  --subscribe copilot system_woke theme_refresh
 
 # pi: the user extension publishes a per-session working/idle/blocked state.
 # The icon color shows the most urgent state; clicking it lists every Pi

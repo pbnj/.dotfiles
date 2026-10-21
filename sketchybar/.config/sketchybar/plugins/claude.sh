@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# The Claude icon: the most urgent state across Claude Code sessions, the 5h /
-# 7d usage limits beside it, and a menu of every tmux pane running Claude Code.
+# The Claude icon shows the most urgent state across Claude Code sessions.
+# Its dropdown holds 5h / 7d usage and every tmux pane running Claude Code.
 # Usage and session state come from the Claude Code "usage" mod, which fires
 # claude_update after each write; session state also includes native worker
 # status and live tmux activity, including active subagents.
@@ -59,49 +59,54 @@ case "$(jq -s 'map({blocked: 2, working: 1}[.state] // 0) | max // 0' <<<"$SESSI
   1) ICON_COLOR=$ORANGE ;;
   *) ICON_COLOR=$DIM ;;
 esac
-args=(--set claude icon.color="$ICON_COLOR" icon.padding_right=2)
+args=(--set claude icon.color="$ICON_COLOR" icon.padding_right=8 label.drawing=off)
 
 # ended and abandoned sessions
 find "$DIR/sessions" -name '*.json' -mtime +1 -delete 2>/dev/null
 
-# one item per window: "NN%", hidden once its reset has passed, colored by
-# its own usage
+# One dropdown line, with independently colored icon/label text for the two
+# usage windows. Missing or expired windows disappear without leaving a gap.
 NOW="$(date +%s)"
-LAST_WINDOW=claude
 window() {
-  local item="$1" key="$2" pct
-  pct="$(jq -r --argjson now "$NOW" --arg key "$key" '
+  local key="$1"
+  jq -r --argjson now "$NOW" --arg key "$key" '
     .[$key] // empty
     | select(
         (.resetsAt // null) as $r
         | $r == null or ((try ($r | sub("\\.[0-9]+"; "") | fromdateiso8601) catch null) // ($now + 1)) > $now
       )
     | .percentUsed | round
-  ' "$DIR/usage.json" 2>/dev/null)"
-
-  if [ -z "$pct" ]; then
-    args+=(--set "$item" drawing=off)
-    return
-  fi
-
-  local color=$FG
-  if ((pct >= 90)); then
-    color=$RED
-  elif ((pct >= 70)); then
-    color=$YELLOW
-  fi
-  args+=(--set "$item" drawing=on label="$(printf '%02d%%' "$pct")" label.color="$color" label.padding_right=2)
-  LAST_WINDOW="$item"
+  ' "$DIR/usage.json" 2>/dev/null
 }
-window claude.5h five_hour
-window claude.7d seven_day
-
-# Usage windows can disappear independently; keep the outer inset on the
-# last visible member, including when only the Claude icon remains.
-if [ "$LAST_WINDOW" = claude ]; then
-  args+=(--set claude icon.padding_right=8)
-else
-  args+=(--set "$LAST_WINDOW" label.padding_right=8)
+usage_color() {
+  if (($1 >= 90)); then
+    printf '%s' "$RED"
+  elif (($1 >= 70)); then
+    printf '%s' "$YELLOW"
+  else
+    printf '%s' "$FG"
+  fi
+}
+FIVE_HOUR="$(window five_hour)"
+SEVEN_DAY="$(window seven_day)"
+args+=(
+  --set claude.usage drawing=off icon="" label=""
+  icon.drawing=off label.drawing=off icon.padding_right=2 label.padding_left=2
+)
+if [ -n "$FIVE_HOUR" ]; then
+  args+=(--set claude.usage drawing=on icon.drawing=on
+    icon="5h: $FIVE_HOUR%" icon.color="$(usage_color "$FIVE_HOUR")")
+  [ -n "$SEVEN_DAY" ] || args+=(icon.padding_right=8)
+fi
+if [ -n "$SEVEN_DAY" ]; then
+  USAGE_LABEL="7d: $SEVEN_DAY%"
+  if [ -n "$FIVE_HOUR" ]; then
+    USAGE_LABEL="· $USAGE_LABEL"
+  else
+    args+=(--set claude.usage label.padding_left=8)
+  fi
+  args+=(--set claude.usage drawing=on label.drawing=on
+    label="$USAGE_LABEL" label.color="$(usage_color "$SEVEN_DAY")")
 fi
 
 # The menu's rows: built by a left click, kept current by updates while open.

@@ -2,13 +2,13 @@
 # shellcheck disable=SC2034
 # Shared POSIX-shell palette. Source this in the config and every colored plugin.
 # macOS omits AppleInterfaceStyle in light mode. No timer/daemon is needed.
-# Opaque backgrounds and darker Day accents keep small text readable (>= 4.5:1).
+# Darker Day accents keep the base palette legible; popup menus stay opaque.
 case "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" in
   Dark)
     THEME=moon
     BG=0xff222436
     FG=0xffc8d3f5
-    ITEM_BG=0xff1e2030
+    ITEM_BG=0xa61e2030
     SELECTED_BG=0xff394b70
     APPS_BG=0xff222436
     FOCUSED_BG=0xff2f334d
@@ -23,7 +23,7 @@ case "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" in
     THEME=day
     BG=0xffe1e2e7
     FG=0xff344c8c
-    ITEM_BG=0xffd0d5e3
+    ITEM_BG=0xa6d0d5e3
     SELECTED_BG=0xffb7c1e3
     APPS_BG=0xffd0d5e3
     FOCUSED_BG=0xffc4c8da
@@ -35,3 +35,6 @@ case "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" in
     RED=0xff982346
     ;;
 esac
+
+# Bar: 50% transparent; pills above use alpha 0xa6 (35% transparent).
+BAR_BG="0x80${BG#0xff}"
