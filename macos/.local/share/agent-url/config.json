@@ -1,0 +1,59 @@
+{
+  "working_directory": "~/Projects/github.com",
+  "github_root": "~/Projects/github.com",
+  "presets": {
+    "haiku": {
+      "name": "Browser URL — Claude Haiku",
+      "agent": "claude",
+      "model": "haiku",
+      "effort": "max",
+      "key_code": 4,
+      "shift": false
+    },
+    "opus": {
+      "name": "Browser URL — Claude Opus",
+      "agent": "claude",
+      "model": "opus",
+      "effort": "medium",
+      "key_code": 31,
+      "shift": false
+    },
+    "sonnet": {
+      "name": "Browser URL — Claude Sonnet",
+      "agent": "claude",
+      "model": "sonnet",
+      "effort": "medium",
+      "key_code": 1,
+      "shift": false
+    },
+    "sol": {
+      "name": "Browser URL — Copilot Sol",
+      "agent": "copilot",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "key_code": 1,
+      "shift": true
+    },
+    "auto": {
+      "name": "Browser URL — Copilot Auto",
+      "agent": "copilot",
+      "model": "auto",
+      "key_code": 5,
+      "shift": true
+    },
+    "luna": {
+      "name": "Browser URL — Copilot Luna",
+      "agent": "copilot",
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "key_code": 37,
+      "shift": true
+    },
+    "pi": {
+      "name": "Browser URL — Pi",
+      "agent": "pi",
+      "key_code": 35,
+      "shift": false
+    }
+  }
+}

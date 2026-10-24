@@ -1,0 +1,3 @@
+#!/bin/sh
+# Tinycast's GUI environment does not source interactive shell configuration.
+exec /usr/bin/python3 "$HOME/.local/share/agent-url/launch.py" "$@"

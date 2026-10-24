@@ -1,0 +1,501 @@
+#!/usr/bin/python3
+"""Open a coding agent with just the browser URL in an unsubmitted draft."""
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+from urllib.parse import unquote, urlsplit
+
+ROOT = Path(__file__).resolve().parent
+CACHE = Path.home() / "Library/Caches/agent-url"
+# GUI-launched commands do not inherit the interactive shell's PATH or aliases.
+SEARCH_PATH = os.pathsep.join(
+    [
+        str(Path.home() / ".pi/agent/bin"),
+        str(Path.home() / ".local/bin"),
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+        os.environ.get("PATH", ""),
+    ]
+)
+
+
+def load_config():
+    return json.loads((ROOT / "config.json").read_text())
+
+
+def validate_url(value):
+    if not value or len(value) > 65536 or re.search(r"[\x00-\x20\x7f]", value):
+        raise ValueError("The browser did not provide a valid URL.")
+    parsed = urlsplit(value)
+    if not parsed.scheme or (
+        parsed.scheme.lower() in ("http", "https", "ftp") and not parsed.netloc
+    ):
+        raise ValueError("The browser did not provide an absolute URL.")
+    return value
+
+
+# GitHub account/product pages are not org/repo URLs.
+GITHUB_ROUTES = {
+    "about",
+    "account",
+    "apps",
+    "business",
+    "codespaces",
+    "collections",
+    "contact",
+    "customer-stories",
+    "dashboard",
+    "enterprise",
+    "events",
+    "explore",
+    "features",
+    "issues",
+    "join",
+    "login",
+    "logout",
+    "marketplace",
+    "new",
+    "notifications",
+    "organizations",
+    "orgs",
+    "pricing",
+    "pulls",
+    "search",
+    "security",
+    "sessions",
+    "settings",
+    "signup",
+    "site",
+    "sponsors",
+    "topics",
+    "users",
+}
+
+
+def github_repository(url):
+    parsed = urlsplit(validate_url(url))
+    if parsed.scheme.lower() not in ("http", "https") or parsed.hostname not in (
+        "github.com",
+        "www.github.com",
+    ):
+        return None
+    parts = parsed.path.strip("/").split("/")
+    if len(parts) < 2 or parts[0].lower() in GITHUB_ROUTES:
+        return None
+    owner, repo = (unquote(part) for part in parts[:2])
+    repo = repo.removesuffix(".git")
+    for part in (owner, repo):
+        if part in ("", ".", "..") or not re.fullmatch(r"[A-Za-z0-9_.-]+", part):
+            raise ValueError("Invalid GitHub org/repo path.")
+    if owner.startswith("-"):
+        raise ValueError("Invalid GitHub organization name.")
+    return owner + "/" + repo
+
+
+def project_directory(config, url):
+    spec = github_repository(url)
+    root = Path(
+        config["github_root"] if spec else config["working_directory"]
+    ).expanduser()
+    if not root.is_absolute():
+        raise ValueError("Project directories must be absolute or ~/ paths.")
+    directory = root.joinpath(*spec.split("/")) if spec else root
+    if spec:
+        try:
+            directory.resolve().relative_to(root.resolve())
+        except ValueError:
+            raise ValueError("GitHub checkout path escapes github_root.") from None
+    return directory, spec
+
+
+LINEAR_ISSUE = re.compile(r"[A-Za-z][A-Za-z0-9]*-[0-9]+")
+
+
+def window_name(url, directory, preset_key):
+    """Name windows after the Linear issue, GitHub PR, or GitHub repo."""
+    parsed = urlsplit(validate_url(url))
+    host = (parsed.hostname or "").lower()
+    parts = [unquote(part) for part in parsed.path.strip("/").split("/")]
+    if (
+        host in ("linear.app", "www.linear.app")
+        and len(parts) >= 3
+        and parts[1] == "issue"
+        and LINEAR_ISSUE.fullmatch(parts[2])
+    ):
+        return parts[2].upper()
+    spec = github_repository(url)
+    if spec:
+        repo = spec.split("/")[1]
+        if len(parts) >= 4 and parts[2] == "pull" and parts[3].isdigit():
+            return repo + "#" + parts[3]
+        return repo
+    return directory.name + "-" + preset_key
+
+
+def window_link(url):
+    """Canonical URL of the Linear issue or GitHub PR a window is named after.
+
+    The status line wraps the window name in an OSC 8 hyperlink to it (see
+    window-status-format in tmux.conf). Built from validated parts only: a tmux
+    style cannot carry spaces or commas.
+    """
+    parsed = urlsplit(validate_url(url))
+    host = (parsed.hostname or "").lower()
+    parts = [unquote(part) for part in parsed.path.strip("/").split("/")]
+    if (
+        host in ("linear.app", "www.linear.app")
+        and len(parts) >= 3
+        and re.fullmatch(r"[A-Za-z0-9_-]+", parts[0])
+        and parts[1] == "issue"
+        and LINEAR_ISSUE.fullmatch(parts[2])
+    ):
+        return "https://linear.app/" + parts[0] + "/issue/" + parts[2].upper()
+    spec = github_repository(url)
+    if spec and len(parts) >= 4 and parts[2] == "pull" and parts[3].isdigit():
+        return "https://github.com/" + spec + "/pull/" + parts[3]
+    return None
+
+
+def prepare_directory(directory, spec):
+    if not spec:
+        directory.mkdir(parents=True, exist_ok=True)
+        return
+    CACHE.mkdir(parents=True, exist_ok=True)
+    lock_name = hashlib.sha256(spec.casefold().encode()).hexdigest() + ".clone.lock"
+    with (CACHE / lock_name).open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if directory.is_dir() and (directory / ".git").exists():
+            return  # Includes worktrees, whose .git is a file.
+        if directory.exists() or directory.is_symlink():
+            raise ValueError("Refusing to overwrite a non-Git path: " + str(directory))
+        gh = shutil.which("gh", path=SEARCH_PATH)
+        if not gh:
+            raise ValueError("GitHub CLI (gh) is required to clone " + spec)
+        directory.parent.mkdir(parents=True, exist_ok=True)
+        # Stage beside the destination. Failed clones never leave a half-cloned
+        # project at the expected path; simultaneous hotkeys serialize on the lock.
+        with tempfile.TemporaryDirectory(
+            prefix=".agent-url-", dir=directory.parent
+        ) as temporary:
+            checkout = Path(temporary) / "checkout"
+            result = subprocess.run(
+                [gh, "repo", "clone", spec, str(checkout)],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                env=dict(
+                    os.environ,
+                    PATH=SEARCH_PATH,
+                    GH_PROMPT_DISABLED="1",
+                    GIT_TERMINAL_PROMPT="0",
+                ),
+            )
+            if result.returncode or not (checkout / ".git").exists():
+                detail = result.stderr.strip()[-4000:]
+                raise ValueError(
+                    "Could not clone " + spec + (": " + detail if detail else "")
+                )
+            if directory.exists():
+                if directory.is_dir() and (directory / ".git").exists():
+                    return  # Another tool completed the clone while gh ran.
+                raise ValueError(
+                    "Checkout destination appeared while cloning: " + str(directory)
+                )
+            checkout.rename(directory)
+
+
+def agent_command(preset):
+    agent = preset["agent"]
+    executable = shutil.which(agent, path=SEARCH_PATH)
+    if not executable:
+        raise ValueError("Cannot find the {} executable.".format(agent))
+    command = [executable]
+    if preset.get("model"):
+        command += ["--model", preset["model"]]
+    if agent == "claude":
+        if preset.get("effort"):
+            command += ["--effort", preset["effort"]]
+        command += [
+            "--dangerously-skip-permissions",
+            "--remote-control",
+            preset["name"],
+        ]
+    elif agent == "copilot":
+        if preset.get("effort"):
+            command += ["--reasoning-effort", preset["effort"]]
+        # Never use -i/--interactive or -p: those submit a prompt immediately.
+        command += ["--yolo", "--mode", "interactive"]
+    elif agent != "pi":
+        raise ValueError("Unsupported agent: " + agent)
+    return command
+
+
+def prefill_runner():
+    """Reuse fzf-tmux-project's generic --prefill worker, not an agent API."""
+    helper = Path.home() / ".local/bin/fzf-tmux-project"
+    if not helper.is_file():
+        raise ValueError("URL prefill requires ~/.local/bin/fzf-tmux-project.")
+    bash = shutil.which("bash", path=SEARCH_PATH)
+    if not bash:
+        raise ValueError("Cannot find bash to run fzf-tmux-project.")
+    # The tmux server may have a minimal/old PATH. The shared worker calls tmux
+    # itself and uses Bash 4+ syntax, so use the same explicit GUI-safe PATH.
+    return ["/usr/bin/env", "PATH=" + SEARCH_PATH, bash, str(helper)]
+
+
+def schedule_prefill(tmux, pane, url):
+    validate_url(url)
+    if not re.fullmatch(r"%[0-9]+", pane):
+        raise ValueError("Agent runner must start inside a tmux pane.")
+    worker = prefill_runner() + ["--prefill", pane, url]
+    # run-shell expands tmux formats before executing the shell command. Escape
+    # hashes as well as shell quoting so URL fragments stay literal data.
+    shell_command = shlex.join(worker).replace("#", "##")
+    subprocess.run(
+        [tmux, "run-shell", "-b", "-t", pane, shell_command],
+        check=True,
+    )
+
+
+def capture_url():
+    helper = CACHE / "browser-url"
+    if not helper.is_file():
+        raise ValueError("URL capture helper is missing. Run install.py first.")
+    # Serialize captures so two hotkeys cannot interfere with browser focus.
+    CACHE.mkdir(parents=True, exist_ok=True)
+    with (CACHE / "capture.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        result = subprocess.run(
+            [str(helper)], capture_output=True, text=True, timeout=10
+        )
+    if result.returncode:
+        raise ValueError(result.stderr.strip() or "Could not capture the browser URL.")
+    return validate_url(result.stdout.strip())
+
+
+def open_session(preset_key, preset, url, directory):
+    # Only this quoted command string crosses a shell boundary. The validated URL
+    # is data for the draft, never a shell command or an automatically sent message.
+    child = [sys.executable, str(ROOT / "launch.py"), preset_key, "--run", "--url", url]
+    shell_command = "exec " + shlex.join(child)
+    tmux = shutil.which("tmux", path=SEARCH_PATH)
+    if not tmux:
+        raise ValueError("tmux is required. Install it with brew install tmux.")
+    sessions = subprocess.run(
+        [
+            tmux,
+            "list-sessions",
+            "-F",
+            "#{session_id}\t#{session_attached}\t#{session_activity}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    candidates = []
+    for line in sessions.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) == 3 and fields[1].isdigit() and fields[2].isdigit():
+            candidates.append((int(fields[1]) > 0, int(fields[2]), fields[0]))
+    current = None
+    if os.environ.get("TMUX") and os.environ.get("TMUX_PANE"):
+        result = subprocess.run(
+            [
+                tmux,
+                "display-message",
+                "-p",
+                "-t",
+                os.environ["TMUX_PANE"],
+                "#{session_id}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            current = result.stdout.strip()
+    selected = next((row for row in candidates if row[2] == current), None)
+    if selected is None and candidates:
+        selected = max(candidates)  # Attached first, then most recently active.
+    label = window_name(url, directory, preset_key)
+    link = window_link(url)
+    if selected:
+        attached, _, target = selected
+        windows = subprocess.run(
+            [tmux, "list-windows", "-t", target, "-F", "#{window_id}\t#{window_name}"],
+            capture_output=True,
+            text=True,
+        )
+        existing = next(
+            (
+                fields[0]
+                for fields in (
+                    line.split("\t", 1) for line in windows.stdout.splitlines()
+                )
+                if len(fields) == 2 and fields[1] == label
+            ),
+            None,
+        )
+        if existing:
+            # Same issue/repo/PR already open: add a pane beside it instead.
+            result = subprocess.run(
+                [
+                    tmux,
+                    "split-window",
+                    "-t",
+                    existing,
+                    "-c",
+                    str(directory),
+                    shell_command,
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                subprocess.run([tmux, "select-window", "-t", existing])
+        else:
+            result = subprocess.run(
+                [
+                    tmux,
+                    "new-window",
+                    "-t",
+                    target + ":",
+                    "-c",
+                    str(directory),
+                    "-n",
+                    # tmux expands formats in -n; keep names literal.
+                    label.replace("#", "##"),
+                    "-P",
+                    "-F",
+                    "#{window_id}",
+                    shell_command,
+                ],
+                capture_output=True,
+                text=True,
+            )
+            window = result.stdout.strip()
+            if result.returncode == 0 and link and window:
+                subprocess.run(
+                    [tmux, "set-option", "-w", "-t", window, "@url", link],
+                    capture_output=True,
+                )
+    else:
+        attached = False
+        result = subprocess.run(
+            [
+                tmux,
+                "new-session",
+                "-d",
+                "-s",
+                "agent-url",
+                "-c",
+                str(directory),
+                "-n",
+                label.replace("#", "##"),
+                "-P",
+                "-F",
+                "#{session_id}",
+                shell_command,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        target = result.stdout.strip()
+        if result.returncode == 0 and link and target:
+            # The new session's only window.
+            subprocess.run(
+                [tmux, "set-option", "-w", "-t", target + ":", "@url", link],
+                capture_output=True,
+            )
+    if result.returncode:
+        raise ValueError(
+            "tmux could not open the agent window: " + result.stderr.strip()
+        )
+    if attached:
+        subprocess.run(["/usr/bin/open", "-a", "Ghostty"], check=True)
+    else:
+        attach = "exec " + shlex.join([tmux, "attach-session", "-t", target])
+        subprocess.run(
+            [
+                "/usr/bin/open",
+                "-na",
+                "Ghostty",
+                "--args",
+                "--working-directory=" + str(directory),
+                "-e",
+                "/bin/sh",
+                "-c",
+                attach,
+            ],
+            check=True,
+        )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("preset", choices=load_config()["presets"])
+    parser.add_argument(
+        "--url", help="Use an explicit URL instead of capturing the browser"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print argv without starting an agent"
+    )
+    parser.add_argument("--run", action="store_true", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    config = load_config()
+    preset = config["presets"][args.preset]
+    url = validate_url(args.url) if args.url is not None else capture_url()
+    command = agent_command(preset)
+    directory, spec = project_directory(config, url)
+    if args.dry_run:
+        print(
+            json.dumps(
+                {
+                    "cwd": str(directory),
+                    "github_repo": spec,
+                    "argv": command,
+                    "prefill": url,
+                    "prefill_method": "fzf-tmux-project --prefill via tmux run-shell -b",
+                    "submit": False,
+                },
+                indent=2,
+            )
+        )
+        return 0
+    tmux = shutil.which("tmux", path=SEARCH_PATH)
+    if not tmux:
+        raise ValueError("tmux is required. Install it with brew install tmux.")
+    prefill_runner()  # Check the shared worker before cloning/opening a window.
+    pane = os.environ.get("TMUX_PANE", "")
+    if args.run and (not os.environ.get("TMUX") or not re.fullmatch(r"%[0-9]+", pane)):
+        raise ValueError("Agent runner must start inside a tmux pane.")
+    prepare_directory(directory, spec)
+    if args.run:
+        os.chdir(directory)
+        schedule_prefill(tmux, pane, url)
+        # Replace this runner with the agent. Its argv contains no URL or initial
+        # prompt; the detached shared worker types the URL after the pane settles.
+        os.execvpe(command[0], command, dict(os.environ, PATH=SEARCH_PATH))
+        return 0
+    open_session(args.preset, preset, url, directory)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
+        print("Browser URL: " + str(error), file=sys.stderr)
+        sys.exit(1)
