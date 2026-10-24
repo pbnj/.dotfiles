@@ -19,6 +19,7 @@ configstore/
 gh/
 git/.config/git/work.config
 git/.config/git/personal.config
+git/.config/git/banned-words
 glab-cli/
 helix/.config/helix/runtime/
 htop/

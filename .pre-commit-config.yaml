@@ -36,6 +36,19 @@ repos:
         entry: betterleaks git --pre-commit --redact --staged --verbose
         language: system
         pass_filenames: false
+      - id: banned-words
+        name: banned-words
+        description: Block work names listed in ~/.config/git/banned-words
+        entry: scripts/banned-words.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: banned-words-msg
+        name: banned-words (commit message)
+        description: Block work names in the commit message
+        stages: [commit-msg]
+        entry: scripts/banned-words.py --commit-msg
+        language: system
       - id: ruff-format
         name: ruff format
         description: Format Python files
