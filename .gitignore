@@ -47,5 +47,5 @@ node_modules/
 pi/.pi/agent/models-store.json
 pi/.pi/agent/models.json
 *.bak*
-sketchybar/.config/sketchybar/helpers/bin/
 utils/.local/bin/linear-claude-desktop
+utils/.local/bin/twingate_menu

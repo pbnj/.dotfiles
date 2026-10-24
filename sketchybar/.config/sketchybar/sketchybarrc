@@ -124,15 +124,8 @@ sketchybar --add item clock right \
   --set clock update_freq=10 icon= script="$PLUGIN_DIR/clock.sh" \
   click_script="open -a Calendar"
 
-# twingate login needs helpers/bin/twingate_menu, which needs Accessibility. It
-# is only built when missing: a rebuild changes its signature and revokes the
-# grant.
-TWINGATE_MENU="$CONFIG_DIR/helpers/bin/twingate_menu"
-if [ ! -x "$TWINGATE_MENU" ]; then
-  mkdir -p "$(dirname "$TWINGATE_MENU")"
-  swiftc -O "$CONFIG_DIR/helpers/twingate_menu.swift" -o "$TWINGATE_MENU"
-fi
-
+# twingate login clicks through Twingate's menu with ~/.local/bin/twingate_menu
+# (`mise run twingate:build` in ~/.dotfiles), which needs Accessibility.
 sketchybar --add item twingate right \
   --set twingate update_freq=10 icon=󰦝 "${icon_only[@]}" \
   script="$PLUGIN_DIR/twingate.sh" click_script="$PLUGIN_DIR/twingate_click.sh" \

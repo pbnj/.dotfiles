@@ -8,3 +8,15 @@ prek = "0.5.5"
 ruff = "0.17.0"
 shellcheck = "0.11.0"
 stylua = "2.6.0"
+
+# Accessibility is granted to the binary's code signature, so a rebuild revokes
+# the grant: build only when the source changed, then re-grant once in System
+# Settings > Privacy & Security > Accessibility.
+[tasks."twingate:build"]
+description = "Build ~/.local/bin/twingate_menu (sketchybar's Twingate login)"
+sources = ["twingate/twingate_menu.swift"]
+outputs = ["{{env.HOME}}/.local/bin/twingate_menu"]
+run = [
+  'mkdir -p "$HOME/.local/bin"',
+  'swiftc -O twingate/twingate_menu.swift -o "$HOME/.local/bin/twingate_menu"',
+]
