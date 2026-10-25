@@ -6,14 +6,30 @@ set -euo pipefail
 [[ -n "${DEBUG:-}" ]] && set -x
 
 # How it works:
-#   1. Dump content of tmux buffer to stdout.
-#   2. Grep for URL pattern.
+#   1. Dump content of tmux buffer, escape sequences included, to stdout.
+#   2. Collect OSC 8 hyperlink targets (apps like Claude Code show a label and
+#      hide the URL in the escape), then strip escapes and grep plain URLs.
 #   3. Search & select one or more URLs via `fzf` fuzzy finder.
 #   4. Open selected URL(s).
-# URL_PATTERN="https?://[^[:space:]'\")]+"
+#
+# Full-screen apps (alternate screen) keep their own scrollback, so only what
+# they currently show is visible to tmux.
+
+if [[ "${1:-}" == "--list" ]]; then
+  tmux capture-pane -epJS- |
+    perl -ne '
+      print "$1\n" while /\e\]8;[^;\a\e]*;(https?:\/\/[^\a\e]+)/g;
+      s/\e\][^\a\e]*(?:\a|\e\\)//g;
+      s/\e\[[0-9;:?<=>]*[ -\/]*[@-~]//g;
+      # Skip labels an app truncated with "…"; their full target came via OSC 8.
+      for (/(https?:\/\/[^\s\x27")]+)/g) { print "$_\n" unless /\xe2\x80\xa6$/ }
+    ' |
+    sort -u
+  exit
+fi
 
 fzf \
-  --bind "start:reload:tmux capture-pane -JpS- | grep -oE 'https?://[^[:space:]'\''\")]+' | sort -u" \
+  --bind "start:reload:'$0' --list" \
   --bind "enter:become:open {+}" \
   --multi \
   --prompt='URL(s)> ' \
