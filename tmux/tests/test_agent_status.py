@@ -3,13 +3,13 @@
 import importlib.util
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 CONFIG = Path(__file__).resolve().parents[1] / ".config/tmux"
@@ -32,11 +32,16 @@ class AgentStatusTests(unittest.TestCase):
             {
                 "HOME": str(self.root),
                 "PI_SKETCHYBAR_SESSION_DIR": str(self.sessions),
-                "TMUX_AGENT_CLAUDE_HELPER": str(self.root / "claude_sessions.sh"),
+                "CLAUDE_SKETCHYBAR_DIR": str(self.root / "claude-mods"),
+                "CLAUDE_SESSION_DIR": str(self.root / "claude-registry"),
             },
         )
         self.env.start()
         self.addCleanup(self.env.stop)
+        self.mods = self.root / "claude-mods/sessions"
+        self.registry = self.root / "claude-registry"
+        self.mods.mkdir(parents=True)
+        self.registry.mkdir()
 
     def session(self, filename="pi", **extra):
         record = {
@@ -160,32 +165,96 @@ class AgentStatusTests(unittest.TestCase):
         self.session()
         self.assertEqual(self.refresh(windows="@1\t\n@1\t\n")[0], {"@1": "working"})
 
-    def test_claude_helper_gets_target_socket_and_only_yields_panes(self):
-        helper = self.root / "claude_sessions.sh"
-        helper.touch()
-        records = [
-            {"source": "native", "state": "working"},
-            {"source": "mod", "state": "blocked"},
-            {"source": "pane", "state": "idle", "pane": "%2", "socket": self.socket},
-        ]
-        output = "\n".join(json.dumps(record) for record in records) + "\ninvalid\n[]"
-        result = subprocess.CompletedProcess([], 0, stdout=output)
-        with patch.object(STATUS.subprocess, "run", return_value=result) as run:
-            self.assertEqual(list(STATUS.claude_sessions(self.socket)), [records[2]])
-        self.assertEqual(run.call_args.args[0], ["bash", str(helper)])
-        self.assertEqual(run.call_args.kwargs["env"]["TMUX"], f"{self.socket},0,0")
+    def claude(self, panes, screens=None):
+        # panes: (pane, pid, command, title); screens: pane -> visible text.
+        listing = "".join(
+            "\x1f".join((self.socket, *map(str, pane))) + "\n" for pane in panes
+        )
 
-    def test_missing_or_failing_claude_helper_does_not_invent_idle(self):
-        self.assertEqual(list(STATUS.claude_sessions(self.socket)), [])
-        (self.root / "claude_sessions.sh").touch()
+        def tmux(socket, *args):
+            self.assertEqual(socket, self.socket)
+            if args[0] == "list-panes":
+                return listing
+            return (screens or {}).get(args[-1], "")
+
+        with patch.object(STATUS, "tmux", side_effect=tmux):
+            return {
+                record["pane"]: record["state"]
+                for record in STATUS.claude_sessions(self.socket)
+            }
+
+    def test_claude_resolver_precedence(self):
+        now = time.time() * 1000
+        for name, state, updated in (
+            ("blocked", "blocked", now),
+            ("stale", "working", now - 301_000),
+            ("idle", "idle", now - 3_600_000),
+        ):
+            (self.mods / f"{name}.json").write_text(
+                json.dumps(
+                    {
+                        "state": state,
+                        "updatedAt": updated,
+                        "tmux": {"socket": self.socket, "pane": f"%{name}"},
+                    }
+                )
+            )
+        for pid, status, name in (
+            (os.getpid(), "busy", "worker"),
+            (2**30, "busy", "dead"),
+        ):
+            (self.registry / f"{pid}.json").write_text(
+                json.dumps(
+                    {"pid": pid, "status": status, "name": name, "updatedAt": now}
+                )
+            )
+        panes = [
+            ("%blocked", 1, "claude", "x"),
+            ("%stale", 1, "claude", "x"),
+            ("%idle", 1, "2.1.304", "x"),
+            ("%owner", os.getpid(), "claude", "x"),
+            ("%attached", 1, "claude", "✳ worker"),
+            ("%dead", 1, "claude", "✳ dead"),
+            ("%footer", 1, "claude", "x"),
+            ("%waiting", 1, "claude", "x"),
+            ("%shell", os.getpid(), "bash", "worker"),
+        ]
+        screens = {
+            "%blocked": "  esc to interrupt\n",
+            "%footer": "scrollback\n" + "  Thinking · esc to interrupt\n",
+            "%waiting": "✻ Waiting for 2 background agents to finish\n",
+            "%idle": "  esc to interrupt\n" + "\n" * 16,
+        }
+        self.assertEqual(
+            self.claude(panes, screens),
+            {
+                "%blocked": "blocked",
+                "%idle": "idle",
+                "%owner": "working",
+                "%attached": "working",
+                "%footer": "working",
+                "%waiting": "working",
+            },
+        )
+
+    def test_attached_worker_name_must_be_unique(self):
+        for index in range(2):
+            (self.registry / f"{index}.json").write_text(
+                json.dumps({"pid": os.getpid(), "status": "idle", "name": "twin"})
+            )
+        self.assertEqual(self.claude([("%1", 1, "claude", "twin")]), {})
+
+    def test_failing_tmux_does_not_invent_idle(self):
         for error in (
             FileNotFoundError(),
-            subprocess.CalledProcessError(1, "bash"),
-            subprocess.TimeoutExpired("bash", 3),
+            subprocess.CalledProcessError(1, "tmux"),
+            subprocess.TimeoutExpired("tmux", 3),
         ):
-            with self.subTest(error=error):
-                with patch.object(STATUS.subprocess, "run", side_effect=error):
-                    self.assertEqual(list(STATUS.claude_sessions(self.socket)), [])
+            with (
+                self.subTest(error=error),
+                patch.object(STATUS, "tmux", side_effect=error),
+            ):
+                self.assertEqual(list(STATUS.claude_sessions(self.socket)), [])
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is required")
     def test_real_tmux_config_badges_and_cleanup_on_isolated_server(self):

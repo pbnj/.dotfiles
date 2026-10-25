@@ -22,16 +22,16 @@ It starts no background daemon.
 - **Pi:** uses the existing lifecycle status files in
   `~/.cache/pi-sketchybar/sessions` (or `PI_SKETCHYBAR_SESSION_DIR`). Dead
   processes, invalid records, and heartbeats older than 5 minutes are ignored.
-- **Claude:** reuses the SketchyBar configuration's `claude_sessions.sh`
-  resolver, including attached native workers and the visible-footer fallback.
-  SketchyBar need not be running. Unknown states are not reported as idle.
+- **Claude:** combines the mod's session files in
+  `~/.cache/claude-sketchybar/sessions` (or `CLAUDE_SKETCHYBAR_DIR`), live
+  native workers in `~/.claude/sessions` (or `CLAUDE_SESSION_DIR`), including
+  attached ones, and the visible-footer fallback. Unknown states are not
+  reported as idle.
 - Socket paths and live pane IDs scope records to the right tmux server and
   window, including after panes move. Closing an agent clears its badge on the
   next refresh. Other agents are currently untracked.
 
-Requires Python 3; Claude resolution also uses Bash, jq, and the stowed
-SketchyBar configuration. Reload with
-`tmux source-file ~/.config/tmux/tmux.conf`.
+Requires Python 3. Reload with `tmux source-file ~/.config/tmux/tmux.conf`.
 
 Tests use fixtures and a temporary tmux server, never the real agent sessions:
 

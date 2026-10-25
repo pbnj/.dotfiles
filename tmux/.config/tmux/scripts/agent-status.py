@@ -3,14 +3,19 @@
 
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 RANK = {"idle": 0, "working": 1, "blocked": 2}
 STALE_MS = 300_000
+# Claude's footer while a turn runs, or waits on background subagents.
+CLAUDE_FOOTER = re.compile(
+    r"^\s+(esc to interrupt|.* · esc to interrupt)(\s|$)"
+    r"|^[✻✽✶✳✢·*]\s+Waiting for [1-9][0-9]* background agents? to finish"
+)
 
 
 def tmux(socket, *args):
@@ -51,36 +56,137 @@ def pi_sessions(now):
             continue
 
 
+def json_records(directory):
+    # Sorted like a shell glob, so ties in latest() resolve the same way.
+    for file in sorted(directory.glob("*.json")):
+        try:
+            record = json.loads(file.read_text())
+        except (OSError, ValueError):
+            continue
+        if isinstance(record, dict):
+            yield record
+
+
+def latest(records):
+    # Like jq's sort_by(.updatedAt) | last: ties go to the later record.
+    records = sorted(records, key=lambda record: record["updatedAt"])
+    return records[-1] if records else None
+
+
 def claude_sessions(socket):
-    # Reuse SketchyBar's resolver for daemon-owned workers and attached panes.
-    # It is just a shell library; the SketchyBar service need not be running.
-    helper = Path(
+    # A tmux client can attach to a daemon-owned Claude worker, so the pane's
+    # mod file is not necessarily the session currently displayed in it.
+    now = int(time.time())
+    mods = []
+    directory = Path(
         os.environ.get(
-            "TMUX_AGENT_CLAUDE_HELPER",
-            str(Path.home() / ".config/sketchybar/plugins/claude_sessions.sh"),
+            "CLAUDE_SKETCHYBAR_DIR", str(Path.home() / ".cache/claude-sketchybar")
         )
     )
-    if not helper.is_file():
-        return
+    for record in json_records(directory / "sessions"):
+        state, updated, location = (
+            record.get("state"),
+            record.get("updatedAt"),
+            record.get("tmux") or {},
+        )
+        if type(updated) not in (int, float) or not isinstance(location, dict):
+            continue
+        if state != "idle" and not (
+            state in ("working", "blocked") and now - updated / 1000 <= 300
+        ):
+            continue
+        mods.append(
+            {
+                "state": state,
+                "updatedAt": updated,
+                "socket": location.get("socket"),
+                "pane": location.get("pane"),
+            }
+        )
+
+    # Native busy includes work delegated to subagents. Only trust records
+    # whose process is still alive; timestamps are not heartbeats when idle.
+    native = []
+    registry = Path(
+        os.environ.get("CLAUDE_SESSION_DIR", str(Path.home() / ".claude/sessions"))
+    )
+    for record in json_records(registry):
+        pid, status, updated = (
+            record.get("pid"),
+            record.get("status"),
+            record.get("updatedAt"),
+        )
+        if type(pid) is not int or not 0 < pid <= 2**31 - 1:
+            continue
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            continue  # Like `kill -0`: another user's process counts as gone.
+        state = "working" if status == "busy" else "idle" if status == "idle" else ""
+        if state:
+            native.append(
+                {
+                    "state": state,
+                    "pid": pid,
+                    "name": record.get("name"),
+                    "updatedAt": updated if type(updated) in (int, float) else 0,
+                }
+            )
+
+    # Fields are split on the unit separator: titles may hold any printable
+    # character.
     try:
-        result = subprocess.run(
-            ["bash", str(helper)],
-            # Plain tmux calls inside the resolver must use THIS server.
-            env={**os.environ, "TMUX": f"{socket},0,0"},
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=3,
+        listing = tmux(
+            socket,
+            "list-panes",
+            "-a",
+            "-F",
+            "#{socket_path}\x1f#{pane_id}\x1f#{pane_pid}\x1f#{pane_current_command}\x1f#{pane_title}",
         )
     except (OSError, subprocess.SubprocessError):
         return
-    for line in result.stdout.splitlines():
-        try:
-            record = json.loads(line)
-            if isinstance(record, dict) and record.get("source") == "pane":
-                yield record
-        except ValueError:
+    for line in listing.split("\n"):
+        fields = line.split("\x1f", 4)
+        if len(fields) != 5 or not fields[2].isdecimal():
             continue
+        pane_socket, pane, pid, command, title = fields
+        if command != "claude" and not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", command):
+            continue
+        pid, title = int(pid), re.sub(r"^[\W_]+", "", title)
+
+        # Read only the visible footer, never scrollback. Attached workers have
+        # no TMUX variables, and /tasks can hide the usual interrupt hint while
+        # the main turn waits for background subagents.
+        try:
+            screen = tmux(socket, "capture-pane", "-p", "-t", pane).splitlines()
+        except (OSError, subprocess.SubprocessError):
+            screen = []
+        working = any(CLAUDE_FOOTER.search(row) for row in screen[-16:])
+
+        mod = latest(
+            m for m in mods if m["socket"] == pane_socket and m["pane"] == pane
+        )
+        owner = latest(n for n in native if n["pid"] == pid)
+        # A worker may have been resumed/compacted under a different session
+        # id. Its current name matches the title of the attached pane. Do not
+        # guess when multiple live workers share that name.
+        attached = [n for n in native if n["name"] and n["name"] == title]
+        if len(attached) == 1:
+            base = attached[0]
+        elif owner and owner["state"] == "working":
+            base = owner
+        else:
+            base = latest(record for record in (mod, owner) if record)
+
+        if "blocked" in (mod and mod["state"], base and base["state"]):
+            state = "blocked"
+        elif working:
+            state = "working"
+        elif base:
+            state = base["state"]
+        else:
+            continue  # Unknown is not idle.
+        yield {"socket": pane_socket, "pane": pane, "state": state}
 
 
 def refresh(socket):
