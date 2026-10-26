@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Fuzzy-grep the scrollback of every tmux pane and jump to the
+#              chosen line. Each history line of each pane is one fzf row,
+#              newest first; the preview shows the pane around the line. On
+#              <ENTER> the pane is focused; if the line has scrolled off its
+#              screen, the pane enters copy mode on that line.
+# Dependencies: brew install fzf tmux
+# Usage: fzf-tmux-grep
+#        Bind with display-popup -E so the picker closes once a line is chosen.
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+# Wrapped lines are joined (-J) so a match is not split at the pane's width.
+capture() {
+  tmux capture-pane -p -J -S - -E - -t "${1}"
+}
+
+# Tab-separated: pane id and line number (both hidden), the pane's
+# session:window.pane and window name, then the line. Blank lines are dropped
+# after numbering, so the number is still the line's place in the capture.
+list_lines() {
+  local pane label
+  while IFS=$'\t' read -r pane label; do
+    capture "${pane}" |
+      awk -v pane="${pane}" -v label="${label}" '
+        /[^[:space:]]/ { printf "%s\t%d\t%s\t%s\n", pane, NR, label, $0 }
+      '
+  done < <(tmux list-panes -a -F $'#{pane_id}\t#{session_name}:#{window_index}.#{pane_index} #{window_name}')
+}
+
+# Occurrences of the text in the lines from the given line to the end: the
+# n-th match a backward search from the bottom of the history lands on. The
+# text goes through the environment: awk -v would expand its backslashes.
+occurrences() {
+  TEXT="${2}" awk -v from="${1}" '
+    BEGIN { text = ENVIRON["TEXT"] }
+    NR >= from {
+      rest = $0
+      while ((i = index(rest, text)) > 0) { n++; rest = substr(rest, i + length(text)) }
+    }
+    END { print n + 0 }
+  '
+}
+
+selection="$(
+  list_lines | fzf \
+    --tac \
+    --reverse \
+    --delimiter=$'\t' \
+    --with-nth=3.. \
+    --tiebreak=index \
+    --prompt='Grep panes> ' \
+    --header='<ENTER>: jump to line' \
+    --preview="tmux capture-pane -p -J -S - -E - -t {1} | awk -v n={2} 'NR == n { printf \"\\033[7m%s\\033[0m\\n\", \$0; next } 1'" \
+    --preview-window='down,60%,+{2}-/2'
+)" || exit 0
+
+[[ -n "${selection}" ]] || exit 0
+IFS=$'\t' read -r pane line _ text <<<"${selection}"
+
+# switch-client moves to the pane's session; select-window and select-pane
+# cover a pane already in the current session.
+tmux switch-client -t "${pane}" && tmux select-window -t "${pane}" && tmux select-pane -t "${pane}"
+
+# The line is on screen if the screen holds at least as many matches as a
+# backward search would pass through to reach it; then focusing is enough.
+nth="$(capture "${pane}" | occurrences "${line}" "${text}")"
+visible="$(tmux capture-pane -p -J -t "${pane}" | occurrences 1 "${text}")"
+((nth > visible)) || exit 0
+
+tmux copy-mode -t "${pane}"
+tmux send-keys -t "${pane}" -X history-bottom
+tmux send-keys -t "${pane}" -X -N "${nth}" search-backward-text "${text}"
