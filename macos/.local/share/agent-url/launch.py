@@ -6,13 +6,13 @@ import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent
@@ -125,7 +125,7 @@ def project_directory(config, url):
 LINEAR_ISSUE = re.compile(r"[A-Za-z][A-Za-z0-9]*-[0-9]+")
 
 
-def window_name(url, directory, preset_key):
+def window_name(url, directory):
     """Name windows after the Linear issue, GitHub PR, or GitHub repo."""
     parsed = urlsplit(validate_url(url))
     host = (parsed.hostname or "").lower()
@@ -143,7 +143,7 @@ def window_name(url, directory, preset_key):
         if len(parts) >= 4 and parts[2] == "pull" and parts[3].isdigit():
             return repo + "#" + parts[3]
         return repo
-    return directory.name + "-" + preset_key
+    return directory.name
 
 
 def window_link(url):
@@ -203,6 +203,7 @@ def prepare_directory(directory, spec):
                     GH_PROMPT_DISABLED="1",
                     GIT_TERMINAL_PROMPT="0",
                 ),
+                check=False,
             )
             if result.returncode or not (checkout / ".git").exists():
                 detail = result.stderr.strip()[-4000:]
@@ -218,11 +219,12 @@ def prepare_directory(directory, spec):
             checkout.rename(directory)
 
 
-def agent_command(preset):
+def agent_command(preset, name):
+    """Agent argv; name labels the session (the tmux window name)."""
     agent = preset["agent"]
     executable = shutil.which(agent, path=SEARCH_PATH)
     if not executable:
-        raise ValueError("Cannot find the {} executable.".format(agent))
+        raise ValueError(f"Cannot find the {agent} executable.")
     command = [executable]
     if preset.get("model"):
         command += ["--model", preset["model"]]
@@ -231,15 +233,19 @@ def agent_command(preset):
             command += ["--effort", preset["effort"]]
         command += [
             "--dangerously-skip-permissions",
+            "--name",
+            name,
             "--remote-control",
-            preset["name"],
+            name,
         ]
     elif agent == "copilot":
         if preset.get("effort"):
             command += ["--reasoning-effort", preset["effort"]]
         # Never use -i/--interactive or -p: those submit a prompt immediately.
-        command += ["--yolo", "--mode", "interactive"]
-    elif agent != "pi":
+        command += ["--yolo", "--mode", "interactive", "--name", name]
+    elif agent == "pi":
+        command += ["--name", name]
+    else:
         raise ValueError("Unsupported agent: " + agent)
     return command
 
@@ -280,7 +286,11 @@ def capture_url():
     with (CACHE / "capture.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         result = subprocess.run(
-            [str(helper)], capture_output=True, text=True, timeout=10
+            [str(helper)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         )
     if result.returncode:
         raise ValueError(result.stderr.strip() or "Could not capture the browser URL.")
@@ -304,6 +314,7 @@ def open_session(preset_key, preset, url, directory):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     candidates = []
     for line in sessions.stdout.splitlines():
@@ -323,13 +334,14 @@ def open_session(preset_key, preset, url, directory):
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         if result.returncode == 0:
             current = result.stdout.strip()
     selected = next((row for row in candidates if row[2] == current), None)
     if selected is None and candidates:
         selected = max(candidates)  # Attached first, then most recently active.
-    label = window_name(url, directory, preset_key)
+    label = window_name(url, directory)
     link = window_link(url)
     if selected:
         attached, _, target = selected
@@ -337,6 +349,7 @@ def open_session(preset_key, preset, url, directory):
             [tmux, "list-windows", "-t", target, "-F", "#{window_id}\t#{window_name}"],
             capture_output=True,
             text=True,
+            check=False,
         )
         existing = next(
             (
@@ -362,9 +375,10 @@ def open_session(preset_key, preset, url, directory):
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             if result.returncode == 0:
-                subprocess.run([tmux, "select-window", "-t", existing])
+                subprocess.run([tmux, "select-window", "-t", existing], check=False)
         else:
             result = subprocess.run(
                 [
@@ -384,12 +398,14 @@ def open_session(preset_key, preset, url, directory):
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             window = result.stdout.strip()
             if result.returncode == 0 and link and window:
                 subprocess.run(
                     [tmux, "set-option", "-w", "-t", window, "@url", link],
                     capture_output=True,
+                    check=False,
                 )
     else:
         attached = False
@@ -411,6 +427,7 @@ def open_session(preset_key, preset, url, directory):
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         target = result.stdout.strip()
         if result.returncode == 0 and link and target:
@@ -418,6 +435,7 @@ def open_session(preset_key, preset, url, directory):
             subprocess.run(
                 [tmux, "set-option", "-w", "-t", target + ":", "@url", link],
                 capture_output=True,
+                check=False,
             )
     if result.returncode:
         raise ValueError(
@@ -457,8 +475,8 @@ def main():
     config = load_config()
     preset = config["presets"][args.preset]
     url = validate_url(args.url) if args.url is not None else capture_url()
-    command = agent_command(preset)
     directory, spec = project_directory(config, url)
+    command = agent_command(preset, window_name(url, directory))
     if args.dry_run:
         print(
             json.dumps(

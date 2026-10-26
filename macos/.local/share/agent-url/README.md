@@ -45,11 +45,13 @@ edit the draft and press Enter yourself when you are ready.
   draft retains the **original full URL**, not just the org/repo.
 - Window names: Linear issue → its ID (`ENG-123`); GitHub PR → `<repo>#<n>`
   (`widget#123`); other GitHub repo URLs → `<repo>` (`widget`); anything else →
-  `<dir>-<preset>`. If the target session already has a window with that name,
-  the agent opens in a new split there and that window is selected.
+  `<dir>`. If the target session already has a window with that name, the agent
+  opens in a new split there and that window is selected.
 - Claude uses `--dangerously-skip-permissions --remote-control`. Copilot uses
   `--yolo --mode interactive`; Pi uses its normal defaults. These settings do
   not submit the URL or start a task.
+- Every agent session (and Claude's Remote Control session) is named with
+  `--name` after the tmux window name above.
 - **All agents use the same prefill mechanism as `fzf-tmux-project`.** The pane
   runner schedules `~/.local/bin/fzf-tmux-project --prefill <pane> <url>` using
   `tmux run-shell -b`, then replaces itself with the selected agent. The URL is

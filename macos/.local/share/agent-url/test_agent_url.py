@@ -1,9 +1,9 @@
 import json
-from pathlib import Path
 import shlex
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import install
@@ -44,7 +44,7 @@ class LauncherTests(unittest.TestCase):
             "launch.shutil.which", side_effect=lambda name, **kw: "/bin/" + name
         ):
             for preset in self.config["presets"].values():
-                command = launch.agent_command(preset)
+                command = launch.agent_command(preset, "widget#123")
                 self.assertNotIn(url, command)
                 for flag in (
                     "-i",
@@ -60,13 +60,18 @@ class LauncherTests(unittest.TestCase):
                 if preset["agent"] == "claude":
                     self.assertIn("--dangerously-skip-permissions", command)
                     self.assertIn("--remote-control", command)
-                    self.assertEqual(command[-2:], ["--remote-control", preset["name"]])
+                    self.assertEqual(
+                        command[-4:],
+                        ["--name", "widget#123", "--remote-control", "widget#123"],
+                    )
                 elif preset["agent"] == "copilot":
                     self.assertIn("--yolo", command)
                     self.assertNotIn(url, command)
-                    self.assertEqual(command[-2:], ["--mode", "interactive"])
+                    self.assertEqual(
+                        command[-4:], ["--mode", "interactive", "--name", "widget#123"]
+                    )
                 else:
-                    self.assertEqual(command, ["/bin/pi"])
+                    self.assertEqual(command, ["/bin/pi", "--name", "widget#123"])
 
     def test_url_validation(self):
         for value in (
@@ -93,9 +98,11 @@ class LauncherTests(unittest.TestCase):
         self.assertFalse((launch.ROOT / "prompt.md").exists())
 
     def test_missing_executable(self):
-        with patch("launch.shutil.which", return_value=None):
-            with self.assertRaisesRegex(ValueError, "Cannot find"):
-                launch.agent_command(self.config["presets"]["pi"])
+        with (
+            patch("launch.shutil.which", return_value=None),
+            self.assertRaisesRegex(ValueError, "Cannot find"),
+        ):
+            launch.agent_command(self.config["presets"]["pi"], "widget")
 
     def test_creates_tmux_session_and_ghostty_attach_when_none_exist(self):
         url = "https://example.com/?x=';$(touch%20/tmp/nope)&a=2"
@@ -121,14 +128,16 @@ class LauncherTests(unittest.TestCase):
         )
 
     def test_requires_tmux(self):
-        with patch("launch.shutil.which", return_value=None):
-            with self.assertRaisesRegex(ValueError, "tmux is required"):
-                launch.open_session(
-                    "pi",
-                    self.config["presets"]["pi"],
-                    "https://example.com",
-                    Path("/tmp"),
-                )
+        with (
+            patch("launch.shutil.which", return_value=None),
+            self.assertRaisesRegex(ValueError, "tmux is required"),
+        ):
+            launch.open_session(
+                "pi",
+                self.config["presets"]["pi"],
+                "https://example.com",
+                Path("/tmp"),
+            )
 
     def test_tmux_selects_most_recent_attached_session(self):
         sessions = subprocess.CompletedProcess(
@@ -145,7 +154,7 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("list-windows", run.call_args_list[1][0][0])
         args = run.call_args_list[2][0][0]
         self.assertEqual(args[args.index("-t") + 1], "$2:")
-        self.assertEqual(args[args.index("-n") + 1], "tmp-pi")
+        self.assertEqual(args[args.index("-n") + 1], "tmp")
 
     def test_tmux_failure_does_not_launch_duplicate(self):
         sessions = subprocess.CompletedProcess([], 0, "$1\t1\t10\n", "")
@@ -156,14 +165,14 @@ class LauncherTests(unittest.TestCase):
             patch(
                 "launch.subprocess.run", side_effect=[sessions, windows, failed]
             ) as run,
+            self.assertRaisesRegex(ValueError, "tmux could not"),
         ):
-            with self.assertRaisesRegex(ValueError, "tmux could not"):
-                launch.open_session(
-                    "pi",
-                    self.config["presets"]["pi"],
-                    "https://example.com",
-                    Path("/tmp"),
-                )
+            launch.open_session(
+                "pi",
+                self.config["presets"]["pi"],
+                "https://example.com",
+                Path("/tmp"),
+            )
         self.assertEqual(run.call_count, 3)
 
     def test_current_tmux_session_wins_over_another_attached_session(self):
@@ -202,12 +211,12 @@ class LauncherTests(unittest.TestCase):
             "https://github.com/acme/widget": "widget",
             "https://github.com/acme/widget/issues/9": "widget",
             "https://github.com/acme/widget/pull/123/files#diff": "widget#123",
-            "https://linear.app/acme/project/foo": "tmp-pi",
-            "https://example.com/x": "tmp-pi",
+            "https://linear.app/acme/project/foo": "tmp",
+            "https://example.com/x": "tmp",
         }
         for url, expected in cases.items():
             with self.subTest(url=url):
-                self.assertEqual(launch.window_name(url, Path("/tmp"), "pi"), expected)
+                self.assertEqual(launch.window_name(url, Path("/tmp")), expected)
 
     def test_window_links(self):
         cases = {
@@ -427,9 +436,9 @@ class ProjectTests(unittest.TestCase):
         with (
             patch("launch.shutil.which", return_value="/bin/gh"),
             patch("launch.subprocess.run", return_value=failed),
+            self.assertRaisesRegex(ValueError, "Could not clone"),
         ):
-            with self.assertRaisesRegex(ValueError, "Could not clone"):
-                launch.prepare_directory(directory, "Org/Repo")
+            launch.prepare_directory(directory, "Org/Repo")
         self.assertFalse(directory.exists())
         self.assertFalse(list(directory.parent.glob(".agent-url-*")))
 
@@ -473,9 +482,9 @@ class ProjectTests(unittest.TestCase):
             ),
             patch("launch.prepare_directory", side_effect=ValueError("clone failed")),
             patch("launch.open_session") as open_session,
+            self.assertRaisesRegex(ValueError, "clone failed"),
         ):
-            with self.assertRaisesRegex(ValueError, "clone failed"):
-                launch.main()
+            launch.main()
         open_session.assert_not_called()
 
     def test_dry_run_does_not_clone_or_open_windows(self):
@@ -512,9 +521,11 @@ class ProjectTests(unittest.TestCase):
         directory.mkdir()
         marker = directory / "keep.txt"
         marker.write_text("important")
-        with patch("launch.subprocess.run") as run:
-            with self.assertRaisesRegex(ValueError, "Refusing to overwrite"):
-                launch.prepare_directory(directory, "Org/Repo")
+        with (
+            patch("launch.subprocess.run") as run,
+            self.assertRaisesRegex(ValueError, "Refusing to overwrite"),
+        ):
+            launch.prepare_directory(directory, "Org/Repo")
         run.assert_not_called()
         self.assertEqual(marker.read_text(), "important")
 
@@ -559,25 +570,29 @@ class SharedPrefillTests(unittest.TestCase):
             ("other-pane", self.url),
             ("%4", self.url + "\n"),
         ):
-            with patch("launch.subprocess.run") as run:
-                with self.assertRaises(ValueError):
-                    launch.schedule_prefill("/bin/tmux", pane, url)
+            with (
+                patch("launch.subprocess.run") as run,
+                self.assertRaises(ValueError),
+            ):
+                launch.schedule_prefill("/bin/tmux", pane, url)
             run.assert_not_called()
 
     def test_reference_worker_is_required(self):
-        with patch("launch.Path.is_file", return_value=False):
-            with self.assertRaisesRegex(
+        with (
+            patch("launch.Path.is_file", return_value=False),
+            self.assertRaisesRegex(
                 ValueError, "requires ~/.local/bin/fzf-tmux-project"
-            ):
-                launch.prefill_runner()
+            ),
+        ):
+            launch.prefill_runner()
 
     def test_bash_is_required(self):
         with (
             patch("launch.Path.is_file", return_value=True),
             patch("launch.shutil.which", return_value=None),
+            self.assertRaisesRegex(ValueError, "Cannot find bash"),
         ):
-            with self.assertRaisesRegex(ValueError, "Cannot find bash"):
-                launch.prefill_runner()
+            launch.prefill_runner()
 
     def test_run_schedules_worker_before_replacing_runner_with_agent(self):
         calls = []
@@ -600,7 +615,9 @@ class SharedPrefillTests(unittest.TestCase):
             self.assertEqual(launch.main(), 0)
         self.assertEqual([entry[0] for entry in calls], ["prefill", "exec"])
         self.assertEqual(calls[0][1], ("/bin/tmux", "%4", self.url))
-        self.assertEqual(calls[1][1][:2], ("/bin/pi", ["/bin/pi"]))
+        self.assertEqual(
+            calls[1][1][:2], ("/bin/pi", ["/bin/pi", "--name", "github.com"])
+        )
         self.assertNotIn(self.url, calls[1][1][1])
 
     def test_run_outside_tmux_is_rejected_before_clone(self):
@@ -610,9 +627,9 @@ class SharedPrefillTests(unittest.TestCase):
             patch("launch.shutil.which", return_value="/bin/tool"),
             patch("launch.prefill_runner", return_value=["worker"]),
             patch("launch.prepare_directory") as prepare,
+            self.assertRaisesRegex(ValueError, "inside a tmux pane"),
         ):
-            with self.assertRaisesRegex(ValueError, "inside a tmux pane"):
-                launch.main()
+            launch.main()
         prepare.assert_not_called()
 
     def test_agent_specific_prefill_modules_removed(self):
