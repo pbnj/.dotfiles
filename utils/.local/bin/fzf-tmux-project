@@ -11,9 +11,11 @@
 #              <ENTER> opens the window and starts DEFAULT_AGENT in it;
 #              <ALT-ENTER> picks the agent instead, from the AGENT_KINDS below
 #              that are actually installed.
-#              <CTRL-T> toggles the list between local projects and a fuzzy
-#              GitHub repo search (re-run as you type); picking a GitHub repo
-#              clones it like above and opens it the same way.
+#              When the typed text matches no local project, the list switches to
+#              a fuzzy GitHub repo search that re-runs as you type, and switches
+#              back once a local project matches again. <CTRL-T> toggles the list
+#              by hand and turns that automatic switching off; picking a GitHub
+#              repo clones it like above and opens it the same way.
 #              <ALT-O>/<ALT-P>/<ALT-A> open the highlighted project's GitHub
 #              repo, pull request, or Actions page in the browser.
 #              A pasted deep link (pull request, issue, file) is typed into the
@@ -205,8 +207,10 @@ github_list() {
 }
 
 # Bound to <CTRL-T>: flips SOURCE_FILE between "local" and "github" and prints
-# the fzf actions that swap the list, prompt, and preview to match.
+# the fzf actions that swap the list, prompt, and preview to match. Pins the
+# source, so auto_source leaves it alone for the rest of the picker.
 toggle_source() {
+  echo pinned >"${PIN_FILE}"
   if [[ "$(<"${SOURCE_FILE}")" == github ]]; then
     echo local >"${SOURCE_FILE}"
     # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
@@ -217,11 +221,37 @@ toggle_source() {
   fi
 }
 
-# Bound to fzf's change event after query_from_url: in GitHub mode every edit to
-# the query re-runs the search; locally fzf's own filtering is all it takes.
-reload_if_github() {
-  [[ "$(<"${SOURCE_FILE}")" == github ]] || return 0
-  printf '%s' 'reload(github_list {q})'
+# Bound to fzf's change event after query_from_url. Picks the source for the
+# query: local while it matches a local project (or is empty), otherwise GitHub.
+# Every edit in GitHub mode re-runs the search. Unless <CTRL-T> pinned the source,
+# the local match test runs fzf's own filter over the local list.
+auto_source() {
+  local query="${1:-}" source desired
+  source="$(<"${SOURCE_FILE}")"
+  if [[ -s "${PIN_FILE}" ]]; then
+    [[ "${source}" == github ]] && printf '%s' 'reload(github_list {q})'
+    return 0
+  fi
+
+  if [[ -z "${query//[[:space:]]/}" ||
+    -n "$(fzf --filter="${query}" --delimiter=/ --with-nth=-2.. <"${LOCAL_LIST_FILE}")" ]]; then
+    desired=local
+  else
+    desired=github
+  fi
+
+  if [[ "${desired}" == "${source}" ]]; then
+    [[ "${source}" == github ]] && printf '%s' 'reload(github_list {q})'
+    return 0
+  fi
+
+  echo "${desired}" >"${SOURCE_FILE}"
+  if [[ "${desired}" == github ]]; then
+    printf '%s' 'change-prompt(GitHub> )+change-preview(gh repo view {})+reload(github_list {q})'
+  else
+    # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+    printf '%s' 'change-prompt(Project> )+change-preview(project_preview {})+reload(cat "${LOCAL_LIST_FILE}")'
+  fi
 }
 
 # Literal first: an exact org/repo clones without a network round-trip. Anything
@@ -391,15 +421,17 @@ open_windows() {
 }
 
 export -f project_preview project_pull project_browse open_url normalize_spec query_from_url \
-  github_list toggle_source reload_if_github
+  github_list toggle_source auto_source
 
 PASTED_URL_FILE="$(mktemp)"
-# Which list the picker shows: "local" or "github", flipped by <CTRL-T>.
+# Which list the picker shows: "local" or "github", set by the query or <CTRL-T>.
 SOURCE_FILE="$(mktemp)"
+# Non-empty once <CTRL-T> has set the source by hand; stops auto_source.
+PIN_FILE="$(mktemp)"
 # The local project list, kept so <CTRL-T> can switch back without a rescan.
 LOCAL_LIST_FILE="$(mktemp)"
-export PASTED_URL_FILE SOURCE_FILE LOCAL_LIST_FILE
-trap 'rm -f "${PASTED_URL_FILE}" "${SOURCE_FILE}" "${LOCAL_LIST_FILE}"' EXIT
+export PASTED_URL_FILE SOURCE_FILE PIN_FILE LOCAL_LIST_FILE
+trap 'rm -f "${PASTED_URL_FILE}" "${SOURCE_FILE}" "${PIN_FILE}" "${LOCAL_LIST_FILE}"' EXIT
 echo local >"${SOURCE_FILE}"
 project_list >"${LOCAL_LIST_FILE}"
 
@@ -408,7 +440,7 @@ QUERY="$(query_from_url "${QUERY}")"
 # One binding group per line: a single line overflows the popup and gets cut off.
 HEADER="<ENTER>: open/clone with ${DEFAULT_AGENT}  <ALT-ENTER>: pick ${AGENT_KINDS[*]}
 <TAB>: multi-select  <CTRL-G>: git pull  <CTRL-Y>: clone from GitHub
-<CTRL-T>: toggle local projects / GitHub repo search
+<CTRL-T>: toggle local projects / GitHub repo search (by hand)
 <ALT-O>: repo  <ALT-P>: pull request  <ALT-A>: actions (in browser)"
 
 # --print-query and --expect make the first two output lines the typed query and
@@ -429,7 +461,7 @@ done < <(
     --bind='alt-o:execute-silent(project_browse repo {})+abort' \
     --bind='alt-p:execute-silent(project_browse pr {})+abort' \
     --bind='alt-a:execute-silent(project_browse actions {})+abort' \
-    --bind='change:transform-query(query_from_url {q})+transform(reload_if_github)' \
+    --bind='change:transform-query(query_from_url {q})+transform(auto_source {q})' \
     --bind='ctrl-t:transform(toggle_source)' \
     --with-nth=-2.. \
     --delimiter=/ \
