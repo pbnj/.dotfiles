@@ -146,12 +146,37 @@ def window_name(url, directory):
     return directory.name
 
 
+# tmux drops a #[link=...] style longer than 255 bytes, including "link=".
+TMUX_LINK_MAX = 250
+
+
+def tmux_link(url):
+    """URL made safe for a tmux #[link=...] style, or None if it cannot fit.
+
+    validate_url already rejects spaces. A comma ends the style option and `]`
+    ends the style, so percent-encode them (and `[` to match). Drop the fragment,
+    then the query, to fit tmux's length limit.
+    """
+    parsed = urlsplit(url)
+    candidates = (
+        url,
+        parsed._replace(fragment="").geturl(),
+        parsed._replace(query="", fragment="").geturl(),
+    )
+    for candidate in candidates:
+        safe = candidate.replace(",", "%2C").replace("[", "%5B").replace("]", "%5D")
+        if len(safe) <= TMUX_LINK_MAX:
+            return safe
+    return None
+
+
 def window_link(url):
-    """Canonical URL of the Linear issue or GitHub PR a window is named after.
+    """URL the status line links a window's name to, or None if it cannot fit.
 
     The status line wraps the window name in an OSC 8 hyperlink to it (see
-    window-status-format in tmux.conf). Built from validated parts only: a tmux
-    style cannot carry spaces or commas.
+    window-status-format in tmux.conf). Windows named after a Linear issue or
+    GitHub PR link to its canonical URL, built from validated parts only; every
+    other window links to the URL that launched it.
     """
     parsed = urlsplit(validate_url(url))
     host = (parsed.hostname or "").lower()
@@ -167,7 +192,7 @@ def window_link(url):
     spec = github_repository(url)
     if spec and len(parts) >= 4 and parts[2] == "pull" and parts[3].isdigit():
         return "https://github.com/" + spec + "/pull/" + parts[3]
-    return None
+    return tmux_link(url)
 
 
 def prepare_directory(directory, spec):

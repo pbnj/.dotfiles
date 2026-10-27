@@ -111,7 +111,9 @@ class LauncherTests(unittest.TestCase):
         ok = subprocess.CompletedProcess([], 0, "", "")
         with (
             patch("launch.shutil.which", return_value="/bin/tmux"),
-            patch("launch.subprocess.run", side_effect=[missing, created, ok]) as run,
+            patch(
+                "launch.subprocess.run", side_effect=[missing, created, ok, ok]
+            ) as run,
         ):
             launch.open_session(
                 "pi", self.config["presets"]["pi"], url, Path("/tmp/a b")
@@ -120,7 +122,9 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("new-session", new_session)
         self.assertEqual(new_session[new_session.index("-c") + 1], "/tmp/a b")
         self.assertEqual(shlex.split(new_session[-1])[-2:], ["--url", url])
-        terminal = run.call_args_list[2][0][0]
+        # The launching URL is passed to tmux as argv data, never through a shell.
+        self.assertEqual(run.call_args_list[2][0][0][-2:], ["@url", url])
+        terminal = run.call_args_list[3][0][0]
         self.assertEqual(terminal[:4], ["/usr/bin/open", "-na", "Ghostty", "--args"])
         self.assertEqual(
             shlex.split(terminal[-1]),
@@ -222,15 +226,31 @@ class LauncherTests(unittest.TestCase):
         cases = {
             "https://linear.app/acme/issue/eng-123/fix-thing": "https://linear.app/acme/issue/ENG-123",
             "https://github.com/acme/widget/pull/123/files#diff": "https://github.com/acme/widget/pull/123",
-            "https://github.com/acme/widget": None,
-            "https://github.com/acme/widget/issues/9": None,
-            "https://linear.app/acme/project/foo": None,
-            "https://linear.app/a,b/issue/ENG-1": None,
-            "https://example.com/x": None,
+            "https://github.com/acme/widget": "https://github.com/acme/widget",
+            "https://github.com/acme/widget/issues/9": "https://github.com/acme/widget/issues/9",
+            "https://linear.app/acme/project/foo": "https://linear.app/acme/project/foo",
+            "https://linear.app/a,b/issue/ENG-1": "https://linear.app/a%2Cb/issue/ENG-1",
+            "https://example.com/x?a=1,2&b=[3]#top": "https://example.com/x?a=1%2C2&b=%5B3%5D#top",
+            "https://example.com/x": "https://example.com/x",
         }
         for url, expected in cases.items():
             with self.subTest(url=url):
                 self.assertEqual(launch.window_link(url), expected)
+
+    def test_long_window_links_fit_tmux_style_limit(self):
+        path = "https://example.com/" + "p" * 150
+        query = "?q=" + "x" * 40
+        cases = {
+            path + query: path + query,
+            path + query + "#" + "f" * 40: path + query,
+            path + "?q=" + "x" * 100 + "#f": path,
+            "https://example.com/" + "p" * 300: None,
+        }
+        for url, expected in cases.items():
+            with self.subTest(url=url[:40]):
+                self.assertEqual(launch.window_link(url), expected)
+                if expected:
+                    self.assertLessEqual(len(expected), launch.TMUX_LINK_MAX)
 
     def test_new_window_is_linked_to_its_pr(self):
         sessions = subprocess.CompletedProcess([], 0, "$1\t1\t10\n", "")
