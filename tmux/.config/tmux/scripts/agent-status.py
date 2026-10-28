@@ -175,7 +175,15 @@ def claude_sessions(socket):
             os.kill(pid, 0)
         except OSError:
             continue  # Like `kill -0`: another user's process counts as gone.
-        state = "working" if status == "busy" else "idle" if status == "idle" else ""
+        # "shell" is what an idle session reports while background tasks (a
+        # Monitor, a background shell) are still running; it waits at its prompt.
+        state = (
+            "working"
+            if status == "busy"
+            else "idle"
+            if status in ("idle", "shell")
+            else ""
+        )
         if state:
             native.append(
                 {

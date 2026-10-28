@@ -386,6 +386,14 @@ class AgentStatusTests(unittest.TestCase):
             ),
         )
 
+    def test_idle_session_with_background_tasks_is_idle(self):
+        (self.registry / "1.json").write_text(
+            json.dumps({"pid": os.getpid(), "status": "shell", "sessionId": "s"})
+        )
+        self.assertEqual(
+            self.claude([("%1", os.getpid(), "2.1.312", "x")]), {"%1": "idle"}
+        )
+
     def test_attached_worker_name_must_be_unique(self):
         for index in range(2):
             (self.registry / f"{index}.json").write_text(
