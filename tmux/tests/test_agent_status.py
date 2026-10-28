@@ -237,6 +237,163 @@ class AgentStatusTests(unittest.TestCase):
             },
         )
 
+    def test_claude_resolver_reports_pane_session_ids(self):
+        (self.mods / "mod-session.json").write_text(
+            json.dumps(
+                {
+                    "state": "idle",
+                    "updatedAt": time.time() * 1000,
+                    "tmux": {"socket": self.socket, "pane": "%1"},
+                }
+            )
+        )
+        (self.registry / "1.json").write_text(
+            json.dumps(
+                {"pid": os.getpid(), "status": "idle", "sessionId": "native-session"}
+            )
+        )
+        listing = f"{self.socket}\x1f%1\x1f{os.getpid()}\x1fclaude\x1fx\n"
+        with patch.object(
+            STATUS,
+            "tmux",
+            side_effect=lambda socket, *args: (
+                listing if args[0] == "list-panes" else ""
+            ),
+        ):
+            (record,) = STATUS.claude_sessions(self.socket)
+        self.assertEqual(record["sessions"], ["mod-session", "native-session"])
+
+    def snapshot(self, number, session, **extra):
+        directory = self.root / ".cache/gh-pr/owner/repo/feat%2Fx"
+        directory.mkdir(parents=True, exist_ok=True)
+        record = {
+            "state": "open",
+            "fetched_at": int(time.time()),
+            "interval": 60,
+            "watcher": {"claude_session": session},
+            "url": f"https://github.com/owner/repo/pull/{number}",
+            **extra,
+        }
+        (directory / f"{number}.json").write_text(json.dumps(record))
+
+    def test_watched_prs_maps_sessions_to_live_pr_urls(self):
+        now = int(time.time())
+        self.snapshot(1, "a")
+        self.snapshot(2, "a", state="merged")
+        self.snapshot(3, "b", state="draft")
+        for number, extra in enumerate(
+            (
+                {"fetched_at": now - 181},
+                {"fetched_at": "now"},
+                {"interval": "60"},
+                {"state": "closed"},
+                {"watcher": {"pi_session": "a"}},
+                {"watcher": None},
+                {"url": None},
+                {"url": "https://github.com/owner/repo/pull/1#[fg=red]"},
+                {"url": "https://example.com/owner/repo/pull/1"},
+            ),
+            start=10,
+        ):
+            self.snapshot(number, "a", **extra)
+        (self.root / ".cache/gh-pr/owner/repo/feat%2Fx/99.json").write_text("{")
+        with patch.dict(os.environ, {"XDG_CACHE_HOME": ""}):
+            self.assertEqual(
+                STATUS.watched_prs(now),
+                {
+                    "a": {
+                        "https://github.com/owner/repo/pull/1",
+                        "https://github.com/owner/repo/pull/2",
+                    },
+                    "b": {"https://github.com/owner/repo/pull/3"},
+                },
+            )
+
+    def test_window_and_panes_get_linked_badges_for_their_prs(self):
+        self.snapshot(1, "a")
+        self.snapshot(2, "b")
+        self.snapshot(3, "elsewhere")
+        claude = [
+            {"socket": self.socket, "pane": "%1", "state": "idle", "sessions": ["a"]},
+            {"socket": self.socket, "pane": "%2", "state": "idle", "sessions": ["b"]},
+        ]
+        with (
+            patch.object(
+                STATUS,
+                "tmux",
+                side_effect=["@1\t\t\n", "%1\t@1\tclaude\n%2\t@1\tclaude\n", ""],
+            ) as tmux,
+            patch.object(STATUS, "claude_sessions", return_value=iter(claude)),
+        ):
+            STATUS.refresh(self.socket)
+        self.assertEqual(
+            tmux.call_args.args[1:],
+            (
+                "set-option",
+                "-w",
+                "-t",
+                "@1",
+                "@agent_state",
+                "idle",
+                ";",
+                "set-option",
+                "-w",
+                "-t",
+                "@1",
+                "@agent_prs",
+                "#[link=https://github.com/owner/repo/pull/1]\uf407#[nolink] #[link=https://github.com/owner/repo/pull/2]\uf407#[nolink]",
+                ";",
+                "set-option",
+                "-p",
+                "-t",
+                "%1",
+                "@pane_prs",
+                "#[link=https://github.com/owner/repo/pull/1]\uf407#[nolink]",
+                ";",
+                "set-option",
+                "-p",
+                "-t",
+                "%2",
+                "@pane_prs",
+                "#[link=https://github.com/owner/repo/pull/2]\uf407#[nolink]",
+            ),
+        )
+        # Once the watches stop, the badges are cleared.
+        with (
+            patch.object(
+                STATUS,
+                "tmux",
+                side_effect=["@1\tidle\tx\n", "%1\t@1\tclaude\tx\n", ""],
+            ) as tmux,
+            patch.object(STATUS, "claude_sessions", return_value=iter(claude[:1])),
+            patch.object(STATUS, "watched_prs", return_value={}),
+        ):
+            STATUS.refresh(self.socket)
+        self.assertEqual(
+            tmux.call_args.args[1:],
+            (
+                "set-option",
+                "-wu",
+                "-t",
+                "@1",
+                "@agent_prs",
+                ";",
+                "set-option",
+                "-pu",
+                "-t",
+                "%1",
+                "@pane_prs",
+            ),
+        )
+
+    def test_idle_session_with_background_tasks_is_idle(self):
+        (self.registry / "1.json").write_text(
+            json.dumps({"pid": os.getpid(), "status": "shell", "sessionId": "s"})
+        )
+        self.assertEqual(
+            self.claude([("%1", os.getpid(), "2.1.312", "x")]), {"%1": "idle"}
+        )
+
     def test_attached_worker_name_must_be_unique(self):
         for index in range(2):
             (self.registry / f"{index}.json").write_text(

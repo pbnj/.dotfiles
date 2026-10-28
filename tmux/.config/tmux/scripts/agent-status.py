@@ -11,6 +11,13 @@ from pathlib import Path
 
 RANK = {"idle": 0, "working": 1, "blocked": 2}
 STALE_MS = 300_000
+# A gh-pr-watch snapshot is live while its poll keeps rewriting it. Allow a few
+# missed polls and the gap while Claude re-arms an expired Monitor.
+PR_GRACE_S = 180
+# Only a plain PR URL goes into a tmux format: nothing in it can close the
+# #[link=...] style or start another directive.
+PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/[0-9]+")
+PR_ICON = "\uf407"  # Nerd Font nf-oct-git_pull_request
 # Claude's footer while a turn runs, or waits on background subagents.
 CLAUDE_FOOTER = re.compile(
     r"^\s+(esc to interrupt|.* · esc to interrupt)(\s|$)"
@@ -64,7 +71,52 @@ def json_records(directory):
         except (OSError, ValueError):
             continue
         if isinstance(record, dict):
-            yield record
+            yield file, record
+
+
+def watched_prs(now):
+    """Map each Claude session to the URLs of the PRs it watches with gh-pr-watch.
+
+    The watch rewrites ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>/
+    <number>.json every poll and names the session running it. A snapshot whose
+    watch stopped (Monitor expired, session gone) just stops being refreshed.
+    """
+    root = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    urls = {}
+    # The branch is percent-encoded, so every snapshot sits at the same depth.
+    for file in (root / "gh-pr").glob("*/*/*/*.json"):
+        try:
+            record = json.loads(file.read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(record, dict) or record.get("state") not in (
+            "open",
+            "draft",
+            "merged",
+        ):
+            continue
+        fetched, interval, watcher, url = (
+            record.get("fetched_at"),
+            record.get("interval"),
+            record.get("watcher"),
+            record.get("url"),
+        )
+        if type(fetched) not in (int, float) or type(interval) is not int:
+            continue
+        if not isinstance(url, str) or not PR_URL.fullmatch(url):
+            continue
+        if not -60 <= now - fetched <= max(3 * interval, PR_GRACE_S):
+            continue
+        session = watcher.get("claude_session") if isinstance(watcher, dict) else None
+        if isinstance(session, str) and session:
+            urls.setdefault(session, set()).add(url)
+    return urls
+
+
+def pr_badges(watched, sessions):
+    """One PR icon per watched PR, each an OSC 8 hyperlink to the PR."""
+    urls = sorted(set().union(*(watched.get(id, ()) for id in sessions)))
+    return " ".join(f"#[link={url}]{PR_ICON}#[nolink]" for url in urls)
 
 
 def latest(records):
@@ -83,7 +135,7 @@ def claude_sessions(socket):
             "CLAUDE_SKETCHYBAR_DIR", str(Path.home() / ".cache/claude-sketchybar")
         )
     )
-    for record in json_records(directory / "sessions"):
+    for file, record in json_records(directory / "sessions"):
         state, updated, location = (
             record.get("state"),
             record.get("updatedAt"),
@@ -101,6 +153,7 @@ def claude_sessions(socket):
                 "updatedAt": updated,
                 "socket": location.get("socket"),
                 "pane": location.get("pane"),
+                "session": file.stem,
             }
         )
 
@@ -110,7 +163,7 @@ def claude_sessions(socket):
     registry = Path(
         os.environ.get("CLAUDE_SESSION_DIR", str(Path.home() / ".claude/sessions"))
     )
-    for record in json_records(registry):
+    for _, record in json_records(registry):
         pid, status, updated = (
             record.get("pid"),
             record.get("status"),
@@ -122,13 +175,22 @@ def claude_sessions(socket):
             os.kill(pid, 0)
         except OSError:
             continue  # Like `kill -0`: another user's process counts as gone.
-        state = "working" if status == "busy" else "idle" if status == "idle" else ""
+        # "shell" is what an idle session reports while background tasks (a
+        # Monitor, a background shell) are still running; it waits at its prompt.
+        state = (
+            "working"
+            if status == "busy"
+            else "idle"
+            if status in ("idle", "shell")
+            else ""
+        )
         if state:
             native.append(
                 {
                     "state": state,
                     "pid": pid,
                     "name": record.get("name"),
+                    "session": record.get("sessionId"),
                     "updatedAt": updated if type(updated) in (int, float) else 0,
                 }
             )
@@ -186,38 +248,65 @@ def claude_sessions(socket):
             state = base["state"]
         else:
             continue  # Unknown is not idle.
-        yield {"socket": pane_socket, "pane": pane, "state": state}
+        # Every session id that may be the one in this pane, to match the
+        # watcher a PR snapshot names.
+        sessions = sorted(
+            {
+                record["session"]
+                for record in (mod, owner, *attached[:1])
+                if record and isinstance(record["session"], str) and record["session"]
+            }
+        )
+        yield {
+            "socket": pane_socket,
+            "pane": pane,
+            "state": state,
+            "sessions": sessions,
+        }
 
 
 def refresh(socket):
     windows = {}
     for line in tmux(
-        socket, "list-windows", "-a", "-F", "#{window_id}\t#{@agent_state}"
+        socket,
+        "list-windows",
+        "-a",
+        "-F",
+        "#{window_id}\t#{@agent_state}\t#{@agent_prs}",
     ).splitlines():
-        window, _, state = line.partition("\t")
+        window, _, options = line.partition("\t")
+        state, _, prs = options.partition("\t")
         if re.fullmatch(r"@[0-9]+", window):
-            windows[window] = state
+            windows[window] = {"@agent_state": state, "@agent_prs": prs}
 
     panes = {}
+    # A pane's own @pane_prs; a separate name because pane options fall back to
+    # the window's, so #{@agent_prs} cannot tell a pane's PRs from its window's.
+    pane_prs = {}
     has_claude = False
     for line in tmux(
         socket,
         "list-panes",
         "-a",
         "-F",
-        "#{pane_id}\t#{window_id}\t#{pane_current_command}",
+        "#{pane_id}\t#{window_id}\t#{pane_current_command}\t#{@pane_prs}",
     ).splitlines():
         fields = line.split("\t")
-        if len(fields) != 3:
+        if len(fields) == 3:
+            fields.append("")
+        if len(fields) != 4:
             continue
-        pane, window, command = fields
+        pane, window, command, prs = fields
         if re.fullmatch(r"%[0-9]+", pane) and window in windows:
             panes[pane] = window
+            pane_prs[pane] = prs
             has_claude |= command == "claude" or bool(
                 re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", command)
             )
 
     states = {}
+    sessions = {}
+    pane_sessions = {}
 
     def add(record):
         location = record.get("tmux") if "tmux" in record else record
@@ -237,26 +326,48 @@ def refresh(socket):
         except (OSError, ValueError):
             return
         window = panes.get(pane)
-        if window and RANK[state] > RANK.get(states.get(window), -1):
+        if not window:
+            return
+        if RANK[state] > RANK.get(states.get(window), -1):
             states[window] = state
+        ids = record.get("sessions")
+        if isinstance(ids, list):
+            ids = {id for id in ids if isinstance(id, str)}
+            sessions.setdefault(window, set()).update(ids)
+            pane_sessions.setdefault(pane, set()).update(ids)
 
     for record in pi_sessions(time.time() * 1000):
         add(record)
     if has_claude:
         for record in claude_sessions(socket):
             add(record)
+    watched = watched_prs(time.time()) if sessions else {}
 
     commands = []
     for window, previous in windows.items():
-        state = states.get(window, "")
-        if state == previous:
+        current = {
+            "@agent_state": states.get(window, ""),
+            "@agent_prs": pr_badges(watched, sessions.get(window, ())),
+        }
+        for option, value in current.items():
+            if value == previous[option]:
+                continue
+            if commands:
+                commands.append(";")
+            if value:
+                commands.extend(["set-option", "-w", "-t", window, option, value])
+            else:
+                commands.extend(["set-option", "-wu", "-t", window, option])
+    for pane, previous in pane_prs.items():
+        value = pr_badges(watched, pane_sessions.get(pane, ()))
+        if value == previous:
             continue
         if commands:
             commands.append(";")
-        if state:
-            commands.extend(["set-option", "-w", "-t", window, "@agent_state", state])
+        if value:
+            commands.extend(["set-option", "-p", "-t", pane, "@pane_prs", value])
         else:
-            commands.extend(["set-option", "-wu", "-t", window, "@agent_state"])
+            commands.extend(["set-option", "-pu", "-t", pane, "@pane_prs"])
     if commands:
         tmux(socket, *commands)
 
