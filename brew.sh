@@ -20,12 +20,6 @@ brew trust --formula felixkratz/formulae/sketchybar
 brew install sketchybar # custom menu bar
 brew install --cask font-sketchybar-app-font # app icons for sketchybar spaces
 
-# window manager
-
-brew tap nikitabobko/tap
-brew trust --cask nikitabobko/tap/aerospace
-brew install --cask nikitabobko/tap/aerospace # tiling window manager
-
 # essentials
 
 brew install bash              # newer version of bash
