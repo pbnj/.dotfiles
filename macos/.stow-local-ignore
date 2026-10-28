@@ -1,0 +1,20 @@
+# stow's default ignore list (replaced as soon as this file exists)
+RCS
+.+,v
+CVS
+\.\#.+
+\.cvsignore
+\.svn
+_darcs
+\.hg
+\.git
+\.gitignore
+\.gitmodules
+.+~
+\#.*\#
+^/README.*
+^/LICENSE.*
+^/COPYING
+
+# build sources, not files to link into ~
+^/twingate
