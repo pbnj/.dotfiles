@@ -25,6 +25,23 @@ swiftc -O macos/twingate/twingate_menu.swift -o ~/.local/bin/twingate_menu
 
 Building needs the Xcode command line tools (`xcode-select --install`).
 
+## Enable Accessibility permission
+
+`twingate_menu` presses menu items through the Accessibility API, so macOS has
+to trust it first. Until then it exits with `not trusted for Accessibility`.
+
+1. Open System Settings → Privacy & Security → Accessibility.
+2. Click **+**, press Command+Shift+G, enter `~/.local/bin/twingate_menu`, and
+   click **Open**.
+3. Make sure its switch is on.
+
+It is a standalone binary so the permission goes to it alone, not to `osascript`
+or your terminal.
+
+The binary is ad-hoc signed, so rebuilding it can invalidate the permission. If
+`not trusted for Accessibility` comes back after a rebuild, select the entry,
+remove it with **−**, and add it again.
+
 ## Run
 
 ```bash
@@ -32,14 +49,7 @@ twingate_menu login    # press "Log in to ..."
 twingate_menu logout   # press "Log Out & Disconnect"
 ```
 
-The Twingate app must be running. The first run fails with
-`not trusted for Accessibility`: add `~/.local/bin/twingate_menu` under System
-Settings → Privacy & Security → Accessibility. It is a standalone binary so that
-permission goes to it alone, not to `osascript` or a terminal.
-
-The binary is ad-hoc signed, so rebuilding it can invalidate the grant. If
-`not trusted for Accessibility` comes back after a rebuild, remove the entry and
-add it again.
+The Twingate app must be running.
 
 ## Exit codes
 
