@@ -14,6 +14,10 @@ STALE_MS = 300_000
 # A gh-pr-watch snapshot is live while its poll keeps rewriting it. Allow a few
 # missed polls and the gap while Claude re-arms an expired Monitor.
 PR_GRACE_S = 180
+# Only a plain PR URL goes into a tmux format: nothing in it can close the
+# #[link=...] style or start another directive.
+PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/[0-9]+")
+PR_ICON = "\uf407"  # Nerd Font nf-oct-git_pull_request
 # Claude's footer while a turn runs, or waits on background subagents.
 CLAUDE_FOOTER = re.compile(
     r"^\s+(esc to interrupt|.* · esc to interrupt)(\s|$)"
@@ -71,14 +75,14 @@ def json_records(directory):
 
 
 def watched_prs(now):
-    """Count the PRs each Claude session watches with the gh skill's gh-pr-watch.
+    """Map each Claude session to the URLs of the PRs it watches with gh-pr-watch.
 
     The watch rewrites ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>/
     <number>.json every poll and names the session running it. A snapshot whose
     watch stopped (Monitor expired, session gone) just stops being refreshed.
     """
     root = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-    counts = {}
+    urls = {}
     # The branch is percent-encoded, so every snapshot sits at the same depth.
     for file in (root / "gh-pr").glob("*/*/*/*.json"):
         try:
@@ -91,19 +95,28 @@ def watched_prs(now):
             "merged",
         ):
             continue
-        fetched, interval, watcher = (
+        fetched, interval, watcher, url = (
             record.get("fetched_at"),
             record.get("interval"),
             record.get("watcher"),
+            record.get("url"),
         )
         if type(fetched) not in (int, float) or type(interval) is not int:
+            continue
+        if not isinstance(url, str) or not PR_URL.fullmatch(url):
             continue
         if not -60 <= now - fetched <= max(3 * interval, PR_GRACE_S):
             continue
         session = watcher.get("claude_session") if isinstance(watcher, dict) else None
         if isinstance(session, str) and session:
-            counts[session] = counts.get(session, 0) + 1
-    return counts
+            urls.setdefault(session, set()).add(url)
+    return urls
+
+
+def pr_badges(watched, sessions):
+    """One PR icon per watched PR, each an OSC 8 hyperlink to the PR."""
+    urls = sorted(set().union(*(watched.get(id, ()) for id in sessions)))
+    return " ".join(f"#[link={url}]{PR_ICON}#[nolink]" for url in urls)
 
 
 def latest(records):
@@ -260,7 +273,7 @@ def refresh(socket):
 
     panes = {}
     # A pane's own @pane_prs; a separate name because pane options fall back to
-    # the window's, so #{@agent_prs} cannot tell a pane's count from its window's.
+    # the window's, so #{@agent_prs} cannot tell a pane's PRs from its window's.
     pane_prs = {}
     has_claude = False
     for line in tmux(
@@ -324,10 +337,9 @@ def refresh(socket):
 
     commands = []
     for window, previous in windows.items():
-        prs = sum(watched.get(id, 0) for id in sessions.get(window, ()))
         current = {
             "@agent_state": states.get(window, ""),
-            "@agent_prs": str(prs) if prs else "",
+            "@agent_prs": pr_badges(watched, sessions.get(window, ())),
         }
         for option, value in current.items():
             if value == previous[option]:
@@ -339,8 +351,7 @@ def refresh(socket):
             else:
                 commands.extend(["set-option", "-wu", "-t", window, option])
     for pane, previous in pane_prs.items():
-        prs = sum(watched.get(id, 0) for id in pane_sessions.get(pane, ()))
-        value = str(prs) if prs else ""
+        value = pr_badges(watched, pane_sessions.get(pane, ()))
         if value == previous:
             continue
         if commands:

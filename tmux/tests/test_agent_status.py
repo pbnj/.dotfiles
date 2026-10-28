@@ -271,11 +271,12 @@ class AgentStatusTests(unittest.TestCase):
             "fetched_at": int(time.time()),
             "interval": 60,
             "watcher": {"claude_session": session},
+            "url": f"https://github.com/owner/repo/pull/{number}",
             **extra,
         }
         (directory / f"{number}.json").write_text(json.dumps(record))
 
-    def test_watched_prs_counts_live_snapshots_per_session(self):
+    def test_watched_prs_maps_sessions_to_live_pr_urls(self):
         now = int(time.time())
         self.snapshot(1, "a")
         self.snapshot(2, "a", state="merged")
@@ -288,15 +289,27 @@ class AgentStatusTests(unittest.TestCase):
                 {"state": "closed"},
                 {"watcher": {"pi_session": "a"}},
                 {"watcher": None},
+                {"url": None},
+                {"url": "https://github.com/owner/repo/pull/1#[fg=red]"},
+                {"url": "https://example.com/owner/repo/pull/1"},
             ),
             start=10,
         ):
             self.snapshot(number, "a", **extra)
         (self.root / ".cache/gh-pr/owner/repo/feat%2Fx/99.json").write_text("{")
         with patch.dict(os.environ, {"XDG_CACHE_HOME": ""}):
-            self.assertEqual(STATUS.watched_prs(now), {"a": 2, "b": 1})
+            self.assertEqual(
+                STATUS.watched_prs(now),
+                {
+                    "a": {
+                        "https://github.com/owner/repo/pull/1",
+                        "https://github.com/owner/repo/pull/2",
+                    },
+                    "b": {"https://github.com/owner/repo/pull/3"},
+                },
+            )
 
-    def test_window_gets_pr_count_of_its_claude_sessions(self):
+    def test_window_and_panes_get_linked_badges_for_their_prs(self):
         self.snapshot(1, "a")
         self.snapshot(2, "b")
         self.snapshot(3, "elsewhere")
@@ -328,21 +341,21 @@ class AgentStatusTests(unittest.TestCase):
                 "-t",
                 "@1",
                 "@agent_prs",
-                "2",
+                "#[link=https://github.com/owner/repo/pull/1]\uf407#[nolink] #[link=https://github.com/owner/repo/pull/2]\uf407#[nolink]",
                 ";",
                 "set-option",
                 "-p",
                 "-t",
                 "%1",
                 "@pane_prs",
-                "1",
+                "#[link=https://github.com/owner/repo/pull/1]\uf407#[nolink]",
                 ";",
                 "set-option",
                 "-p",
                 "-t",
                 "%2",
                 "@pane_prs",
-                "1",
+                "#[link=https://github.com/owner/repo/pull/2]\uf407#[nolink]",
             ),
         )
         # Once the watches stop, the badges are cleared.
@@ -350,7 +363,7 @@ class AgentStatusTests(unittest.TestCase):
             patch.object(
                 STATUS,
                 "tmux",
-                side_effect=["@1\tidle\t2\n", "%1\t@1\tclaude\t1\n", ""],
+                side_effect=["@1\tidle\tx\n", "%1\t@1\tclaude\tx\n", ""],
             ) as tmux,
             patch.object(STATUS, "claude_sessions", return_value=iter(claude[:1])),
             patch.object(STATUS, "watched_prs", return_value={}),
