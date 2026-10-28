@@ -329,19 +329,48 @@ class AgentStatusTests(unittest.TestCase):
                 "@1",
                 "@agent_prs",
                 "2",
+                ";",
+                "set-option",
+                "-p",
+                "-t",
+                "%1",
+                "@pane_prs",
+                "1",
+                ";",
+                "set-option",
+                "-p",
+                "-t",
+                "%2",
+                "@pane_prs",
+                "1",
             ),
         )
-        # Once the watches stop, the badge is cleared.
+        # Once the watches stop, the badges are cleared.
         with (
             patch.object(
-                STATUS, "tmux", side_effect=["@1\tidle\t2\n", "%1\t@1\tclaude\n", ""]
+                STATUS,
+                "tmux",
+                side_effect=["@1\tidle\t2\n", "%1\t@1\tclaude\t1\n", ""],
             ) as tmux,
             patch.object(STATUS, "claude_sessions", return_value=iter(claude[:1])),
             patch.object(STATUS, "watched_prs", return_value={}),
         ):
             STATUS.refresh(self.socket)
         self.assertEqual(
-            tmux.call_args.args[1:], ("set-option", "-wu", "-t", "@1", "@agent_prs")
+            tmux.call_args.args[1:],
+            (
+                "set-option",
+                "-wu",
+                "-t",
+                "@1",
+                "@agent_prs",
+                ";",
+                "set-option",
+                "-pu",
+                "-t",
+                "%1",
+                "@pane_prs",
+            ),
         )
 
     def test_attached_worker_name_must_be_unique(self):

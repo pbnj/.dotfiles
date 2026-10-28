@@ -39,6 +39,9 @@ names its Claude session. The same job matches those session ids to the window's
 Claude panes and sets `@agent_prs`. A snapshot that hasn't been refreshed for
 three poll intervals (at least 3 minutes) counts as a stopped watch.
 
+Each pane's top border shows its index and command (`claude` for Claude panes)
+and the same PR badge for that pane alone, from the pane option `@pane_prs`.
+
 Requires Python 3. Reload with `tmux source-file ~/.config/tmux/tmux.conf`.
 
 Tests use fixtures and a temporary tmux server, never the real agent sessions:

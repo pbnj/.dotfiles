@@ -259,26 +259,33 @@ def refresh(socket):
             windows[window] = {"@agent_state": state, "@agent_prs": prs}
 
     panes = {}
+    # A pane's own @pane_prs; a separate name because pane options fall back to
+    # the window's, so #{@agent_prs} cannot tell a pane's count from its window's.
+    pane_prs = {}
     has_claude = False
     for line in tmux(
         socket,
         "list-panes",
         "-a",
         "-F",
-        "#{pane_id}\t#{window_id}\t#{pane_current_command}",
+        "#{pane_id}\t#{window_id}\t#{pane_current_command}\t#{@pane_prs}",
     ).splitlines():
         fields = line.split("\t")
-        if len(fields) != 3:
+        if len(fields) == 3:
+            fields.append("")
+        if len(fields) != 4:
             continue
-        pane, window, command = fields
+        pane, window, command, prs = fields
         if re.fullmatch(r"%[0-9]+", pane) and window in windows:
             panes[pane] = window
+            pane_prs[pane] = prs
             has_claude |= command == "claude" or bool(
                 re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", command)
             )
 
     states = {}
     sessions = {}
+    pane_sessions = {}
 
     def add(record):
         location = record.get("tmux") if "tmux" in record else record
@@ -304,9 +311,9 @@ def refresh(socket):
             states[window] = state
         ids = record.get("sessions")
         if isinstance(ids, list):
-            sessions.setdefault(window, set()).update(
-                id for id in ids if isinstance(id, str)
-            )
+            ids = {id for id in ids if isinstance(id, str)}
+            sessions.setdefault(window, set()).update(ids)
+            pane_sessions.setdefault(pane, set()).update(ids)
 
     for record in pi_sessions(time.time() * 1000):
         add(record)
@@ -331,6 +338,17 @@ def refresh(socket):
                 commands.extend(["set-option", "-w", "-t", window, option, value])
             else:
                 commands.extend(["set-option", "-wu", "-t", window, option])
+    for pane, previous in pane_prs.items():
+        prs = sum(watched.get(id, 0) for id in pane_sessions.get(pane, ()))
+        value = str(prs) if prs else ""
+        if value == previous:
+            continue
+        if commands:
+            commands.append(";")
+        if value:
+            commands.extend(["set-option", "-p", "-t", pane, "@pane_prs", value])
+        else:
+            commands.extend(["set-option", "-pu", "-t", pane, "@pane_prs"])
     if commands:
         tmux(socket, *commands)
 
