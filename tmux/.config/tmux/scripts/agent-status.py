@@ -11,6 +11,9 @@ from pathlib import Path
 
 RANK = {"idle": 0, "working": 1, "blocked": 2}
 STALE_MS = 300_000
+# A gh-pr-watch snapshot is live while its poll keeps rewriting it. Allow a few
+# missed polls and the gap while Claude re-arms an expired Monitor.
+PR_GRACE_S = 180
 # Claude's footer while a turn runs, or waits on background subagents.
 CLAUDE_FOOTER = re.compile(
     r"^\s+(esc to interrupt|.* · esc to interrupt)(\s|$)"
@@ -64,7 +67,43 @@ def json_records(directory):
         except (OSError, ValueError):
             continue
         if isinstance(record, dict):
-            yield record
+            yield file, record
+
+
+def watched_prs(now):
+    """Count the PRs each Claude session watches with the gh skill's gh-pr-watch.
+
+    The watch rewrites ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>/
+    <number>.json every poll and names the session running it. A snapshot whose
+    watch stopped (Monitor expired, session gone) just stops being refreshed.
+    """
+    root = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    counts = {}
+    # The branch is percent-encoded, so every snapshot sits at the same depth.
+    for file in (root / "gh-pr").glob("*/*/*/*.json"):
+        try:
+            record = json.loads(file.read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(record, dict) or record.get("state") not in (
+            "open",
+            "draft",
+            "merged",
+        ):
+            continue
+        fetched, interval, watcher = (
+            record.get("fetched_at"),
+            record.get("interval"),
+            record.get("watcher"),
+        )
+        if type(fetched) not in (int, float) or type(interval) is not int:
+            continue
+        if not -60 <= now - fetched <= max(3 * interval, PR_GRACE_S):
+            continue
+        session = watcher.get("claude_session") if isinstance(watcher, dict) else None
+        if isinstance(session, str) and session:
+            counts[session] = counts.get(session, 0) + 1
+    return counts
 
 
 def latest(records):
@@ -83,7 +122,7 @@ def claude_sessions(socket):
             "CLAUDE_SKETCHYBAR_DIR", str(Path.home() / ".cache/claude-sketchybar")
         )
     )
-    for record in json_records(directory / "sessions"):
+    for file, record in json_records(directory / "sessions"):
         state, updated, location = (
             record.get("state"),
             record.get("updatedAt"),
@@ -101,6 +140,7 @@ def claude_sessions(socket):
                 "updatedAt": updated,
                 "socket": location.get("socket"),
                 "pane": location.get("pane"),
+                "session": file.stem,
             }
         )
 
@@ -110,7 +150,7 @@ def claude_sessions(socket):
     registry = Path(
         os.environ.get("CLAUDE_SESSION_DIR", str(Path.home() / ".claude/sessions"))
     )
-    for record in json_records(registry):
+    for _, record in json_records(registry):
         pid, status, updated = (
             record.get("pid"),
             record.get("status"),
@@ -129,6 +169,7 @@ def claude_sessions(socket):
                     "state": state,
                     "pid": pid,
                     "name": record.get("name"),
+                    "session": record.get("sessionId"),
                     "updatedAt": updated if type(updated) in (int, float) else 0,
                 }
             )
@@ -186,17 +227,36 @@ def claude_sessions(socket):
             state = base["state"]
         else:
             continue  # Unknown is not idle.
-        yield {"socket": pane_socket, "pane": pane, "state": state}
+        # Every session id that may be the one in this pane, to match the
+        # watcher a PR snapshot names.
+        sessions = sorted(
+            {
+                record["session"]
+                for record in (mod, owner, *attached[:1])
+                if record and isinstance(record["session"], str) and record["session"]
+            }
+        )
+        yield {
+            "socket": pane_socket,
+            "pane": pane,
+            "state": state,
+            "sessions": sessions,
+        }
 
 
 def refresh(socket):
     windows = {}
     for line in tmux(
-        socket, "list-windows", "-a", "-F", "#{window_id}\t#{@agent_state}"
+        socket,
+        "list-windows",
+        "-a",
+        "-F",
+        "#{window_id}\t#{@agent_state}\t#{@agent_prs}",
     ).splitlines():
-        window, _, state = line.partition("\t")
+        window, _, options = line.partition("\t")
+        state, _, prs = options.partition("\t")
         if re.fullmatch(r"@[0-9]+", window):
-            windows[window] = state
+            windows[window] = {"@agent_state": state, "@agent_prs": prs}
 
     panes = {}
     has_claude = False
@@ -218,6 +278,7 @@ def refresh(socket):
             )
 
     states = {}
+    sessions = {}
 
     def add(record):
         location = record.get("tmux") if "tmux" in record else record
@@ -237,26 +298,39 @@ def refresh(socket):
         except (OSError, ValueError):
             return
         window = panes.get(pane)
-        if window and RANK[state] > RANK.get(states.get(window), -1):
+        if not window:
+            return
+        if RANK[state] > RANK.get(states.get(window), -1):
             states[window] = state
+        ids = record.get("sessions")
+        if isinstance(ids, list):
+            sessions.setdefault(window, set()).update(
+                id for id in ids if isinstance(id, str)
+            )
 
     for record in pi_sessions(time.time() * 1000):
         add(record)
     if has_claude:
         for record in claude_sessions(socket):
             add(record)
+    watched = watched_prs(time.time()) if sessions else {}
 
     commands = []
     for window, previous in windows.items():
-        state = states.get(window, "")
-        if state == previous:
-            continue
-        if commands:
-            commands.append(";")
-        if state:
-            commands.extend(["set-option", "-w", "-t", window, "@agent_state", state])
-        else:
-            commands.extend(["set-option", "-wu", "-t", window, "@agent_state"])
+        prs = sum(watched.get(id, 0) for id in sessions.get(window, ()))
+        current = {
+            "@agent_state": states.get(window, ""),
+            "@agent_prs": str(prs) if prs else "",
+        }
+        for option, value in current.items():
+            if value == previous[option]:
+                continue
+            if commands:
+                commands.append(";")
+            if value:
+                commands.extend(["set-option", "-w", "-t", window, option, value])
+            else:
+                commands.extend(["set-option", "-wu", "-t", window, option])
     if commands:
         tmux(socket, *commands)
 

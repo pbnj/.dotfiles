@@ -31,6 +31,14 @@ It starts no background daemon.
   window, including after panes move. Closing an agent clears its badge on the
   next refresh. Other agents are currently untracked.
 
+A green PR icon (Nerd Font ``, with a count when there are several) follows the
+agent badge on tabs whose Claude sessions are watching PRs with the gh skill's
+`gh-pr-watch`. Each watch keeps a snapshot in
+`${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>/<number>.json` that
+names its Claude session. The same job matches those session ids to the window's
+Claude panes and sets `@agent_prs`. A snapshot that hasn't been refreshed for
+three poll intervals (at least 3 minutes) counts as a stopped watch.
+
 Requires Python 3. Reload with `tmux source-file ~/.config/tmux/tmux.conf`.
 
 Tests use fixtures and a temporary tmux server, never the real agent sessions:
