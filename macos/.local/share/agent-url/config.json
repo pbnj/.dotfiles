@@ -1,12 +1,13 @@
 {
-  "working_directory": "~/Projects/github.com",
+  "working_directory": "~/Projects",
+  "linear_teams": {},
   "github_root": "~/Projects/github.com",
   "presets": {
     "haiku": {
       "name": "Browser URL — Claude Haiku",
       "agent": "claude",
       "model": "haiku",
-      "effort": "max",
+      "effort": "high",
       "key_code": 4,
       "shift": false
     },

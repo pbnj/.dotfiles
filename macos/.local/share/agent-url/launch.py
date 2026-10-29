@@ -33,8 +33,19 @@ SEARCH_PATH = os.pathsep.join(
 )
 
 
+LOCAL_CONFIG = Path.home() / ".config/agent-url/config.json"
+
+
 def load_config():
-    return json.loads((ROOT / "config.json").read_text())
+    """config.json, with top-level keys overridden by the untracked LOCAL_CONFIG.
+
+    Private settings (linear_teams naming work repos) live in LOCAL_CONFIG so
+    they stay out of this public repository.
+    """
+    config = json.loads((ROOT / "config.json").read_text())
+    if LOCAL_CONFIG.is_file():
+        config.update(json.loads(LOCAL_CONFIG.read_text()))
+    return config
 
 
 def validate_url(value):
@@ -106,8 +117,42 @@ def github_repository(url):
     return owner + "/" + repo
 
 
-def project_directory(config, url):
+LINEAR_ISSUE = re.compile(r"[A-Za-z][A-Za-z0-9]*-[0-9]+")
+
+
+def linear_issue(url):
+    """(workspace, ISSUE-ID) for a Linear issue URL, else None."""
+    parsed = urlsplit(validate_url(url))
+    host = (parsed.hostname or "").lower()
+    parts = [unquote(part) for part in parsed.path.strip("/").split("/")]
+    if (
+        host in ("linear.app", "www.linear.app")
+        and len(parts) >= 3
+        and re.fullmatch(r"[A-Za-z0-9_-]+", parts[0])
+        and parts[1] == "issue"
+        and LINEAR_ISSUE.fullmatch(parts[2])
+    ):
+        return parts[0], parts[2].upper()
+    return None
+
+
+def repository(config, url):
+    """org/repo for a GitHub URL or a Linear issue whose team maps to a repo."""
     spec = github_repository(url)
+    if spec:
+        return spec
+    issue = linear_issue(url)
+    if issue:
+        team = issue[1].split("-")[0]
+        mapped = config.get("linear_teams", {}).get(team)
+        if mapped:
+            # Validate the mapping exactly like a GitHub URL's org/repo.
+            return github_repository("https://github.com/" + mapped)
+    return None
+
+
+def project_directory(config, url):
+    spec = repository(config, url)
     root = Path(
         config["github_root"] if spec else config["working_directory"]
     ).expanduser()
@@ -122,28 +167,25 @@ def project_directory(config, url):
     return directory, spec
 
 
-LINEAR_ISSUE = re.compile(r"[A-Za-z][A-Za-z0-9]*-[0-9]+")
+def window_name(directory):
+    """Windows are named after their directory, so similar URLs share one."""
+    return directory.name
 
 
-def window_name(url, directory):
-    """Name windows after the Linear issue, GitHub PR, or GitHub repo."""
-    parsed = urlsplit(validate_url(url))
-    host = (parsed.hostname or "").lower()
-    parts = [unquote(part) for part in parsed.path.strip("/").split("/")]
-    if (
-        host in ("linear.app", "www.linear.app")
-        and len(parts) >= 3
-        and parts[1] == "issue"
-        and LINEAR_ISSUE.fullmatch(parts[2])
-    ):
-        return parts[2].upper()
+def pane_label(url):
+    """Short label for a pane: ENG#7, repo#123, repo/pulls, repo, else the URL."""
+    issue = linear_issue(url)
+    if issue:
+        return issue[1].replace("-", "#")
     spec = github_repository(url)
     if spec:
         repo = spec.split("/")[1]
-        if len(parts) >= 4 and parts[2] == "pull" and parts[3].isdigit():
-            return repo + "#" + parts[3]
-        return repo
-    return directory.name
+        parts = [unquote(part) for part in urlsplit(url).path.strip("/").split("/")[2:]]
+        parts = [part for part in parts if part]
+        if len(parts) >= 2 and parts[0] in ("pull", "issues") and parts[1].isdigit():
+            return repo + "#" + parts[1]
+        return "/".join([repo] + parts)
+    return url
 
 
 # tmux drops a #[link=...] style longer than 255 bytes, including "link=".
@@ -170,26 +212,17 @@ def tmux_link(url):
     return None
 
 
-def window_link(url):
-    """URL the status line links a window's name to, or None if it cannot fit.
+def pane_link(url):
+    """URL a pane's @url opens (prefix C-u), or None if it cannot fit.
 
-    The status line wraps the window name in an OSC 8 hyperlink to it (see
-    window-status-format in tmux.conf). Windows named after a Linear issue or
-    GitHub PR link to its canonical URL, built from validated parts only; every
-    other window links to the URL that launched it.
+    Linear issues and GitHub PRs link to their canonical URL, built from
+    validated parts only; every other pane links to the URL that launched it.
     """
-    parsed = urlsplit(validate_url(url))
-    host = (parsed.hostname or "").lower()
-    parts = [unquote(part) for part in parsed.path.strip("/").split("/")]
-    if (
-        host in ("linear.app", "www.linear.app")
-        and len(parts) >= 3
-        and re.fullmatch(r"[A-Za-z0-9_-]+", parts[0])
-        and parts[1] == "issue"
-        and LINEAR_ISSUE.fullmatch(parts[2])
-    ):
-        return "https://linear.app/" + parts[0] + "/issue/" + parts[2].upper()
+    issue = linear_issue(url)
+    if issue:
+        return "https://linear.app/" + issue[0] + "/issue/" + issue[1]
     spec = github_repository(url)
+    parts = [unquote(part) for part in urlsplit(url).path.strip("/").split("/")]
     if spec and len(parts) >= 4 and parts[2] == "pull" and parts[3].isdigit():
         return "https://github.com/" + spec + "/pull/" + parts[3]
     return tmux_link(url)
@@ -245,7 +278,7 @@ def prepare_directory(directory, spec):
 
 
 def agent_command(preset, name):
-    """Agent argv; name labels the session (the tmux window name)."""
+    """Agent argv; name labels the session (the tmux pane label)."""
     agent = preset["agent"]
     executable = shutil.which(agent, path=SEARCH_PATH)
     if not executable:
@@ -302,6 +335,20 @@ def schedule_prefill(tmux, pane, url):
     )
 
 
+def label_pane(tmux, pane, label, link):
+    """Set the pane border's label (pane-border-format) and its prefix C-u URL.
+
+    A pane option, not the pane title: agents overwrite the title themselves.
+    """
+    options = [("@pane_label", label)] + ([("@url", link)] if link else [])
+    for name, value in options:
+        subprocess.run(
+            [tmux, "set-option", "-p", "-t", pane, name, value],
+            capture_output=True,
+            check=False,
+        )
+
+
 def capture_url():
     helper = CACHE / "browser-url"
     if not helper.is_file():
@@ -322,7 +369,7 @@ def capture_url():
     return validate_url(result.stdout.strip())
 
 
-def open_session(preset_key, preset, url, directory):
+def open_session(preset_key, preset, url, directory, spec=None):
     # Only this quoted command string crosses a shell boundary. The validated URL
     # is data for the draft, never a shell command or an automatically sent message.
     child = [sys.executable, str(ROOT / "launch.py"), preset_key, "--run", "--url", url]
@@ -366,8 +413,9 @@ def open_session(preset_key, preset, url, directory):
     selected = next((row for row in candidates if row[2] == current), None)
     if selected is None and candidates:
         selected = max(candidates)  # Attached first, then most recently active.
-    label = window_name(url, directory)
-    link = window_link(url)
+    label = window_name(directory)
+    # A window's tab links to its repo; each pane keeps its own @url.
+    link = "https://github.com/" + spec if spec else None
     if selected:
         attached, _, target = selected
         windows = subprocess.run(
@@ -387,7 +435,7 @@ def open_session(preset_key, preset, url, directory):
             None,
         )
         if existing:
-            # Same issue/repo/PR already open: add a pane beside it instead.
+            # A window for this directory is already open: add a pane to it.
             result = subprocess.run(
                 [
                     tmux,
@@ -403,6 +451,9 @@ def open_session(preset_key, preset, url, directory):
                 check=False,
             )
             if result.returncode == 0:
+                subprocess.run(
+                    [tmux, "select-layout", "-t", existing, "tiled"], check=False
+                )
                 subprocess.run([tmux, "select-window", "-t", existing], check=False)
         else:
             result = subprocess.run(
@@ -501,13 +552,17 @@ def main():
     preset = config["presets"][args.preset]
     url = validate_url(args.url) if args.url is not None else capture_url()
     directory, spec = project_directory(config, url)
-    command = agent_command(preset, window_name(url, directory))
+    label = pane_label(url)
+    # Never put a raw URL (query strings, tokens) in argv or a Remote Control name.
+    command = agent_command(preset, window_name(directory) if label == url else label)
     if args.dry_run:
         print(
             json.dumps(
                 {
                     "cwd": str(directory),
                     "github_repo": spec,
+                    "window": window_name(directory),
+                    "pane": label,
                     "argv": command,
                     "prefill": url,
                     "prefill_method": "fzf-tmux-project --prefill via tmux run-shell -b",
@@ -527,12 +582,13 @@ def main():
     prepare_directory(directory, spec)
     if args.run:
         os.chdir(directory)
+        label_pane(tmux, pane, label, pane_link(url))
         schedule_prefill(tmux, pane, url)
         # Replace this runner with the agent. Its argv contains no URL or initial
         # prompt; the detached shared worker types the URL after the pane settles.
         os.execvpe(command[0], command, dict(os.environ, PATH=SEARCH_PATH))
         return 0
-    open_session(args.preset, preset, url, directory)
+    open_session(args.preset, preset, url, directory, spec)
     return 0
 
 
