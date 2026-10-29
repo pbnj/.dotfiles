@@ -50,3 +50,4 @@ pi/.pi/agent/models.json
 *.bak*
 utils/.local/bin/linear-claude-desktop
 utils/.local/bin/twingate_menu
+/.claude/
