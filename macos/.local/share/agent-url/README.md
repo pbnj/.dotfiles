@@ -4,7 +4,7 @@ Native Tinycast hotkeys; no AeroSpace, SketchyBar, or key-sequence daemon.
 
 | Shortcut      | Agent   | Model / effort     |
 | ------------- | ------- | ------------------ |
-| Hyper+H       | Claude  | Haiku / max        |
+| Hyper+H       | Claude  | Haiku / high       |
 | Hyper+O       | Claude  | Opus / medium      |
 | Hyper+S       | Claude  | Sonnet / medium    |
 | Hyper+Shift+S | Copilot | GPT-6.1 Sol / high |
@@ -28,8 +28,8 @@ edit the draft and press Enter yourself when you are ready.
 - Supports Firefox, Brave, Chrome, Safari, Edge, Arc, Zen, Vivaldi, and Opera
   (including their bundle-ID-suffixed channels). Accessibility behavior varies
   by browser; capture fails explicitly if the URL is unavailable.
-- Opens a **new tmux window**, or a split in an existing window with the same
-  name (see below). From tmux, it uses the current session; from a browser
+- Opens a **new tmux window**, or a pane in an existing window for the same
+  directory (see below). From tmux, it uses the current session; from a browser
   shortcut, it prefers the most recently active attached session. If only an
   unattached session exists, Ghostty attaches to it. With no tmux sessions at
   all, it creates an `agent-url` session and opens Ghostty attached to it.
@@ -41,17 +41,26 @@ edit the draft and press Enter yourself when you are ready.
 - Existing checkouts/worktrees are reused without pulling or changing branches.
   Failed clones leave no partial checkout at the destination. Concurrent
   shortcuts share a clone lock. Existing non-Git paths are never overwritten.
-- Other URLs (and GitHub account/product pages) use `~/Projects/github.com`. The
-  draft retains the **original full URL**, not just the org/repo.
-- Window names: Linear issue → its ID (`ENG-123`); GitHub PR → `<repo>#<n>`
-  (`widget#123`); other GitHub repo URLs → `<repo>` (`widget`); anything else →
-  `<dir>`. If the target session already has a window with that name, the agent
-  opens in a new split there and that window is selected.
+- Linear issues whose team key is mapped in `linear_teams`
+  (`"ENG": "acme/widget"`) use that repo's checkout, cloned the same way.
+- Other URLs (GitHub account/product pages, unmapped Linear teams) use
+  `~/Projects`. The draft retains the **original full URL**, not just the
+  org/repo.
+- Windows are named after their directory (`widget`, `Projects`). If the target
+  session already has a window with that name, the agent opens in a new pane
+  there (re-tiled), and that window is selected. So a repo, its PRs, and its
+  mapped Linear issues share one window.
+- Each pane is labelled on its top border (`@pane_label`): Linear issue →
+  `ENG#7`; GitHub PR or issue → `widget#123`; repo root → `widget`; other repo
+  pages → `widget/<path>` (`widget/pulls`); anything else → the full URL.
+  Prefix+C-u opens the pane's URL (`@url`); a repo window's tab links to the
+  repo.
 - Claude uses `--dangerously-skip-permissions --remote-control`. Copilot uses
   `--yolo --mode interactive`; Pi uses its normal defaults. These settings do
   not submit the URL or start a task.
 - Every agent session (and Claude's Remote Control session) is named with
-  `--name` after the tmux window name above.
+  `--name` after the pane label above, except a full-URL label, which uses the
+  window name instead so the URL never lands in argv.
 - **All agents use the same prefill mechanism as `fzf-tmux-project`.** The pane
   runner schedules `~/.local/bin/fzf-tmux-project --prefill <pane> <url>` using
   `tmux run-shell -b`, then replaces itself with the selected agent. The URL is
@@ -80,8 +89,12 @@ submit a prompt. Treat page content as untrusted.
 The installed directory is a symlink into this dotfiles directory:
 
 - `~/.local/share/agent-url/config.json`: model IDs, effort levels, fallback
-  `working_directory`, `github_root`, and native Carbon keycodes. Changes apply
-  on the next launch; rerun the installer after changing shortcut metadata.
+  `working_directory`, `github_root`, `linear_teams` (Linear team key →
+  `org/repo`), and native Carbon keycodes. Changes apply on the next launch;
+  rerun the installer after changing shortcut metadata.
+- `~/.config/agent-url/config.json` (untracked, optional): overrides top-level
+  keys of the above. Keep private settings such as `linear_teams` here:
+  `{"linear_teams": {"ENG": "acme/widget"}}`.
 - `~/.local/bin/agent-url`: launcher entry point, also usable from a terminal.
 
 Browser URLs can contain private identifiers or query parameters. The full URL

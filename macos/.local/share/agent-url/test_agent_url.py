@@ -12,6 +12,9 @@ import launch
 
 class LauncherTests(unittest.TestCase):
     def setUp(self):
+        local = patch("launch.LOCAL_CONFIG", Path("/nonexistent/agent-url.json"))
+        local.start()
+        self.addCleanup(local.stop)
         self.config = launch.load_config()
         environment = patch.dict("launch.os.environ", {"TMUX": "", "TMUX_PANE": ""})
         environment.start()
@@ -19,7 +22,7 @@ class LauncherTests(unittest.TestCase):
 
     def test_exact_presets(self):
         expected = {
-            "haiku": ("claude", "haiku", "max", 4, False),
+            "haiku": ("claude", "haiku", "high", 4, False),
             "opus": ("claude", "opus", "medium", 31, False),
             "sonnet": ("claude", "sonnet", "medium", 1, False),
             "sol": ("copilot", "gpt-6.1-sol", "high", 1, True),
@@ -111,9 +114,7 @@ class LauncherTests(unittest.TestCase):
         ok = subprocess.CompletedProcess([], 0, "", "")
         with (
             patch("launch.shutil.which", return_value="/bin/tmux"),
-            patch(
-                "launch.subprocess.run", side_effect=[missing, created, ok, ok]
-            ) as run,
+            patch("launch.subprocess.run", side_effect=[missing, created, ok]) as run,
         ):
             launch.open_session(
                 "pi", self.config["presets"]["pi"], url, Path("/tmp/a b")
@@ -121,10 +122,10 @@ class LauncherTests(unittest.TestCase):
         new_session = run.call_args_list[1][0][0]
         self.assertIn("new-session", new_session)
         self.assertEqual(new_session[new_session.index("-c") + 1], "/tmp/a b")
+        self.assertEqual(new_session[new_session.index("-n") + 1], "a b")
+        # The URL reaches the pane runner as argv data, never through a shell.
         self.assertEqual(shlex.split(new_session[-1])[-2:], ["--url", url])
-        # The launching URL is passed to tmux as argv data, never through a shell.
-        self.assertEqual(run.call_args_list[2][0][0][-2:], ["@url", url])
-        terminal = run.call_args_list[3][0][0]
+        terminal = run.call_args_list[2][0][0]
         self.assertEqual(terminal[:4], ["/usr/bin/open", "-na", "Ghostty", "--args"])
         self.assertEqual(
             shlex.split(terminal[-1]),
@@ -208,21 +209,43 @@ class LauncherTests(unittest.TestCase):
             )
         self.assertIn("attach-session", run.call_args_list[3][0][0][-1])
 
-    def test_window_names(self):
+    def test_window_names_follow_the_directory(self):
+        config = {
+            "github_root": "/p/github.com",
+            "working_directory": "/p",
+            "linear_teams": {"ENG": "acme/widget"},
+        }
         cases = {
-            "https://linear.app/acme/issue/ENG-123/fix-thing": "ENG-123",
-            "https://linear.app/acme/issue/eng-7": "ENG-7",
             "https://github.com/acme/widget": "widget",
-            "https://github.com/acme/widget/issues/9": "widget",
-            "https://github.com/acme/widget/pull/123/files#diff": "widget#123",
-            "https://linear.app/acme/project/foo": "tmp",
-            "https://example.com/x": "tmp",
+            "https://github.com/acme/widget/pulls": "widget",
+            "https://github.com/acme/widget/pull/123/files#diff": "widget",
+            "https://linear.app/acme/issue/ENG-111/fix-thing": "widget",
+            "https://linear.app/acme/issue/OPS-7": "p",
+            "https://example.com/x": "p",
         }
         for url, expected in cases.items():
             with self.subTest(url=url):
-                self.assertEqual(launch.window_name(url, Path("/tmp")), expected)
+                directory, _ = launch.project_directory(config, url)
+                self.assertEqual(launch.window_name(directory), expected)
 
-    def test_window_links(self):
+    def test_pane_labels(self):
+        cases = {
+            "https://linear.app/acme/issue/ENG-111/fix-thing": "ENG#111",
+            "https://linear.app/acme/issue/eng-7": "ENG#7",
+            "https://github.com/acme/widget": "widget",
+            "https://github.com/acme/widget/": "widget",
+            "https://github.com/acme/widget/pulls": "widget/pulls",
+            "https://github.com/acme/widget/pull/123/files#diff": "widget#123",
+            "https://github.com/acme/widget/issues/9": "widget#9",
+            "https://github.com/acme/widget/blob/main/a.py": "widget/blob/main/a.py",
+            "https://linear.app/acme/project/foo": "https://linear.app/acme/project/foo",
+            "https://example.com/x?y=1#z": "https://example.com/x?y=1#z",
+        }
+        for url, expected in cases.items():
+            with self.subTest(url=url):
+                self.assertEqual(launch.pane_label(url), expected)
+
+    def test_pane_links(self):
         cases = {
             "https://linear.app/acme/issue/eng-123/fix-thing": "https://linear.app/acme/issue/ENG-123",
             "https://github.com/acme/widget/pull/123/files#diff": "https://github.com/acme/widget/pull/123",
@@ -235,7 +258,7 @@ class LauncherTests(unittest.TestCase):
         }
         for url, expected in cases.items():
             with self.subTest(url=url):
-                self.assertEqual(launch.window_link(url), expected)
+                self.assertEqual(launch.pane_link(url), expected)
 
     def test_long_window_links_fit_tmux_style_limit(self):
         path = "https://example.com/" + "p" * 150
@@ -248,11 +271,11 @@ class LauncherTests(unittest.TestCase):
         }
         for url, expected in cases.items():
             with self.subTest(url=url[:40]):
-                self.assertEqual(launch.window_link(url), expected)
+                self.assertEqual(launch.pane_link(url), expected)
                 if expected:
                     self.assertLessEqual(len(expected), launch.TMUX_LINK_MAX)
 
-    def test_new_window_is_linked_to_its_pr(self):
+    def test_new_window_is_linked_to_its_repo(self):
         sessions = subprocess.CompletedProcess([], 0, "$1\t1\t10\n", "")
         created = subprocess.CompletedProcess([], 0, "@7\n", "")
         ok = subprocess.CompletedProcess([], 0, "", "")
@@ -266,8 +289,11 @@ class LauncherTests(unittest.TestCase):
                 "pi",
                 self.config["presets"]["pi"],
                 "https://github.com/acme/widget/pull/123",
-                Path("/tmp"),
+                Path("/p/acme/widget"),
+                "acme/widget",
             )
+        new_window = run.call_args_list[2][0][0]
+        self.assertEqual(new_window[new_window.index("-n") + 1], "widget")
         self.assertEqual(
             run.call_args_list[3][0][0],
             [
@@ -277,36 +303,7 @@ class LauncherTests(unittest.TestCase):
                 "-t",
                 "@7",
                 "@url",
-                "https://github.com/acme/widget/pull/123",
-            ],
-        )
-
-    def test_new_session_window_is_linked_to_its_issue(self):
-        missing = subprocess.CompletedProcess([], 1, "", "no server")
-        created = subprocess.CompletedProcess([], 0, "$0\n", "")
-        ok = subprocess.CompletedProcess([], 0, "", "")
-        with (
-            patch("launch.shutil.which", return_value="/bin/tmux"),
-            patch(
-                "launch.subprocess.run", side_effect=[missing, created, ok, ok]
-            ) as run,
-        ):
-            launch.open_session(
-                "pi",
-                self.config["presets"]["pi"],
-                "https://linear.app/acme/issue/ENG-123/fix-thing",
-                Path("/tmp"),
-            )
-        self.assertEqual(
-            run.call_args_list[2][0][0],
-            [
-                "/bin/tmux",
-                "set-option",
-                "-w",
-                "-t",
-                "$0:",
-                "@url",
-                "https://linear.app/acme/issue/ENG-123",
+                "https://github.com/acme/widget",
             ],
         )
 
@@ -320,36 +317,42 @@ class LauncherTests(unittest.TestCase):
             launch.open_session(
                 "pi",
                 self.config["presets"]["pi"],
-                "https://github.com/acme/widget/pull/123",
-                Path("/tmp"),
+                "https://example.com/x#y",
+                Path("/p/a#b"),
             )
         args = run.call_args_list[2][0][0]
         self.assertIn("new-window", args)
-        self.assertEqual(args[args.index("-n") + 1], "widget##123")
+        self.assertEqual(args[args.index("-n") + 1], "a##b")
 
     def test_existing_window_gets_a_split(self):
         sessions = subprocess.CompletedProcess([], 0, "$1\t1\t10\n", "")
         windows = subprocess.CompletedProcess(
-            [], 0, "@1\tzsh\n@4\twidget#123\n@5\twidget\n", ""
+            [], 0, "@1\tzsh\n@4\twidget\n@5\twidget#123\n", ""
         )
         ok = subprocess.CompletedProcess([], 0, "", "")
         with (
             patch("launch.shutil.which", return_value="/bin/tmux"),
             patch(
-                "launch.subprocess.run", side_effect=[sessions, windows, ok, ok, ok]
+                "launch.subprocess.run",
+                side_effect=[sessions, windows, ok, ok, ok, ok],
             ) as run,
         ):
             launch.open_session(
                 "pi",
                 self.config["presets"]["pi"],
                 "https://github.com/acme/widget/pull/123",
-                Path("/tmp"),
+                Path("/p/acme/widget"),
+                "acme/widget",
             )
         split = run.call_args_list[2][0][0]
         self.assertEqual(split[:4], ["/bin/tmux", "split-window", "-t", "@4"])
         self.assertNotIn("new-window", [a for c in run.call_args_list for a in c[0][0]])
         self.assertEqual(
-            run.call_args_list[3][0][0], ["/bin/tmux", "select-window", "-t", "@4"]
+            run.call_args_list[3][0][0],
+            ["/bin/tmux", "select-layout", "-t", "@4", "tiled"],
+        )
+        self.assertEqual(
+            run.call_args_list[4][0][0], ["/bin/tmux", "select-window", "-t", "@4"]
         )
 
 
@@ -385,6 +388,28 @@ class ProjectTests(unittest.TestCase):
             launch.github_repository("https://www.github.com/Org/Repo/pull/1"),
             "Org/Repo",
         )
+
+    def test_local_config_overrides_top_level_keys(self):
+        local = self.root / "local.json"
+        local.write_text('{"linear_teams": {"ENG": "Org/widget"}}')
+        with patch("launch.LOCAL_CONFIG", local):
+            config = launch.load_config()
+        self.assertEqual(config["linear_teams"], {"ENG": "Org/widget"})
+        self.assertIn("presets", config)
+
+    def test_mapped_linear_teams_use_their_repo(self):
+        self.config["linear_teams"] = {"ENG": "Org/widget", "BAD": "../x"}
+        directory, spec = launch.project_directory(
+            self.config, "https://linear.app/org/issue/eng-111/title"
+        )
+        self.assertEqual(spec, "Org/widget")
+        self.assertEqual(directory, self.root / "github.com/Org/widget")
+        directory, spec = launch.project_directory(
+            self.config, "https://linear.app/org/issue/OPS-1"
+        )
+        self.assertEqual((directory, spec), (self.root / "default", None))
+        with self.assertRaises(ValueError):
+            launch.project_directory(self.config, "https://linear.app/o/issue/BAD-1")
 
     def test_non_repo_urls_use_default_without_cloning(self):
         for url in (
@@ -624,6 +649,10 @@ class SharedPrefillTests(unittest.TestCase):
             patch("launch.prepare_directory"),
             patch("launch.os.chdir"),
             patch(
+                "launch.label_pane",
+                side_effect=lambda *args: calls.append(("label", args)),
+            ),
+            patch(
                 "launch.schedule_prefill",
                 side_effect=lambda *args: calls.append(("prefill", args)),
             ),
@@ -633,12 +662,14 @@ class SharedPrefillTests(unittest.TestCase):
             ),
         ):
             self.assertEqual(launch.main(), 0)
-        self.assertEqual([entry[0] for entry in calls], ["prefill", "exec"])
-        self.assertEqual(calls[0][1], ("/bin/tmux", "%4", self.url))
+        self.assertEqual([entry[0] for entry in calls], ["label", "prefill", "exec"])
+        self.assertEqual(calls[0][1][:3], ("/bin/tmux", "%4", self.url))
+        self.assertEqual(calls[1][1], ("/bin/tmux", "%4", self.url))
+        # An unrecognized URL labels the pane, but the session takes the directory.
         self.assertEqual(
-            calls[1][1][:2], ("/bin/pi", ["/bin/pi", "--name", "github.com"])
+            calls[2][1][:2], ("/bin/pi", ["/bin/pi", "--name", "Projects"])
         )
-        self.assertNotIn(self.url, calls[1][1][1])
+        self.assertNotIn(self.url, calls[2][1][1])
 
     def test_run_outside_tmux_is_rejected_before_clone(self):
         with (
