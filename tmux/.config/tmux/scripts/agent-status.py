@@ -177,18 +177,30 @@ def claude_sessions(socket):
             continue  # Like `kill -0`: another user's process counts as gone.
         # "shell" is what an idle session reports while background tasks (a
         # Monitor, a background shell) are still running; it waits at its prompt.
+        # "waiting" is a permission prompt or question awaiting the user.
         state = (
             "working"
             if status == "busy"
+            else "blocked"
+            if status == "waiting"
             else "idle"
             if status in ("idle", "shell")
             else ""
+        )
+        # "<session>:@<window>.%<pane>": a Claude started from a shell is not the
+        # pane's own process, so its PID alone does not find the pane.
+        location = record.get("tmux")
+        pane = (
+            location.rpartition(".")[2]
+            if isinstance(location, str) and re.fullmatch(r".*\.%[0-9]+", location)
+            else None
         )
         if state:
             native.append(
                 {
                     "state": state,
                     "pid": pid,
+                    "pane": pane,
                     "name": record.get("name"),
                     "session": record.get("sessionId"),
                     "updatedAt": updated if type(updated) in (int, float) else 0,
@@ -228,7 +240,7 @@ def claude_sessions(socket):
         mod = latest(
             m for m in mods if m["socket"] == pane_socket and m["pane"] == pane
         )
-        owner = latest(n for n in native if n["pid"] == pid)
+        owner = latest(n for n in native if n["pid"] == pid or n["pane"] == pane)
         # A worker may have been resumed/compacted under a different session
         # id. Its current name matches the title of the attached pane. Do not
         # guess when multiple live workers share that name.
