@@ -298,6 +298,7 @@ p() {
 __fai_icon() {
 	case "${1}" in
 	claude) printf '\uec82' ;;  # cod-claude
+	cloud) printf '\uebaa' ;;   # cod-cloud
 	copilot) printf '\uec1e' ;; # cod-copilot
 	pi) printf '\ue22c' ;;      # fae-pi
 	*) printf '%s' "${1}" ;;
@@ -346,7 +347,9 @@ __fai_prefill_bg() {
 # seed the picker, and a unique match launches straight away; the rest go to
 # the agent. TAB / SHIFT-TAB cycle the agent shown in the prompt. The agent
 # opens in a new tmux or Rex window named after the repo (or here, outside
-# both); CTRL-O runs it here instead. A GitHub URL picks its repo, and a pull
+# both); CTRL-O runs it here instead. The cloud agent is Claude Code on
+# claude.ai/code, attached with `claude --cloud`; it needs a task up front, so
+# fai asks for one (seeded with any link below) unless args already give it. A GitHub URL picks its repo, and a pull
 # request, issue or file link is typed into the agent's prompt once it starts,
 # ready to be added to and sent.
 #   fai dotfiles --model opus
@@ -355,10 +358,12 @@ __fai_prefill_bg() {
 fai() {
 	# Agents offered, in TAB order; the first installed one is the default.
 	# Set FAI_AGENTS (an array) to override.
-	local all=(claude copilot pi) agents=() icons=() agent query=() out lines key=enter dir link url win pane
+	local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane
 	[[ -n "${FAI_AGENTS[*]:-}" ]] && all=("${FAI_AGENTS[@]}")
 	for agent in "${all[@]}"; do
-		if command -v "${agent}" >/dev/null 2>&1; then
+		cmd="${agent}"
+		[[ "${agent}" == cloud ]] && cmd=claude
+		if command -v "${cmd}" >/dev/null 2>&1; then
 			agents+=("${agent}")
 			icons+=("$(__fai_icon "${agent}")")
 		fi
@@ -405,6 +410,17 @@ fai() {
 		key="${lines[0]}"
 		agent="${lines[1]}"
 	fi
+	cmd=("${agent}")
+	if [[ "${agent}" == cloud ]]; then
+		cmd=(claude --cloud)
+		if [[ $# -eq 0 ]]; then
+			local task
+			read -rep "Task for claude.ai/code: " -i "${url}" task || return
+			[[ -n "${task//[[:space:]]/}" ]] || return 1
+			set -- "${task}"
+		fi
+		url=""
+	fi
 
 	# tmux first: a tmux started inside Rex inherits REX_SESSION too
 	if [[ "${key}" == ctrl-o || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then
@@ -417,14 +433,14 @@ fai() {
 				echo "fai: paste this into ${agent}: ${url}" >&2
 			fi
 		fi
-		(cd "${dir}" && "${agent}" "$@")
+		(cd "${dir}" && "${cmd[@]}" "$@")
 	elif [[ -n "${TMUX:-}" ]]; then
 		pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
-			-- "${agent}" "$@")" || return
+			-- "${cmd[@]}" "$@")" || return
 		[[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
 	else
 		out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
-			-- "${agent}" "$@")" || return
+			-- "${cmd[@]}" "$@")" || return
 		win="$(jq -r .window_id <<<"${out}")"
 		[[ -n "${url}" ]] && __fai_prefill_bg rex "$(jq -r '.block_ids[0]' <<<"${out}")" "${url}"
 		# The Rex app keeps its own selected tab, so ask it to show the new one.

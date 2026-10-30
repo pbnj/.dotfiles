@@ -7,10 +7,10 @@
 -- inside Rex.
 rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 
--- ctrl+b f: pick a project with fai (see bash/.functions) in a floating
+-- ctrl+b p: pick a project with fai (see bash/.functions) in a floating
 -- layer, like a tmux popup. fai opens each pick in a new Rex window, and the
 -- layer closes once fai exits. bash -l loads ~/.profile, which sources fai;
--- -i makes it an interactive shell. ctrl+b ctrl+f works too, for when ctrl is
+-- -i makes it an interactive shell. ctrl+b ctrl+p works too, for when ctrl is
 -- still held.
 local function pick_project()
   rex.session.new_layer({
@@ -24,8 +24,8 @@ local function pick_project()
   })
   return true
 end
-rex.bind("ctrl+b>f", pick_project)
-rex.bind("ctrl+b>ctrl+f", pick_project)
+rex.bind("ctrl+b>p", pick_project)
+rex.bind("ctrl+b>ctrl+p", pick_project)
 
 -- ctrl+b g: fuzzy-grep the scrollback of every block in a floating layer,
 -- and jump to the chosen line (see utils/.local/bin/fzf-rex-grep). bash -l
