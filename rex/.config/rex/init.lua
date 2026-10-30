@@ -49,27 +49,56 @@ rex.bind("ctrl+b>ctrl+g", grep_scrollback)
 -- ctrl+b a: focus the block that most needs attention, switching windows if
 -- needed. Programs such as Claude Code report a status with OSC 7501; blocked
 -- (waiting for input) beats error beats done, and the most recent wins.
--- The focused block is skipped, so pressing it again cycles. ctrl+b ctrl+a
--- works too, for when ctrl is still held.
+-- Pressing it again from the block it jumped to goes back to where you were,
+-- so it toggles between the two. ctrl+b ctrl+a works too, for when ctrl is
+-- still held.
 local terminal = "com.superlogical.terminal"
 local attention_rank = { blocked = 1, error = 2, done = 3 }
+
+-- The last jump, as { from = block, to = block }. Lua state lives until the
+-- config is reloaded.
+local attention_jump
+
+local function focus(ctx, block)
+  rex.session.focus_block({
+    session_id = ctx.session_id,
+    block_id = block.block_id,
+  })
+  -- Focusing on the server doesn't move the app's view, so ask the app to
+  -- show the block's window too.
+  pcall(
+    rex.client.queue,
+    "session.select",
+    { session_id = ctx.session_id, window_id = block.window_id }
+  )
+end
 
 rex.action({
   name = "focus_attention",
   title = "Focus Block Needing Attention",
   run = function(ctx)
     local blocks = rex.session.list_blocks({ session_id = ctx.session_id })
-    local best
+    local placed = {}
     for _, b in ipairs((blocks and blocks.blocks) or {}) do
-      if
-        b.creator_name == terminal
-        and b.placement == "placed"
-        and b.block_id ~= ctx.block_id
-      then
+      if b.placement == "placed" then
+        placed[b.block_id] = b
+      end
+    end
+
+    local jump = attention_jump
+    attention_jump = nil
+    if jump and jump.to == ctx.block_id and placed[jump.from] then
+      focus(ctx, placed[jump.from])
+      return
+    end
+
+    local best
+    for id, b in pairs(placed) do
+      if b.creator_name == terminal and id ~= ctx.block_id then
         local status = rex.block.call(
           terminal,
           "program_status",
-          { session_id = ctx.session_id, block_id = b.block_id }
+          { session_id = ctx.session_id, block_id = id }
         )
         for _, rec in ipairs((status and status.records) or {}) do
           local rank = attention_rank[rec.state]
@@ -81,12 +110,7 @@ rex.action({
               or (rank == best.rank and rec.updated_at > best.at)
             )
           then
-            best = {
-              id = b.block_id,
-              window = b.window_id,
-              rank = rank,
-              at = rec.updated_at,
-            }
+            best = { block = b, rank = rank, at = rec.updated_at }
           end
         end
       end
@@ -94,14 +118,10 @@ rex.action({
     if not best then
       return
     end
-    rex.session.focus_block({ session_id = ctx.session_id, block_id = best.id })
-    -- Focusing on the server doesn't move the app's view, so ask the app to
-    -- show the block's window too.
-    pcall(
-      rex.client.queue,
-      "session.select",
-      { session_id = ctx.session_id, window_id = best.window }
-    )
+    if ctx.block_id then
+      attention_jump = { from = ctx.block_id, to = best.block.block_id }
+    end
+    focus(ctx, best.block)
   end,
 })
 rex.bind("ctrl+b>a", "focus_attention")
