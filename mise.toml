@@ -20,3 +20,11 @@ run = [
   'mkdir -p "$HOME/.local/bin"',
   'swiftc -O macos/twingate/twingate_menu.swift -o "$HOME/.local/bin/twingate_menu"',
 ]
+
+[tasks."prek:install"]
+description = "Install the prek git hooks (pre-commit and commit-msg)"
+run = "prek install --hook-type pre-commit --hook-type commit-msg"
+
+[tasks."prek:run"]
+description = "Run the prek hooks on every file"
+run = "prek run --all-files"
