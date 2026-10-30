@@ -194,6 +194,39 @@ __pick_repo_on_query() {
 	return 0
 }
 
+# __pick_repo_delete <dir>: run by fzf on CTRL-X. Show what deleting a local
+# clone would lose (uncommitted changes, commits on no remote, stashes), ask,
+# then delete it and drop it from $PICK_REPO_LIST.
+__pick_repo_delete() {
+	local dir="${1:-}" root="${HOME}/Projects/github.com" answer lost
+	# Only ever a <root>/<owner>/<repo> directory
+	[[ "${dir}" == "${root}"/*/* && "${dir#"${root}"/*/}" != */* && -d "${dir}" ]] || return 0
+	printf '\nDelete %s?\n' "${dir#"${root}"/}"
+	if [[ -d "${dir}/.git" ]]; then
+		lost="$(git -C "${dir}" status --short 2>/dev/null)"
+		[[ -n "${lost}" ]] && printf '\nUncommitted changes:\n%s\n' "${lost}"
+		lost="$(git -C "${dir}" log --branches --not --remotes --oneline 2>/dev/null)"
+		[[ -n "${lost}" ]] && printf '\nCommits on no remote:\n%s\n' "${lost}"
+		lost="$(git -C "${dir}" stash list 2>/dev/null)"
+		[[ -n "${lost}" ]] && printf '\nStashes:\n%s\n' "${lost}"
+	fi
+	read -r -p $'\nType y to delete: ' answer </dev/tty
+	[[ "${answer}" == [yY] ]] || return 0
+	rm -rf -- "${dir}"
+	# drop the owner directory too once its last repo is gone
+	rmdir -- "$(dirname "${dir}")" 2>/dev/null || true
+	{ grep -vxF -- "${dir}" "${PICK_REPO_LIST}" || true; } >"${PICK_REPO_LIST}.new"
+	mv -- "${PICK_REPO_LIST}.new" "${PICK_REPO_LIST}"
+}
+
+# __pick_repo_on_delete: run by fzf on CTRL-X; prints the actions that delete
+# the highlighted local clone. A GitHub search result is left alone.
+__pick_repo_on_delete() {
+	[[ "${FZF_PROMPT}" == *" (GitHub)> " ]] && return 0
+	# shellcheck disable=SC2016 # expanded by the shell fzf runs execute in
+	printf '%s' 'execute(eval "$PICK_REPO_LIB"; __pick_repo_delete {})+reload(cat "$PICK_REPO_LIST")'
+}
+
 # __pick_repo [fzf options...]: print the full path of a repo picked from
 # ~/Projects/github.com/<owner>/<repo>; the list shows owner/repo only.
 # When the query matches no local repo, the list switches to a GitHub repo
@@ -201,6 +234,7 @@ __pick_repo_on_query() {
 # matches again. A GitHub pick is cloned into ~/Projects/github.com first.
 # A pasted GitHub URL narrows the list to the repo it names; set
 # PICK_REPO_LINK to a file to get back a pasted deep link into the picked repo.
+# CTRL-X deletes the highlighted local clone, after asking.
 __pick_repo() {
 	local root="${HOME}/Projects/github.com" link="${PICK_REPO_LINK:-}" own_link=""
 	local list out rc line spec picked="" args=() arg
@@ -220,11 +254,13 @@ __pick_repo() {
 
 	# shellcheck disable=SC2094,SC2016 # fzf only reads the list; $vars expand in fzf's shell
 	out="$(PICK_REPO_LIST="${list}" PICK_REPO_LINK="${link}" \
-		PICK_REPO_LIB="$(declare -f __pick_repo_spec __pick_repo_unurl __pick_repo_search __pick_repo_on_query)" \
+		PICK_REPO_LIB="$(declare -f __pick_repo_spec __pick_repo_unurl __pick_repo_search __pick_repo_on_query \
+			__pick_repo_delete __pick_repo_on_delete)" \
 		fzf <"${list}" --with-shell='bash -c' \
 			--delimiter=/ --with-nth=-2.. --prompt='Repo> ' \
 			--preview='[[ {} == /* ]] && git -C {} log --oneline --color -15 || gh repo view {}' \
 			--bind='start,change:transform:eval "$PICK_REPO_LIB"; __pick_repo_on_query' \
+			--bind='ctrl-x:transform:eval "$PICK_REPO_LIB"; __pick_repo_on_delete' \
 			${args[@]+"${args[@]}"})"
 	rc=$?
 	rm -f "${list}"
@@ -352,7 +388,7 @@ fai() {
 	link="$(mktemp)"
 	out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" __pick_repo \
 		--prompt="${icons[0]}> " --query="${query[*]}" --select-1 \
-		--header='ENTER: new window / CTRL-O: run here / TAB: next agent' \
+		--header='ENTER: new window / CTRL-O: run here / TAB: next agent / CTRL-X: delete' \
 		--bind="tab:transform:step=1; ${cycle}" \
 		--bind="shift-tab:transform:step=-1; ${cycle}" \
 		--bind="enter:transform:key=enter; ${accept}" \
