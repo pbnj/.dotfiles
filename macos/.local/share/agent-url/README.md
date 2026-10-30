@@ -28,12 +28,19 @@ edit the draft and press Enter yourself when you are ready.
 - Supports Firefox, Brave, Chrome, Safari, Edge, Arc, Zen, Vivaldi, and Opera
   (including their bundle-ID-suffixed channels). Accessibility behavior varies
   by browser; capture fails explicitly if the URL is unavailable.
-- Opens a **new tmux window**, or a pane in an existing window for the same
-  directory (see below). From tmux, it uses the current session; from a browser
-  shortcut, it prefers the most recently active attached session. If only an
-  unattached session exists, Ghostty attaches to it. With no tmux sessions at
-  all, it creates an `agent-url` session and opens Ghostty attached to it.
-  Existing agent sessions are never typed over.
+- Opens in **Rex** when the Rex app is running: a new Rex window, or a split in
+  an existing window for the same directory, in the current Rex terminal's
+  session or else the session the app shows. The window is brought to the front,
+  which needs Rex's Remote Control on (Settings → Rex Server); without it the
+  window still opens, behind the current one. Rex has no `@url`, so the
+  pane-link bullets below are tmux-only; the block is labelled the same way.
+- Otherwise (no Rex app connected) it falls back to **tmux**: a **new tmux
+  window**, or a pane in an existing window for the same directory (see below).
+  From tmux, it uses the current session; from a browser shortcut, it prefers
+  the most recently active attached session. If only an unattached session
+  exists, Ghostty attaches to it. With no tmux sessions at all, it creates an
+  `agent-url` session and opens Ghostty attached to it. Existing agent sessions
+  are never typed over.
 - GitHub URLs resolve to `~/Projects/github.com/<org>/<repo>`, including repo
   roots, pull requests, issues, files, and Actions links. If the checkout is
   missing, `gh repo clone` clones it **before** the tmux window/agent opens,
@@ -61,8 +68,13 @@ edit the draft and press Enter yourself when you are ready.
 - Every agent session (and Claude's Remote Control session) is named with
   `--name` after the pane label above, except a full-URL label, which uses the
   window name instead so the URL never lands in argv.
-- **All agents use the same prefill mechanism as `fzf-tmux-project`.** The pane
-  runner schedules `~/.local/bin/fzf-tmux-project --prefill <pane> <url>` using
+- **In Rex**, the runner starts a detached worker (`launch.py --rex-prefill`)
+  with the same heuristic as below: it reads the block's foreground program with
+  `rex block call process` and the screen with `rex capture`, then types the URL
+  with `rex send`, **without Enter**.
+- **In tmux, all agents use the same prefill mechanism as `fzf-tmux-project`.**
+  The pane runner schedules
+  `~/.local/bin/fzf-tmux-project --prefill <pane> <url>` using
   `tmux run-shell -b`, then replaces itself with the selected agent. The URL is
   not passed to the agent as an initial prompt.
 - The existing shared worker checks every 0.5 seconds (up to about 30 seconds).
@@ -104,11 +116,11 @@ the agent still needs an appropriate browser or connected integration.
 
 ## Install or re-register
 
-Requires Tinycast, Ghostty, tmux, the three agent CLIs, and Xcode Command Line
-Tools (for `swiftc` and macOS's `/usr/bin/python3`). Prefilling reuses
-`~/.local/bin/fzf-tmux-project` and requires Bash 4+ (the installed Homebrew
-Bash). Cloning requires an authenticated GitHub CLI (`gh auth login`). No Python
-packages are needed.
+Requires Tinycast, Rex or (as the fallback) Ghostty and tmux, the three agent
+CLIs, and Xcode Command Line Tools (for `swiftc` and macOS's
+`/usr/bin/python3`). Prefilling reuses `~/.local/bin/fzf-tmux-project` and
+requires Bash 4+ (the installed Homebrew Bash). Cloning requires an
+authenticated GitHub CLI (`gh auth login`). No Python packages are needed.
 
 The `utils` package must already provide `~/.local/bin/agent-url` (for example,
 via the existing `~/.local/bin` symlink). Then run:

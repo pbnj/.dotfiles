@@ -16,7 +16,10 @@ class LauncherTests(unittest.TestCase):
         local.start()
         self.addCleanup(local.stop)
         self.config = launch.load_config()
-        environment = patch.dict("launch.os.environ", {"TMUX": "", "TMUX_PANE": ""})
+        environment = patch.dict(
+            "launch.os.environ",
+            {"TMUX": "", "TMUX_PANE": "", "REX_BLOCK": "", "REX_SESSION": ""},
+        )
         environment.start()
         self.addCleanup(environment.stop)
 
@@ -578,6 +581,11 @@ class ProjectTests(unittest.TestCase):
 class SharedPrefillTests(unittest.TestCase):
     def setUp(self):
         self.url = "https://example.com/?x=';$(id)&y=2"
+        environment = patch.dict(
+            "launch.os.environ", {"REX_BLOCK": "", "REX_SESSION": ""}
+        )
+        environment.start()
+        self.addCleanup(environment.stop)
 
     def test_reuses_reference_worker_in_detached_tmux_job(self):
         runner = [
@@ -674,7 +682,10 @@ class SharedPrefillTests(unittest.TestCase):
     def test_run_outside_tmux_is_rejected_before_clone(self):
         with (
             patch("launch.sys.argv", ["agent-url", "pi", "--run", "--url", self.url]),
-            patch.dict("launch.os.environ", {"TMUX": "", "TMUX_PANE": ""}),
+            patch.dict(
+                "launch.os.environ",
+                {"TMUX": "", "TMUX_PANE": "", "REX_BLOCK": "", "REX_SESSION": ""},
+            ),
             patch("launch.shutil.which", return_value="/bin/tool"),
             patch("launch.prefill_runner", return_value=["worker"]),
             patch("launch.prepare_directory") as prepare,
@@ -686,6 +697,322 @@ class SharedPrefillTests(unittest.TestCase):
     def test_agent_specific_prefill_modules_removed(self):
         self.assertFalse((launch.ROOT / "pi-prefill.js").exists())
         self.assertFalse((launch.ROOT / "copilot_prefill.py").exists())
+
+
+SESSION = "session:0000-1111"
+BLOCK = "block:aaaa-bbbb"
+
+
+def completed(stdout="", returncode=0, stderr=""):
+    return subprocess.CompletedProcess([], returncode, stdout, stderr)
+
+
+def clients_json(*sessions, kind="app", state="connected"):
+    return json.dumps(
+        {
+            "clients": [
+                {"client_id": "client:cli"},
+                {
+                    "client_id": "client:app",
+                    "info": {"kind": kind},
+                    "connection_state": state,
+                    "session_ids": list(sessions),
+                },
+            ]
+        }
+    )
+
+
+class RexTests(unittest.TestCase):
+    def setUp(self):
+        local = patch("launch.LOCAL_CONFIG", Path("/nonexistent/agent-url.json"))
+        local.start()
+        self.addCleanup(local.stop)
+        environment = patch.dict(
+            "launch.os.environ",
+            {"TMUX": "", "TMUX_PANE": "", "REX_BLOCK": "", "REX_SESSION": ""},
+        )
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.url = "https://github.com/acme/widget/pull/123?x=';$(id)"
+
+    def test_rex_is_used_while_its_app_is_connected(self):
+        with (
+            patch("launch.shutil.which", return_value="/bin/rex"),
+            patch(
+                "launch.subprocess.run", return_value=completed(clients_json(SESSION))
+            ) as run,
+        ):
+            self.assertEqual(launch.rex_target(), ("/bin/rex", SESSION))
+        # Never starts a Rex server just to look for one.
+        self.assertEqual(
+            run.call_args[0][0],
+            ["/bin/rex", "--autostart=false", "client", "ls", "--json"],
+        )
+
+    def test_current_rex_session_wins(self):
+        other = "session:2222-3333"
+        with (
+            patch.dict("launch.os.environ", {"REX_SESSION": other}),
+            patch("launch.shutil.which", return_value="/bin/rex"),
+            patch(
+                "launch.subprocess.run",
+                return_value=completed(clients_json(SESSION, other)),
+            ),
+        ):
+            self.assertEqual(launch.rex_target(), ("/bin/rex", other))
+
+    def test_falls_back_to_tmux_without_a_usable_rex(self):
+        cases = (
+            (None, completed(clients_json(SESSION))),  # no rex CLI
+            ("/bin/rex", completed("", 1, "no server")),  # no server
+            ("/bin/rex", completed(clients_json(SESSION, state="disconnected"))),
+            ("/bin/rex", completed(clients_json(SESSION, kind="cli"))),  # no app
+            ("/bin/rex", completed(clients_json())),  # app shows no session
+            ("/bin/rex", completed("not json")),
+            ("/bin/rex", completed(clients_json("session:$(id)"))),
+        )
+        for rex, result in cases:
+            with (
+                patch("launch.shutil.which", return_value=rex),
+                patch("launch.subprocess.run", return_value=result),
+            ):
+                self.assertIsNone(launch.rex_target(), (rex, result))
+        with (
+            patch("launch.shutil.which", return_value="/bin/rex"),
+            patch("launch.subprocess.run", side_effect=OSError("missing")),
+        ):
+            self.assertIsNone(launch.rex_target())
+
+    def test_new_rex_window_runs_the_runner_and_is_shown(self):
+        windows = completed(
+            json.dumps({"windows": [{"window_id": "window:1", "label": "zsh"}]})
+        )
+        created = completed(json.dumps({"window_id": "window:9", "block_ids": [BLOCK]}))
+        with patch(
+            "launch.subprocess.run",
+            side_effect=[windows, created, completed(), completed()],
+        ) as run:
+            launch.open_rex_session(
+                "/bin/rex", SESSION, "pi", self.url, Path("/p/acme/widget")
+            )
+        new = run.call_args_list[1][0][0]
+        self.assertEqual(
+            new[:9],
+            [
+                "/bin/rex",
+                "window",
+                "new",
+                "-s",
+                SESSION,
+                "widget",
+                "-c",
+                "/p/acme/widget",
+                "--json",
+            ],
+        )
+        # The URL reaches the runner as argv data after --, never through a shell.
+        self.assertEqual(new[9], "--")
+        self.assertEqual(new[-4:], ["pi", "--run", "--url", self.url])
+        self.assertEqual(
+            run.call_args_list[2][0][0],
+            [
+                "/bin/rex",
+                "do",
+                "session.select",
+                "session_id=" + SESSION,
+                "window_id=window:9",
+            ],
+        )
+        self.assertEqual(
+            run.call_args_list[3][0][0], ["/usr/bin/open", "-b", "com.superlogical.rex"]
+        )
+
+    def test_existing_rex_window_gets_a_split(self):
+        windows = completed(
+            json.dumps({"windows": [{"window_id": "window:4", "label": "widget"}]})
+        )
+        with patch(
+            "launch.subprocess.run",
+            side_effect=[windows, completed(), completed(), completed()],
+        ) as run:
+            launch.open_rex_session(
+                "/bin/rex", SESSION, "pi", self.url, Path("/p/acme/widget")
+            )
+        split = run.call_args_list[1][0][0]
+        self.assertEqual(
+            split[:8],
+            [
+                "/bin/rex",
+                "split",
+                "-s",
+                SESSION,
+                "-w",
+                "window:4",
+                "-c",
+                "/p/acme/widget",
+            ],
+        )
+        self.assertIn("window_id=window:4", run.call_args_list[2][0][0])
+
+    def test_rex_window_label_never_reads_as_a_flag(self):
+        self.assertEqual(launch.rex_window_label(Path("/p/acme/-rf")), "_-rf")
+
+    def test_rex_failure_raises_without_showing_a_window(self):
+        with (
+            patch(
+                "launch.subprocess.run",
+                side_effect=[completed("{}"), completed("", 1, "boom")],
+            ) as run,
+            self.assertRaisesRegex(ValueError, "Rex could not open"),
+        ):
+            launch.open_rex_session("/bin/rex", SESSION, "pi", self.url, Path("/p/x"))
+        self.assertEqual(run.call_count, 2)
+
+    def test_main_prefers_rex_and_skips_the_tmux_worker_check(self):
+        with (
+            patch("launch.sys.argv", ["agent-url", "pi", "--url", self.url]),
+            patch("launch.shutil.which", side_effect=lambda name, **kw: "/bin/" + name),
+            patch("launch.rex_target", return_value=("/bin/rex", SESSION)),
+            patch("launch.prefill_runner") as worker,
+            patch("launch.prepare_directory"),
+            patch("launch.open_rex_session") as open_rex,
+            patch("launch.open_session") as open_tmux,
+        ):
+            self.assertEqual(launch.main(), 0)
+        worker.assert_not_called()
+        open_tmux.assert_not_called()
+        self.assertEqual(
+            open_rex.call_args[0][:4], ("/bin/rex", SESSION, "pi", self.url)
+        )
+
+    def test_main_falls_back_to_tmux(self):
+        with (
+            patch("launch.sys.argv", ["agent-url", "pi", "--url", self.url]),
+            patch("launch.shutil.which", side_effect=lambda name, **kw: "/bin/" + name),
+            patch("launch.rex_target", return_value=None),
+            patch("launch.prefill_runner") as worker,
+            patch("launch.prepare_directory"),
+            patch("launch.open_rex_session") as open_rex,
+            patch("launch.open_session") as open_tmux,
+        ):
+            self.assertEqual(launch.main(), 0)
+        worker.assert_called_once()
+        open_rex.assert_not_called()
+        open_tmux.assert_called_once()
+
+    def test_run_in_rex_block_labels_prefills_then_execs(self):
+        calls = []
+        with (
+            patch("launch.sys.argv", ["agent-url", "pi", "--run", "--url", self.url]),
+            patch.dict("launch.os.environ", {"REX_BLOCK": BLOCK}),
+            patch("launch.shutil.which", side_effect=lambda name, **kw: "/bin/" + name),
+            patch("launch.prefill_runner") as worker,
+            patch("launch.prepare_directory"),
+            patch("launch.os.chdir"),
+            patch(
+                "launch.label_rex_block",
+                side_effect=lambda *a: calls.append(("label", a)),
+            ),
+            patch(
+                "launch.schedule_rex_prefill",
+                side_effect=lambda *a: calls.append(("prefill", a)),
+            ),
+            patch("launch.label_pane") as tmux_label,
+            patch(
+                "launch.os.execvpe", side_effect=lambda *a: calls.append(("exec", a))
+            ),
+        ):
+            self.assertEqual(launch.main(), 0)
+        worker.assert_not_called()
+        tmux_label.assert_not_called()
+        self.assertEqual([c[0] for c in calls], ["label", "prefill", "exec"])
+        self.assertEqual(calls[0][1], ("/bin/rex", BLOCK, "widget#123"))
+        self.assertEqual(calls[1][1], (BLOCK, self.url))
+        self.assertNotIn(self.url, calls[2][1][1])
+
+    def test_tmux_inside_rex_stays_with_tmux(self):
+        with (
+            patch("launch.sys.argv", ["agent-url", "pi", "--run", "--url", self.url]),
+            patch.dict(
+                "launch.os.environ",
+                {"TMUX": "socket,1,0", "TMUX_PANE": "%4", "REX_BLOCK": BLOCK},
+            ),
+            patch("launch.shutil.which", side_effect=lambda name, **kw: "/bin/" + name),
+            patch("launch.prefill_runner", return_value=["worker"]),
+            patch("launch.prepare_directory"),
+            patch("launch.os.chdir"),
+            patch("launch.label_pane"),
+            patch("launch.schedule_prefill") as tmux_prefill,
+            patch("launch.schedule_rex_prefill") as rex_prefill,
+            patch("launch.os.execvpe"),
+        ):
+            launch.main()
+        tmux_prefill.assert_called_once()
+        rex_prefill.assert_not_called()
+
+    def test_rex_prefill_is_detached_and_validated(self):
+        with patch("launch.subprocess.Popen") as popen:
+            launch.schedule_rex_prefill(BLOCK, self.url)
+        args, kwargs = popen.call_args
+        self.assertEqual(args[0][-3:], ["--rex-prefill", BLOCK, self.url])
+        self.assertTrue(kwargs["start_new_session"])
+        for block, url in (
+            ("", self.url),
+            ("%4", self.url),
+            ("block:$(id)", self.url),
+            (BLOCK, self.url + "\n"),
+        ):
+            with (
+                patch("launch.subprocess.Popen") as popen,
+                self.assertRaises(ValueError),
+            ):
+                launch.schedule_rex_prefill(block, url)
+            popen.assert_not_called()
+
+    def run_prefill(self, responses):
+        """rex_prefill against scripted (process, capture) responses."""
+        sent = []
+
+        def run(argv, **kwargs):
+            if argv[1:3] == ["block", "call"]:
+                return responses["process"].pop(0)
+            if argv[1] == "capture":
+                return responses["capture"].pop(0)
+            sent.append(argv)
+            return completed()
+
+        with (
+            patch("launch.shutil.which", return_value="/bin/rex"),
+            patch("launch.time.sleep"),
+            patch("launch.subprocess.run", side_effect=run),
+        ):
+            launch.rex_prefill(BLOCK, self.url, attempts=10)
+        return sent
+
+    def test_rex_prefill_waits_for_a_settled_agent_and_never_presses_enter(self):
+        shell = completed(json.dumps({"foreground": {"argv0": "-bash"}}))
+        agent = completed(json.dumps({"foreground": {"argv0": "claude"}}))
+        sent = self.run_prefill(
+            {
+                "process": [shell, agent, agent, agent],
+                "capture": [completed("loading"), completed("> "), completed("> ")],
+            }
+        )
+        self.assertEqual(sent, [["/bin/rex", "send", "-b", BLOCK, "--", self.url]])
+
+    def test_rex_prefill_skips_trust_dialogs_and_gives_up_when_the_block_closes(self):
+        agent = completed(json.dumps({"foreground": {"argv0": "claude"}}))
+        sent = self.run_prefill(
+            {
+                "process": [agent, agent, completed("", 1, "not found")],
+                "capture": [
+                    completed("Trust this folder?"),
+                    completed("Trust this folder?"),
+                ],
+            }
+        )
+        self.assertEqual(sent, [])
 
 
 class InstallerTests(unittest.TestCase):

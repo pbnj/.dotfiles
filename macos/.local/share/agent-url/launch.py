@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -22,6 +23,12 @@ SEARCH_PATH = os.pathsep.join(
     [
         str(Path.home() / ".pi/agent/bin"),
         str(Path.home() / ".local/bin"),
+        # The Rex app installs its CLI here, off every default PATH.
+        str(
+            Path.home()
+            / "Library/Application Support/com.superlogical.rex/RexServer/Versions/Current"
+            / "Rex Server.app/Contents/MacOS"
+        ),
         "/opt/homebrew/bin",
         "/usr/local/bin",
         "/usr/bin",
@@ -369,6 +376,193 @@ def capture_url():
     return validate_url(result.stdout.strip())
 
 
+REX_BUNDLE = "com.superlogical.rex"
+REX_ID = re.compile(r"(session|window|block):[0-9A-Fa-f-]+")
+SHELL_NAMES = re.compile(r"-?(bash|zsh|fish|sh)")
+
+
+def rex_target():
+    """(rex, session_id) to open the agent in Rex, or None to use tmux.
+
+    Rex counts as present only while its app is connected, so a server left
+    running with no app to show the window does not swallow the agent. A launch
+    from a Rex terminal uses that terminal's session; otherwise the session the
+    app is showing.
+    """
+    rex = shutil.which("rex", path=SEARCH_PATH)
+    if not rex:
+        return None
+    try:
+        result = subprocess.run(
+            [rex, "--autostart=false", "client", "ls", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        clients = (
+            json.loads(result.stdout).get("clients", [])
+            if not result.returncode
+            else []
+        )
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        return None
+    sessions = [
+        session
+        for client in clients
+        if (client.get("info") or {}).get("kind") == "app"
+        and client.get("connection_state") == "connected"
+        for session in client.get("session_ids") or []
+    ]
+    current = os.environ.get("REX_SESSION", "")
+    session = current if current in sessions else next(iter(sessions), None)
+    if not session or not REX_ID.fullmatch(session):
+        return None
+    return rex, session
+
+
+def rex_window_label(directory):
+    """window_name, kept from reading as a flag where rex takes it positionally."""
+    label = window_name(directory)
+    return "_" + label if label.startswith("-") else label
+
+
+def open_rex_session(rex, session, preset_key, url, directory):
+    """Rex counterpart of open_session: a new window named after the directory,
+    or a split in the existing one, then shown in the Rex app."""
+    child = [sys.executable, str(ROOT / "launch.py"), preset_key, "--run", "--url", url]
+    label = rex_window_label(directory)
+    windows = subprocess.run(
+        [rex, "window", "ls", "-s", session, "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    try:
+        existing = next(
+            (
+                window["window_id"]
+                for window in json.loads(windows.stdout).get("windows", [])
+                if window.get("label") == label
+            ),
+            None,
+        )
+    except (ValueError, AttributeError, KeyError):
+        existing = None
+    if existing:
+        # A window for this directory is already open: add a block to it.
+        command = [rex, "split", "-s", session, "-w", existing, "-c", str(directory)]
+    else:
+        command = [
+            rex,
+            "window",
+            "new",
+            "-s",
+            session,
+            label,
+            "-c",
+            str(directory),
+            "--json",
+        ]
+    result = subprocess.run(
+        command + ["--", *child], capture_output=True, text=True, check=False
+    )
+    if result.returncode:
+        raise ValueError(
+            "Rex could not open the agent window: " + result.stderr.strip()
+        )
+    window = existing
+    if not window:
+        try:
+            window = json.loads(result.stdout).get("window_id")
+        except (ValueError, AttributeError):
+            window = None
+    if window:
+        # The app keeps its own selected tab; it takes this only with Remote
+        # Control on (Settings > Rex Server), and the window opens either way.
+        subprocess.run(
+            [
+                rex,
+                "do",
+                "session.select",
+                "session_id=" + session,
+                "window_id=" + window,
+            ],
+            capture_output=True,
+            check=False,
+        )
+    subprocess.run(["/usr/bin/open", "-b", REX_BUNDLE], check=False)
+
+
+def label_rex_block(rex, block, label):
+    """Rex counterpart of label_pane: the block's label (Rex has no @url)."""
+    subprocess.run(
+        [rex, "block", "rename", "--", block, label], capture_output=True, check=False
+    )
+
+
+def schedule_rex_prefill(block, url):
+    """Start rex_prefill detached, so it outlives this runner's exec."""
+    validate_url(url)
+    if not (block.startswith("block:") and REX_ID.fullmatch(block)):
+        raise ValueError("Agent runner must start inside a Rex block.")
+    subprocess.Popen(
+        [sys.executable, str(ROOT / "launch.py"), "--rex-prefill", block, url],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        env=dict(os.environ, PATH=SEARCH_PATH),
+    )
+
+
+def rex_prefill(block, url, attempts=60, interval=0.5):
+    """Rex counterpart of fzf-tmux-project --prefill, with the same heuristic.
+
+    Waits for a non-shell foreground program and a nonempty screen unchanged
+    across two samples, skips screens containing "trust", then types the URL
+    with rex send, without Enter. Quietly gives up when the block closes or
+    never settles (about 30 seconds).
+    """
+    validate_url(url)
+    rex = shutil.which("rex", path=SEARCH_PATH)
+    if not rex:
+        return
+    previous = None
+    for _ in range(attempts):
+        time.sleep(interval)
+        process = subprocess.run(
+            [rex, "block", "call", "-b", block, "process"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if process.returncode:
+            return  # The block is gone.
+        try:
+            foreground = json.loads(process.stdout).get("foreground") or {}
+        except (ValueError, AttributeError):
+            foreground = {}
+        name = os.path.basename(foreground.get("argv0") or foreground.get("name") or "")
+        if not name or SHELL_NAMES.fullmatch(name):
+            continue
+        screen = subprocess.run(
+            [rex, "capture", "-b", block], capture_output=True, text=True, check=False
+        )
+        if screen.returncode:
+            return
+        if (
+            screen.stdout.strip()
+            and screen.stdout == previous
+            and "trust" not in screen.stdout.lower()
+        ):
+            subprocess.run(
+                [rex, "send", "-b", block, "--", url], capture_output=True, check=False
+            )
+            return
+        previous = screen.stdout
+
+
 def open_session(preset_key, preset, url, directory, spec=None):
     # Only this quoted command string crosses a shell boundary. The validated URL
     # is data for the draft, never a shell command or an automatically sent message.
@@ -538,6 +732,9 @@ def open_session(preset_key, preset, url, directory, spec=None):
 
 
 def main():
+    if len(sys.argv) == 4 and sys.argv[1] == "--rex-prefill":
+        rex_prefill(sys.argv[2], sys.argv[3])
+        return 0
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("preset", choices=load_config()["presets"])
     parser.add_argument(
@@ -565,30 +762,50 @@ def main():
                     "pane": label,
                     "argv": command,
                     "prefill": url,
-                    "prefill_method": "fzf-tmux-project --prefill via tmux run-shell -b",
+                    "prefill_method": "detached worker types into the Rex block or tmux pane",
                     "submit": False,
                 },
                 indent=2,
             )
         )
         return 0
-    tmux = shutil.which("tmux", path=SEARCH_PATH)
-    if not tmux:
-        raise ValueError("tmux is required. Install it with brew install tmux.")
-    prefill_runner()  # Check the shared worker before cloning/opening a window.
     pane = os.environ.get("TMUX_PANE", "")
-    if args.run and (not os.environ.get("TMUX") or not re.fullmatch(r"%[0-9]+", pane)):
-        raise ValueError("Agent runner must start inside a tmux pane.")
+    block = os.environ.get("REX_BLOCK", "")
+    # tmux first: a tmux started inside Rex inherits REX_BLOCK too.
+    in_tmux = bool(os.environ.get("TMUX")) and bool(re.fullmatch(r"%[0-9]+", pane))
+    in_rex = (
+        not in_tmux and block.startswith("block:") and bool(REX_ID.fullmatch(block))
+    )
+    if args.run and not (in_tmux or in_rex):
+        raise ValueError("Agent runner must start inside a tmux pane or a Rex block.")
+    # Rex when its app is running, else tmux. Checked before cloning.
+    target = None if args.run else rex_target()
+    if (args.run and in_rex) or target:
+        rex = target[0] if target else shutil.which("rex", path=SEARCH_PATH)
+        if not rex:
+            raise ValueError("Cannot find the rex executable.")
+    else:
+        tmux = shutil.which("tmux", path=SEARCH_PATH)
+        if not tmux:
+            raise ValueError("tmux is required. Install it with brew install tmux.")
+        prefill_runner()  # Check the shared worker before cloning/opening a window.
     prepare_directory(directory, spec)
     if args.run:
         os.chdir(directory)
-        label_pane(tmux, pane, label, pane_link(url))
-        schedule_prefill(tmux, pane, url)
+        if in_tmux:
+            label_pane(tmux, pane, label, pane_link(url))
+            schedule_prefill(tmux, pane, url)
+        else:
+            label_rex_block(rex, block, label)
+            schedule_rex_prefill(block, url)
         # Replace this runner with the agent. Its argv contains no URL or initial
-        # prompt; the detached shared worker types the URL after the pane settles.
+        # prompt; the detached worker types the URL after the terminal settles.
         os.execvpe(command[0], command, dict(os.environ, PATH=SEARCH_PATH))
         return 0
-    open_session(args.preset, preset, url, directory, spec)
+    if target:
+        open_rex_session(target[0], target[1], args.preset, url, directory)
+    else:
+        open_session(args.preset, preset, url, directory, spec)
     return 0
 
 
