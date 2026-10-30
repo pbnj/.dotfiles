@@ -21,3 +21,19 @@ rex.bind("cmd+shift+o", function()
   })
   return true
 end)
+
+-- cmd+shift+g: fuzzy-grep the scrollback of every block in a floating layer,
+-- and jump to the chosen line (see utils/.local/bin/fzf-rex-grep). bash -l
+-- puts ~/.local/bin on PATH and loads the fzf options.
+rex.bind("cmd+shift+g", function()
+  rex.session.new_layer({
+    bounds = { 0.1, 0.1, 0.8, 0.8 },
+    focus = true,
+    layout = rex.layout.block({
+      flavor = "com.superlogical.terminal.shell",
+      label = "grep",
+      options = { command = { "bash", "-lc", "fzf-rex-grep" } },
+    }),
+  })
+  return true
+end)

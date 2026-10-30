@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Fuzzy-grep the scrollback of every Rex terminal block, in every
+#              session and window, and jump to the chosen line. Each history
+#              line of each block is one fzf row, newest first; the preview
+#              shows the block around the line. On <ENTER> the block's window
+#              and block are shown, the line is copied to the clipboard, and
+#              Rex's Find bar opens on it: <CMD-V> then <ENTER> finds the line.
+#              <CTRL-Y> only copies the line.
+#              Rex can't scroll a block to a line from a script, hence Find.
+# Dependencies: brew install fzf jq; Rex with Remote Control on
+#               (Settings > Rex Server), so the app takes window and Find actions
+# Usage: fzf-rex-grep
+#        Bind to a Rex floating layer so the picker closes once a line is chosen.
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+# Wrapped lines are joined (--unwrap) so a match is not split at the width.
+capture() {
+  rex capture --unwrap -b "${1}"
+}
+
+# Tab-separated: session, window and block id, and line number (all hidden),
+# then a "session/window: title" label and the line. Blank lines are dropped
+# after numbering, so the number is still the line's place in the capture.
+# The picker's own block ($REX_BLOCK) is skipped.
+list_lines() {
+  local session window block label title
+  while IFS=$'\t' read -r session window block label; do
+    [[ "${block}" == "${REX_BLOCK:-}" ]] && continue
+    title="$(rex block call -b "${block}" title 2>/dev/null | jq -r '.title // empty')" || true
+    capture "${block}" 2>/dev/null |
+      awk -v s="${session}" -v w="${window}" -v b="${block}" -v label="${label}${title:+: ${title}}" '
+        /[^[:space:]]/ { printf "%s\t%s\t%s\t%d\t%s\t%s\n", s, w, b, NR, label, $0 }
+      ' || true
+  done < <(
+    rex ls --json | jq -r '.sessions[] | [.session_id, .label] | @tsv' |
+      while IFS=$'\t' read -r session slabel; do
+        rex window ls -s "${session}" --json |
+          jq -r --arg s "${session}" --arg sl "${slabel}" '
+            .windows[] | . as $w | .layers[].blocks[]
+            | [$s, $w.window_id, .block_id, "\($sl)/\($w.label)"] | @tsv'
+      done
+  )
+}
+
+selection="$(
+  list_lines | fzf \
+    --tac \
+    --reverse \
+    --delimiter=$'\t' \
+    --with-nth=5.. \
+    --tiebreak=index \
+    --prompt='Grep blocks> ' \
+    --header='<ENTER>: jump to line (Find: <CMD-V> <ENTER>)  <CTRL-Y>: copy line' \
+    --preview="rex capture --unwrap -b {3} | awk -v n={4} 'NR == n { printf \"\\033[7m%s\\033[0m\\n\", \$0; next } 1'" \
+    --preview-window='down,60%,+{4}-/2' \
+    --expect=ctrl-y
+)" || exit 0
+
+key="${selection%%$'\n'*}"
+selection="${selection#*$'\n'}"
+[[ -n "${selection}" ]] || exit 0
+IFS=$'\t' read -r session window block _ _ text <<<"${selection}"
+
+printf '%s' "${text}" | pbcopy
+[[ "${key}" == ctrl-y ]] && exit 0
+
+rex block focus -s "${session}" "${block}" >/dev/null
+# The Rex app keeps its own selected tab, so ask it to show the window.
+# shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
+rex do session.select session_id="${session}" window_id="${window}" >/dev/null
+
+# Find opens in the focused block, so wait for the floating layer this runs in
+# to close first; detached, so it outlives the layer.
+nohup bash -c 'sleep 0.5; rex do client.find.open' >/dev/null 2>&1 &
+disown
