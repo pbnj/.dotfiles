@@ -45,3 +45,64 @@ local function grep_scrollback()
 end
 rex.bind("ctrl+b>g", grep_scrollback)
 rex.bind("ctrl+b>ctrl+g", grep_scrollback)
+
+-- ctrl+b a: focus the block that most needs attention, switching windows if
+-- needed. Programs such as Claude Code report a status with OSC 7501; blocked
+-- (waiting for input) beats error beats done, and the most recent wins.
+-- The focused block is skipped, so pressing it again cycles. ctrl+b ctrl+a
+-- works too, for when ctrl is still held.
+local terminal = "com.superlogical.terminal"
+local attention_rank = { blocked = 1, error = 2, done = 3 }
+
+rex.action({
+  name = "focus_attention",
+  title = "Focus Block Needing Attention",
+  run = function(ctx)
+    local blocks = rex.session.list_blocks({ session_id = ctx.session_id })
+    local best
+    for _, b in ipairs((blocks and blocks.blocks) or {}) do
+      if
+        b.creator_name == terminal
+        and b.placement == "placed"
+        and b.block_id ~= ctx.block_id
+      then
+        local status = rex.block.call(
+          terminal,
+          "program_status",
+          { session_id = ctx.session_id, block_id = b.block_id }
+        )
+        for _, rec in ipairs((status and status.records) or {}) do
+          local rank = attention_rank[rec.state]
+          if
+            rank
+            and (
+              not best
+              or rank < best.rank
+              or (rank == best.rank and rec.updated_at > best.at)
+            )
+          then
+            best = {
+              id = b.block_id,
+              window = b.window_id,
+              rank = rank,
+              at = rec.updated_at,
+            }
+          end
+        end
+      end
+    end
+    if not best then
+      return
+    end
+    rex.session.focus_block({ session_id = ctx.session_id, block_id = best.id })
+    -- Focusing on the server doesn't move the app's view, so ask the app to
+    -- show the block's window too.
+    pcall(
+      rex.client.queue,
+      "session.select",
+      { session_id = ctx.session_id, window_id = best.window }
+    )
+  end,
+})
+rex.bind("ctrl+b>a", "focus_attention")
+rex.bind("ctrl+b>ctrl+a", "focus_attention")
