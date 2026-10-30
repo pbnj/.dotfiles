@@ -1,0 +1,547 @@
+#!/usr/bin/env bash
+# gh-pr-watch -- stream a pull request's failing CI and unaddressed reviews, one
+# line per event, until the PR merges or closes.
+#
+# A PR that Scalr plans (a `scalr/<env>/<workspace>` check) is followed past the
+# merge: the watch then tracks the apply run Scalr queues for the merge commit on
+# each of those workspaces, and stops once every one of them has finished.
+#
+# Built for Claude Code's Monitor tool, where every stdout line is a
+# notification: gh-pr-watch-hook tells Claude when to arm it. Each item is
+# emitted once. What has been emitted is kept on disk per PR, so re-arming the
+# watch after the Monitor's 30-minute expiry reports only what is new.
+#
+# Lines (the first word is the kind):
+#   CI fail|cancel: <workflow> / <check> <job url>  -- again if a re-run fails
+#   CI pass: <workflow> / <check> (was failing) <job url>
+#   CI green: all <n> checks passed on <sha>
+#   THREAD <author> <path>:<line>: <first 160 chars> <url>  -- unresolved
+#   REPLY <author> on <path>:<line>: <text> <url>  -- a new answer in one
+#   REVIEW <author> <state> on <sha>[ (not head)]: <text> <url>
+#                               -- CHANGES_REQUESTED, or COMMENTED with a body
+#   CONFLICT: <head> conflicts with <base> on <sha> <pr url>  -- once until resolved
+#   CONFLICT resolved: <head> merges cleanly into <base> on <sha> <pr url>
+# Threads, replies and reviews by the authenticated user are not reported.
+#   WATCH gh|scalr failing ...             -- 3 polls in a row failed
+#   PR #<n> is MERGED|CLOSED -- stopping   -- then exit 0
+# Scalr, while the PR is open:
+#   SCALR plan: <env>/<workspace>: <plan summary> <run url>  -- once per plan run
+# Scalr, after the merge (when the PR had Scalr plans):
+#   PR #<n> is MERGED -- watching the Scalr apply of <sha>
+#   SCALR approval: <env>/<workspace> waits for confirmation <run url>
+#   SCALR policy: <env>/<workspace> needs a policy override <run url>
+#   SCALR applied|post_apply_finished|planned_and_finished|errored|discarded|canceled|force_canceled: <env>/<workspace> <run url>
+#   SCALR no run: <env>/<workspace> has no apply run for <sha> 10m after the merge
+#   SCALR cannot watch: ... -- scalr missing, or SCALR_TOKEN or SCALR_HOSTNAME unset; exit 1
+#   SCALR finished on <sha> -- stopping  -- every workspace done; exit 0
+#
+# While the PR is open, each poll that reads both the PR and its checks also
+# writes a snapshot of it for other readers -- the herdr sidebar's agent-status,
+# the herdr browser extension and the Claude status line -- so they need no gh
+# or scalr calls of their own:
+#
+#   ${XDG_CACHE_HOME:-~/.cache}/gh-pr/<owner>/<name>/<branch>/<number>.json
+#
+# where <branch> is the PR's head branch percent-encoded as jq's @uri does
+# (feature/foo is feature%2Ffoo), so no two branches share a directory. One
+# file per PR, because a branch can head several open PRs -- a backport into
+# several bases, or same-named branches from forks -- and closing one must not
+# take the others' snapshots with it. A reader that knows only its branch
+# lists the directory. The snapshot is replaced atomically. It is deleted once
+# the PR closes, or merges with no Scalr plans; a merged PR with Scalr plans
+# keeps it, as state "merged", while the apply watch runs, and deletes it when
+# that watch exits for any reason. Its fetched_at and interval fields let a
+# reader tell a live watch from one that has stopped:
+#
+#   {"v":1,"repo":"owner/name","branch":"...","number":7,"title":"...",
+#    "url":"...","author":"...","base":"main","updated_at":"...",
+#    "state":"open|draft|merged","review":"approved|changes|review|",
+#    "mergeable":"yes|conflict|",
+#    "ci":"pass|fail|pending|","ci_counts":{"pending":2,"fail":0},
+#    "checks":[{"name":"...","workflow":"...","state":"pass|fail|pending|skipped|neutral","url":"..."}],
+#    "threads":[{"path":"...","line":12,"outdated":false,"comments":3,
+#                "author":"...","body":"...","url":"..."}],
+#    "threads_truncated":false,
+#    "copilot":{"verdict":"approve|changes|look","head":true,"url":"..."},
+#    "scalr":{"phase":"plan|apply","sha":"<merge sha, apply only>",
+#             "runs":[{"workspace":"ws-...","label":"<env>/<workspace>",
+#                      "id":"run-...","status":"...","waiting":false,
+#                      "changes":true,"url":"...","summary":"+3 ~1 -0"}]},
+#    "fetched_at":1760000000,"interval":60,
+#    "watcher":{"claude_session":"...","pi_session":"..."}}
+#
+# scalr is null when the PR has no scalr/<env>/<workspace> checks. In the plan
+# phase, while the PR is open, there is one run per such check: status is
+# planning, planned_and_finished or errored from the check's state, summary is
+# "+add ~change -destroy" when its description is a Terraform plan count and ""
+# otherwise, changes is whether that count is above zero, and waiting is false.
+# In the apply phase, after the merge, there is one run per workspace Scalr has
+# an apply run for the merge commit on: status is Scalr's own, changes its
+# has-changes, summary is "", and waiting is true once the run has been
+# reported as `SCALR approval` and still sits at a confirmable status. A
+# policy_override run needs attention too but is not waiting: read its status.
+# A workspace whose lookup fails keeps the run the previous poll recorded.
+#
+# Threads are the unresolved ones among the PR's first 100, the user's own
+# included: the snapshot is the PR's state, not a feed of feedback received.
+# threads_truncated is true when the PR has more than 100 threads, so the
+# list may be missing some.
+#
+# mergeable is GitHub's answer to whether the head merges cleanly into the
+# base: "" while it is still computing one, which it does lazily after either
+# branch moves.
+#
+# copilot is the verdict of Copilot's latest review that gives one, from the
+# heading it opens with: "Approval recommended" is approve, "Changes
+# recommended" is changes, "Needs a closer look" is look. Copilot always
+# reviews as COMMENTED, so the review decision above never reflects it. head
+# is false when that review was of an older commit than the PR's head, and the
+# whole field is null when no review among the last 50 has a verdict.
+#
+# watcher names the coding agent session running the watch, from the
+# CLAUDE_CODE_SESSION_ID or PI_SESSION_ID its shell inherits, so a status line
+# can list every PR its own session watches whatever branch it sits on. A
+# session id survives a resume, unlike the terminal it runs in. Each key is
+# present only when that variable is set; both can be, when one agent runs
+# inside the other's shell, and a reader matches on its own agent's key.
+#
+# Needs gh and jq, and for the apply watch the scalr CLI with SCALR_TOKEN and
+# SCALR_HOSTNAME set. macOS bash 3.2 compatible: no associative arrays, no mapfile.
+
+set -u
+
+usage() {
+  cat >&2 <<'EOF'
+usage: gh-pr-watch [-R OWNER/REPO] [-i SECONDS] [--fresh] [PR]
+
+PR is a number, URL or branch; without one, the current branch's PR.
+  -R, --repo       repository, when PR is a number and cwd is not a clone of it
+  -i, --interval   seconds between polls (default 60)
+  --fresh          forget what earlier runs emitted and report everything again
+EOF
+  exit 2
+}
+
+REPO="" INTERVAL=60 FRESH=0 PR=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -R | --repo | -i | --interval)
+    [ $# -ge 2 ] || usage
+    case "$1" in -R | --repo) REPO="$2" ;; *) INTERVAL="$2" ;; esac
+    shift 2
+    ;;
+  --fresh) FRESH=1 && shift ;;
+  -*) usage ;;
+  *) PR="$1" && shift ;;
+  esac
+done
+case "$INTERVAL" in '' | *[!0-9]*) usage ;; esac
+INTERVAL=$((10#$INTERVAL)) # "060" is not JSON, and the snapshot embeds it
+
+# The PR's URL carries the owner, name and number, whatever form PR was given in.
+url=$(gh pr view ${PR:+"$PR"} ${REPO:+-R "$REPO"} --json url --jq .url) || exit 1
+path=${url#https://github.com/}
+OWNER=${path%%/*} && path=${path#*/}
+NAME=${path%%/*}
+NUMBER=${url##*/}
+BASE="https://github.com/$OWNER/$NAME/pull/$NUMBER"
+
+STATE="${TMPDIR:-/tmp}/gh-pr-watch/$OWNER-$NAME-$NUMBER"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/gh-pr/$OWNER/$NAME"
+[ "$FRESH" = 1 ] && rm -rf "$STATE"
+mkdir -p "$STATE" || exit 1
+SEEN="$STATE/seen"       # keys already emitted
+FAILING="$STATE/failing" # checks last reported red, to announce them going green
+ERR="$STATE/stderr"
+touch "$SEEN" "$FAILING"
+
+# emit KEY LINE: print LINE unless KEY has been emitted before.
+# Returns 1 when KEY was already emitted. An empty LINE records KEY silently.
+emit() {
+  grep -Fxq -- "$1" "$SEEN" && return 1
+  printf '%s\n' "$1" >>"$SEEN"
+  [ -z "$2" ] || printf '%s\n' "$2"
+}
+
+# forget FILE PREFIX: drop every line of FILE that starts with PREFIX, or is
+# exactly LINE with --line.
+forget() {
+  if [ "$1" = --line ]; then
+    awk -v l="$3" '$0 != l' "$2" >"$2.tmp" && mv "$2.tmp" "$2"
+  else
+    awk -v p="$2" 'index($0, p) != 1' "$1" >"$1.tmp" && mv "$1.tmp" "$1"
+  fi
+}
+T=$'\t' # separates the fields of a CI key: check names contain spaces
+
+# shellcheck disable=SC2016 # GraphQL and jq variables, not shell ones
+QUERY='query($owner: String!, $name: String!, $number: Int!) {
+  viewer { login }
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      number title url state isDraft reviewDecision mergeable
+      headRefName baseRefName updatedAt
+      author { login }
+      headRefOid
+      mergedAt
+      mergeCommit { oid }
+      reviewThreads(first: 100) {
+        pageInfo { hasNextPage }
+        nodes {
+          isResolved isOutdated path line originalLine
+          count: comments { totalCount }
+          root: comments(first: 1) { nodes { databaseId author { login } body } }
+          last: comments(last: 1) { nodes { databaseId author { login } body } }
+        }
+      }
+      reviews(last: 50) {
+        nodes { databaseId state author { login } body commit { oid } }
+      }
+    }
+  }
+}'
+
+# One "KEY<tab>LINE" per open review item. Keys are the comment and review ids,
+# so an item is reported once however often it is polled.
+# shellcheck disable=SC2016
+REVIEWS_JQ='def flat: gsub("<!--.*?-->"; "") | gsub("[\\s]+"; " ") | ltrimstr(" ") | .[0:160];
+  def at: "\(.path):\(.line // .originalLine // "?")\(if .isOutdated then " (outdated)" else "" end)";
+  .data.viewer.login as $me
+  | .data.repository.pullRequest as $p
+  | ($p.reviewThreads.nodes[] | select(.isResolved | not)
+     | . as $t | .root.nodes[0] as $r | .last.nodes[0] as $l
+     | (select($r.author.login != $me)
+        | "THREAD \($r.databaseId)\tTHREAD \($r.author.login // "ghost") \($t | at): \($r.body | flat) \($base)#discussion_r\($r.databaseId)"),
+       (select($l.databaseId != $r.databaseId and $l.author.login != $me)
+        | "REPLY \($l.databaseId)\tREPLY \($l.author.login // "ghost") on \($t | at): \($l.body | flat) \($base)#discussion_r\($l.databaseId)")),
+    ($p.reviews.nodes[]
+     | select(.author.login != $me)
+     | select(.state == "CHANGES_REQUESTED" or (.state == "COMMENTED" and (.body | length) > 0))
+     | ((.commit.oid // "") as $c | "\($c[0:7])\(if $c == $p.headRefOid then "" else " (not head)" end)") as $on
+     | "REVIEW \(.databaseId)\tREVIEW \(.author.login // "ghost") \(.state) on \($on): \(.body | flat) \($base)#pullrequestreview-\(.databaseId)")'
+
+# One "KIND<tab>CHECK<tab>LINK" per check; KIND is fail, cancel or pass.
+CHECKS_JQ='.[] | select(.bucket == "fail" or .bucket == "cancel" or .bucket == "pass")
+  | "\(.bucket)\t\(.workflow // "" | if . == "" then "" else . + " / " end)\(.name)\t\(.link)"'
+
+# One "WORKSPACE<tab>ENV/NAME<tab>DESCRIPTION<tab>LINK" per Scalr plan check. Scalr
+# names it scalr/<env>/<workspace> and links the run; the scalr/<org>/plan/<branch>
+# roll-up has no workspace in its link and drops out.
+# shellcheck disable=SC2016
+SCALR_JQ='[.[] | select(.name | startswith("scalr/"))
+  | (.link // "" | [match("/workspaces/(ws-[a-z0-9]+)/").captures[0].string]) as $ws
+  | select($ws | length > 0)
+  | [$ws[0], (.name | ltrimstr("scalr/")), (.description // ""), .link]]
+  | unique_by(.[0])[] | @tsv'
+
+# One snapshot of the PR for the cache, from the GraphQL answer and a
+# readable `gh pr checks` list; see the header for its shape.
+# shellcheck disable=SC2016
+CACHE_JQ='.data.repository.pullRequest as $p
+  | { v: 1, repo: $repo, branch: $p.headRefName, number: $p.number,
+      title: $p.title, url: $p.url, author: ($p.author.login // ""),
+      head: $p.headRefName, base: $p.baseRefName, updated_at: $p.updatedAt,
+      state: (if $p.state == "MERGED" then "merged" elif $p.isDraft then "draft" else "open" end),
+      review: ({ APPROVED: "approved", CHANGES_REQUESTED: "changes",
+                 REVIEW_REQUIRED: "review" }[$p.reviewDecision // ""] // ""),
+      mergeable: ({ MERGEABLE: "yes", CONFLICTING: "conflict" }[$p.mergeable // ""] // ""),
+      ci: ($checks | if any(.[]; .bucket == "fail" or .bucket == "cancel") then "fail"
+                     elif any(.[]; .bucket == "pending") then "pending"
+                     elif length > 0 then "pass" else "" end),
+      ci_counts: { pending: ($checks | map(select(.bucket == "pending")) | length),
+                   fail: ($checks | map(select(.bucket == "fail" or .bucket == "cancel")) | length) },
+      checks: [ $checks[] | { name, workflow: (.workflow // ""),
+                state: ({ pass: "pass", fail: "fail", cancel: "fail", pending: "pending",
+                          skipping: "skipped" }[.bucket] // "neutral"),
+                url: (.link // "") } ],
+      threads: [ $p.reviewThreads.nodes[] | select(.isResolved | not)
+                 | .root.nodes[0] as $r
+                 | { path, line: (.line // .originalLine), outdated: .isOutdated,
+                     comments: .count.totalCount, author: ($r.author.login // "ghost"),
+                     body: (($r.body // "") | .[0:500]),
+                     url: "\($base)#discussion_r\($r.databaseId)" } ],
+      threads_truncated: ($p.reviewThreads.pageInfo.hasNextPage // false),
+      copilot: ([ $p.reviews.nodes[]
+                  | select(.author.login == "copilot-pull-request-reviewer")
+                  | ((.body // "") | capture("(?m)^### \\S+ (?<v>Approval recommended|Changes recommended|Needs a closer look)")?) as $m
+                  | { verdict: { "Approval recommended": "approve",
+                                 "Changes recommended": "changes",
+                                 "Needs a closer look": "look" }[$m.v],
+                      head: ((.commit.oid // "") == $p.headRefOid),
+                      url: "\($base)#pullrequestreview-\(.databaseId)" } ]
+                | last),
+      scalr: ([ $checks[] | select(.name | startswith("scalr/"))
+                | (.link // "") as $link
+                | ($link | [match("/workspaces/(ws-[a-z0-9]+)/").captures[0].string]) as $ws
+                | select($ws | length > 0)
+                | ([(.description // "")
+                    | capture("(?<a>[0-9]+) to add, (?<c>[0-9]+) to change, (?<d>[0-9]+) to destroy")?]
+                   | first) as $plan
+                | { workspace: $ws[0], label: (.name | ltrimstr("scalr/")),
+                    id: ([$link | match("/runs/(run-[a-z0-9]+)").captures[0].string] | first // ""),
+                    status: ({ pending: "planning", pass: "planned_and_finished",
+                               fail: "errored", cancel: "errored" }[.bucket] // ""),
+                    waiting: false,
+                    changes: ($plan != null and ([$plan.a, $plan.c, $plan.d] | map(tonumber) | add) > 0),
+                    url: $link,
+                    summary: (if $plan then "+\($plan.a) ~\($plan.c) -\($plan.d)" else "" end) } ]
+              | unique_by(.workspace)
+              | if length == 0 then null
+                elif $p.state == "MERGED" then { phase: "apply", sha: ($p.mergeCommit.oid // ""), runs: [] }
+                else { phase: "plan", runs: . } end),
+      fetched_at: (now | floor), interval: $interval,
+      watcher: ({ claude_session: $claude_session, pi_session: $pi_session }
+                | with_entries(select(.value != ""))) }'
+
+# cache_file PR: the snapshot path for the PR, under its head branch.
+cache_file() {
+  local head
+  head=$(jq -r '.data.repository.pullRequest.headRefName // empty | @uri' <<<"$1" 2>/dev/null)
+  [ -n "$head" ] || return 1
+  printf '%s/%s/%s.json' "$CACHE_DIR" "$head" "$NUMBER"
+}
+
+# write_cache PR CHECKS: replace the snapshot. Best effort: a cache that cannot
+# be written never stops the watch.
+write_cache() {
+  local file tmp
+  file=$(cache_file "$1") || return 0
+  mkdir -p "${file%/*}" 2>/dev/null || return 0
+  tmp=$(mktemp "${file%/*}/.snapshot.XXXXXX" 2>/dev/null) || return 0
+  if jq -c --arg repo "$OWNER/$NAME" --arg base "$BASE" \
+    --arg claude_session "${CLAUDE_CODE_SESSION_ID:-}" --arg pi_session "${PI_SESSION_ID:-}" \
+    --argjson interval "$INTERVAL" --argjson checks "$2" "$CACHE_JQ" <<<"$1" >"$tmp" 2>/dev/null &&
+    mv -f "$tmp" "$file" 2>/dev/null; then
+    return 0
+  fi
+  rm -f "$tmp" 2>/dev/null
+  return 0
+}
+
+# write_scalr SHA RUNS: point the snapshot in $SNAPSHOT at the apply of the merge
+# commit SHA, with RUNS -- one JSON run per line -- as its runs. Atomic and best
+# effort, like write_cache.
+write_scalr() {
+  local tmp
+  [ -n "$SNAPSHOT" ] && [ -f "$SNAPSHOT" ] || return 0
+  tmp=$(mktemp "${SNAPSHOT%/*}/.snapshot.XXXXXX" 2>/dev/null) || return 0
+  if jq -c --arg sha "$1" --argjson runs "$(jq -sc . <<<"$2")" \
+    '.state = "merged" | .scalr = { phase: "apply", sha: $sha, runs: $runs }
+     | .fetched_at = (now | floor)' "$SNAPSHOT" >"$tmp" 2>/dev/null &&
+    mv -f "$tmp" "$SNAPSHOT" 2>/dev/null; then
+    return 0
+  fi
+  rm -f "$tmp" 2>/dev/null
+  return 0
+}
+
+# drop_snapshot: delete the snapshot in $SNAPSHOT. rmdir only succeeds once no
+# other PR from the branch has a snapshot.
+drop_snapshot() {
+  [ -n "$SNAPSHOT" ] || return 0
+  rm -f "$SNAPSHOT" 2>/dev/null && rmdir "${SNAPSHOT%/*}" 2>/dev/null
+  return 0
+}
+
+# remember_scalr CHECKS: record the workspaces a readable CHECKS list plans in
+# $STATE/scalr, one "WORKSPACE<tab>ENV/NAME" each. Replaced, not merged: a
+# workspace a later push stopped touching gets no apply run. Kept on disk, so
+# the merge poll still knows them when it cannot read the checks.
+remember_scalr() {
+  jq -r "$SCALR_JQ" <<<"$1" 2>/dev/null | cut -f1,2 >"$STATE/scalr.tmp" &&
+    mv "$STATE/scalr.tmp" "$STATE/scalr"
+}
+
+# watch_scalr SHA MERGED_AT: follow each Scalr workspace's apply run for the
+# merge commit SHA until every one has finished, then exit.
+watch_scalr() {
+  local sha=$1 deadline host fails=0 failed open ws label runs row id status changes env err url
+  local waiting snap
+  emit "MERGED $sha" "PR #$NUMBER is MERGED -- watching the Scalr apply of ${sha:0:7}"
+  if ! command -v scalr >/dev/null || [ -z "${SCALR_TOKEN:-}" ] || [ -z "${SCALR_HOSTNAME:-}" ]; then
+    echo "SCALR cannot watch: needs the scalr CLI, SCALR_TOKEN and SCALR_HOSTNAME -- workspaces: $(cut -f2 "$STATE/scalr" | paste -sd, -)"
+    exit 1
+  fi
+  host=$SCALR_HOSTNAME
+  deadline=$(jq -rn --arg at "$2" '$at | fromdateiso8601 + 600')
+  while true; do
+    open=0 failed=0 snap=""
+    : >"$ERR" # appended per lookup, so a later success keeps an earlier cause
+    while IFS=$'\t' read -r ws label; do
+      # scalr reads a JSON payload from stdin when it is not a terminal: give it
+      # nothing, or it swallows the rest of this loop's input.
+      if ! runs=$(scalr get-runs -filter-workspace="$ws" -filter-vcs-revision="$sha" \
+        -filter-is-dry=false </dev/null 2>>"$ERR"); then
+        open=1 failed=1
+        # A failed lookup keeps the run the snapshot last had, not drop it.
+        [ -f "$SNAPSHOT" ] && snap+=$(jq -c --arg ws "$ws" \
+          '.scalr.runs[]? | select(.workspace == $ws)' "$SNAPSHOT" 2>/dev/null)$'\n'
+        continue
+      fi
+      row=$(jq -r 'first(.[]) | [.id, .status, (."has-changes" | tostring),
+        .environment.id,
+        (."error-message" // "" | gsub("[\\s]+"; " ") | .[0:160])] | @tsv' <<<"$runs" 2>/dev/null)
+      if [ -z "$row" ]; then
+        open=1
+        [ "$(date +%s)" -gt "$deadline" ] &&
+          emit "SCALR none $ws" "SCALR no run: $label has no apply run for ${sha:0:7} 10m after the merge"
+        continue
+      fi
+      IFS=$'\t' read -r id status changes env err <<<"$row"
+      url="https://$host/v2/e/$env/workspaces/$ws/runs/$id"
+      waiting=false
+      case "$status" in
+      # post_apply_finished: post-apply run tasks done, so the apply ran.
+      applied | post_apply_finished | planned_and_finished | discarded | canceled | force_canceled)
+        emit "SCALR $id $status" "SCALR $status: $label $url"
+        ;;
+      errored)
+        emit "SCALR $id $status" "SCALR errored: $label${err:+: $err} $url"
+        ;;
+      planned | planned_and_saved | post_plan_finished | cost_estimated | policy_checked)
+        # Each of these is also a stage a run passes through on its way to the
+        # next. A run still in one a poll later is parked on a confirmation --
+        # with auto-apply on too, which a cost or policy gate can still hold.
+        open=1
+        if [ "$changes" = true ]; then
+          emit "SCALR $id at $status" "" ||
+            emit "SCALR $id approval" "SCALR approval: $label waits for confirmation $url"
+          grep -Fxq -- "SCALR $id approval" "$SEEN" && waiting=true
+        fi
+        ;;
+      policy_override)
+        open=1
+        emit "SCALR $id policy" "SCALR policy: $label needs a policy override $url"
+        ;;
+      *) open=1 ;; # queued, planning or applying
+      esac
+      snap+=$(jq -nc --arg ws "$ws" --arg label "$label" --arg id "$id" --arg status "$status" \
+        --argjson waiting "$waiting" --arg changes "$changes" --arg url "$url" \
+        '{ workspace: $ws, label: $label, id: $id, status: $status, waiting: $waiting,
+           changes: ($changes == "true"), url: $url, summary: "" }')$'\n'
+    done <"$STATE/scalr"
+    write_scalr "$sha" "$snap"
+    # A poll fails when any workspace's lookup did; count polls, not lookups.
+    if [ "$failed" = 1 ]; then
+      fails=$((fails + 1))
+      [ "$fails" -eq 3 ] &&
+        echo "WATCH scalr failing 3 polls running, still retrying: $(head -n 1 "$ERR")"
+    else
+      fails=0
+    fi
+    if [ "$open" = 0 ]; then
+      echo "SCALR finished on ${sha:0:7} -- stopping"
+      exit 0
+    fi
+    sleep "$INTERVAL"
+  done
+}
+
+touch "$STATE/scalr"
+SNAPSHOT="" # the snapshot file, once the PR has merged or closed
+failures=0 merge_failures=0
+while true; do
+  if pr=$(gh api graphql -f owner="$OWNER" -f name="$NAME" -F number="$NUMBER" \
+    -f query="$QUERY" 2>"$ERR"); then
+    failures=0
+    state=$(jq -r '.data.repository.pullRequest.state' <<<"$pr")
+    case "$state" in MERGED | CLOSED)
+      # Readers take a missing snapshot to mean the PR is closed, or merged
+      # with no Scalr apply left to watch; one with an apply keeps it until the
+      # apply watch ends.
+      SNAPSHOT=$(cache_file "$pr") || SNAPSHOT=""
+      # From here every exit -- stopping, the apply watch finishing or unable
+      # to watch, or a kill while the checks are retried -- drops the snapshot.
+      # A signal exits through the EXIT trap.
+      trap drop_snapshot EXIT
+      trap 'exit 129' HUP
+      trap 'exit 130' INT
+      trap 'exit 143' TERM
+      if [ "$state" = MERGED ]; then
+        # Only a readable checks list may conclude there are no Scalr plans:
+        # anything else is retried, or an apply goes unwatched.
+        checks=$(gh pr checks "$NUMBER" -R "$OWNER/$NAME" \
+          --json name,workflow,bucket,link,description 2>"$ERR" || true)
+        # No checks at all is an answer -- no Scalr plans -- not a failed read.
+        [ -z "$checks" ] && grep -q 'no checks reported' "$ERR" 2>/dev/null && checks='[]'
+        if ! jq -e 'type == "array"' <<<"$checks" >/dev/null 2>&1; then
+          merge_failures=$((merge_failures + 1))
+          [ "$merge_failures" -eq 3 ] &&
+            echo "WATCH gh failing 3 polls running, still retrying: $(head -n 1 "$ERR")"
+          sleep "$INTERVAL"
+          continue
+        fi
+        remember_scalr "$checks"
+        if [ -s "$STATE/scalr" ]; then
+          write_cache "$pr" "$checks"
+          watch_scalr "$(jq -r '.data.repository.pullRequest.mergeCommit.oid' <<<"$pr")" \
+            "$(jq -r '.data.repository.pullRequest.mergedAt' <<<"$pr")"
+        fi
+      fi
+      echo "PR #$NUMBER is $state -- stopping"
+      exit 0
+      ;;
+    esac
+    sha=$(jq -r '.data.repository.pullRequest.headRefOid' <<<"$pr")
+    while IFS=$'\t' read -r key line; do
+      [ -n "$key" ] && emit "$key" "$line"
+    done <<<"$(jq -r --arg base "$BASE" "$REVIEWS_JQ" <<<"$pr" 2>/dev/null || true)"
+    # A conflict is reported once, and again only after it was resolved: the
+    # base moving can conflict a head that has not changed. UNKNOWN -- GitHub
+    # still computing -- changes nothing.
+    IFS=$'\t' read -r mergeable head base <<<"$(jq -r '.data.repository.pullRequest
+      | [.mergeable // "", .headRefName, .baseRefName] | @tsv' <<<"$pr")"
+    case "$mergeable" in
+    CONFLICTING)
+      emit "CONFLICT" "CONFLICT: $head conflicts with $base on ${sha:0:7} $BASE"
+      ;;
+    MERGEABLE)
+      grep -Fxq CONFLICT "$SEEN" && forget --line "$SEEN" CONFLICT &&
+        echo "CONFLICT resolved: $head merges cleanly into $base on ${sha:0:7} $BASE"
+      ;;
+    esac
+  else
+    pr=""
+    failures=$((failures + 1))
+    [ "$failures" -eq 3 ] &&
+      echo "WATCH gh failing 3 polls running, still retrying: $(head -n 1 "$ERR")"
+  fi
+
+  # gh pr checks exits non-zero while checks fail or are pending, so its status
+  # says nothing; valid JSON on stdout is the success test. A PR with no checks
+  # at all prints nothing but "no checks reported": that is an empty list, not a
+  # failed read, or a repo without CI would never get a snapshot.
+  checks=$(gh pr checks "$NUMBER" -R "$OWNER/$NAME" \
+    --json name,workflow,bucket,link,description 2>"$STATE/checks.err" || true)
+  if [ -z "$checks" ] && grep -q 'no checks reported' "$STATE/checks.err" 2>/dev/null; then
+    checks='[]'
+  fi
+  if jq -e 'type == "array"' <<<"$checks" >/dev/null 2>&1; then
+    while IFS=$'\t' read -r kind check link; do
+      case "$kind" in
+      fail | cancel)
+        grep -Fxq -- "$check" "$FAILING" || printf '%s\n' "$check" >>"$FAILING"
+        emit "CI$T$kind$T$check$T$link" "CI $kind: $check $link"
+        ;;
+      pass)
+        grep -Fxq -- "$check" "$FAILING" || continue
+        # Forget its failures too, so failing again on the same link reports.
+        forget --line "$FAILING" "$check" && forget "$SEEN" "CI${T}fail$T$check$T" &&
+          forget "$SEEN" "CI${T}cancel$T$check$T"
+        echo "CI pass: $check (was failing) $link"
+        ;;
+      esac
+    done <<<"$(jq -r "$CHECKS_JQ" <<<"$checks")"
+    remember_scalr "$checks"
+    while IFS=$'\t' read -r _ label desc link; do
+      [ -n "$link" ] && [ -n "$desc" ] && emit "SCALR plan $link" "SCALR plan: $label: $desc $link"
+    done <<<"$(jq -r "$SCALR_JQ" <<<"$checks" 2>/dev/null)"
+    [ -n "$pr" ] && write_cache "$pr" "$checks"
+    if [ -n "${sha:-}" ] && jq -e 'length > 0 and
+        all(.[]; .bucket == "pass" or .bucket == "skipping")' <<<"$checks" >/dev/null; then
+      emit "GREEN $sha" "CI green: all $(jq length <<<"$checks") checks passed on ${sha:0:7}"
+    fi
+  fi
+
+  sleep "$INTERVAL"
+done

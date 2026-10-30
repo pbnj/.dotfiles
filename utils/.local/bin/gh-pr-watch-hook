@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+# gh-pr-watch-hook -- Claude Code hooks that keep a gh-pr-watch armed on every
+# PR a session opens or pushes to. Wired in ~/.claude/settings.json:
+#
+#   PostToolUse, matcher Bash|Monitor|mcp__.*create_pull_request:
+#                                 gh-pr-watch-hook post-tool-use
+#   Stop:                         gh-pr-watch-hook stop
+#
+# post-tool-use: once a PR is opened (gh-pr-open, gh pr create, a GitHub MCP
+#   create_pull_request) or pushed to (git push on a branch with an open PR)
+#   and no watch on it is live in this session, hands Claude the exact Monitor
+#   call to arm one, as additional context. A Monitor running gh-pr-watch marks
+#   its PR armed.
+# stop: blocks the end of Claude's turn while a PR this session opened or
+#   pushed to is still open with no live watch. Only once per stop: a stop the
+#   hook already blocked (stop_hook_active) goes through, so it cannot loop.
+# ignore [-R OWNER/REPO] [PR]: no more nudges about PR in this session
+#   ($CLAUDE_CODE_SESSION_ID), for when the user does not want it watched.
+#
+# A watch is live when gh-pr-watch's snapshot of the PR names this session and
+# was written within two poll intervals, or a Monitor armed it in the last
+# three minutes -- the first snapshot waits on the first poll.
+#
+# State, per session: ${XDG_STATE_HOME:-~/.local/state}/gh-pr-watch-hook/<session>/
+#   prs            one "OWNER/NAME<tab>NUMBER" per PR the session touched
+#   armed/<pr>     epoch seconds a Monitor last armed the PR's watch
+#   ignored/<pr>   the PR is not to be watched
+#
+# Needs gh and jq. macOS bash 3.2 compatible.
+
+set -u
+
+WATCH="$HOME/.local/bin/gh-pr-watch"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/gh-pr"
+STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/gh-pr-watch-hook"
+GRACE=180
+PR_URL_RE='https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+'
+T=$'\t'
+SESSION="" DIR="" REPO="" NUMBER=""
+
+usage() {
+  echo "usage: gh-pr-watch-hook post-tool-use|stop  (hook JSON on stdin)" >&2
+  echo "       gh-pr-watch-hook ignore [-R OWNER/REPO] [PR]" >&2
+  exit 2
+}
+
+# session ID: set SESSION and DIR, the session's state directory.
+session() {
+  SESSION=$1
+  [ -n "$SESSION" ] || exit 0
+  DIR="$STATE_ROOT/$SESSION"
+}
+
+# key: a file name for the PR in REPO and NUMBER.
+key() { printf '%s-%s' "${REPO//\//-}" "$NUMBER"; }
+
+# from_url URL: set REPO and NUMBER from a PR URL.
+from_url() {
+  local path=${1#https://github.com/}
+  REPO=${path%/pull/*}
+  NUMBER=${path##*/pull/}
+  NUMBER=${NUMBER%%[!0-9]*}
+  [ -n "$REPO" ] && [ -n "$NUMBER" ]
+}
+
+# resolve PR REPO DIR: set REPO and NUMBER for PR -- a number, URL or branch,
+# or empty for DIR's current branch -- asking gh only when PR is not enough.
+resolve() {
+  case "$1" in
+  https://github.com/*) from_url "$1" && return 0 ;;
+  esac
+  case "$1" in
+  '' | *[!0-9]*) ;;
+  *) if [ -n "$2" ]; then REPO=$2 NUMBER=$1 && return 0; fi ;;
+  esac
+  local url
+  url=$(cd "${3:-.}" 2>/dev/null && gh pr view ${1:+"$1"} ${2:+-R "$2"} --json url --jq .url 2>/dev/null) || return 1
+  from_url "$url"
+}
+
+# watch_args COMMAND: set ARG_REPO and ARG_PR from a gh-pr-watch command line.
+watch_args() {
+  local seen=0
+  ARG_REPO="" ARG_PR=""
+  set -f
+  # shellcheck disable=SC2086 # split the command into words
+  set -- $1
+  set +f
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    -R | --repo) ARG_REPO=${2:-} && shift ;;
+    -i | --interval) shift ;;
+    -*) ;;
+    *gh-pr-watch | *gh-pr-watch[\"\']) seen=1 ;;
+    *) [ "$seen" = 1 ] && [ -z "$ARG_PR" ] && ARG_PR=$1 ;;
+    esac
+    [ $# -gt 0 ] && shift
+  done
+  ARG_REPO=${ARG_REPO//[\"\']/} ARG_PR=${ARG_PR//[\"\']/}
+}
+
+record() {
+  mkdir -p "$DIR/armed" "$DIR/ignored" || exit 0
+  grep -Fxq -- "$REPO$T$NUMBER" "$DIR/prs" 2>/dev/null || printf '%s\t%s\n' "$REPO" "$NUMBER" >>"$DIR/prs"
+}
+
+ignored() { [ -f "$DIR/ignored/$(key)" ]; }
+
+# live: whether a watch on the PR runs in this session.
+live() {
+  local now armed f
+  now=$(date +%s)
+  armed=$(cat "$DIR/armed/$(key)" 2>/dev/null) || armed=0
+  [ $((now - ${armed:-0})) -le "$GRACE" ] && return 0
+  for f in "$CACHE/$REPO"/*/"$NUMBER".json; do
+    [ -f "$f" ] || continue
+    jq -e --arg s "$SESSION" --argjson now "$now" \
+      '.watcher.claude_session == $s and ($now - .fetched_at) <= 2 * .interval + 60' \
+      "$f" >/dev/null 2>&1 && return 0
+  done
+  return 1
+}
+
+# arm_call: the Monitor call that arms the PR's watch, and how to read it.
+arm_call() {
+  local fresh=" --fresh"
+  [ -f "$DIR/armed/$(key)" ] && fresh=""
+  cat <<EOF
+No gh-pr-watch is running on $REPO#$NUMBER in this session. Arm one now with the Monitor tool, without asking:
+
+  command:     $WATCH -R $REPO $NUMBER$fresh
+  description: CI and reviews on $REPO#$NUMBER
+  timeout_ms:  1800000
+
+Each line it prints is an event, printed once:
+- CI fail / CI cancel: read the job log and report the cause with the job link. A red job is not automatically this PR's fault.
+- THREAD / REPLY / REVIEW: validate each claim against the code before changing anything; never auto-apply a bot's suggestion. "(not head)" is a review of an older push. A REVIEW by copilot-pull-request-reviewer on the head commit is Copilot's review landing -- while the watch runs, do not also run a foreground wait loop for it.
+- CI pass / CI green: say so in a line. Reviews can still land.
+- CONFLICT: tell the user the PR cannot merge; offer to merge origin/<base> into the branch (a merge, not a rebase).
+- SCALR plan: relay the summary with its run link; call out any destroy.
+- SCALR approval: notify the user (PushNotification too, if available). Never run scalr confirm-run unasked.
+- SCALR policy / errored / no run / cannot watch, WATCH ... failing: tell the user.
+- "... -- stopping": the watch has exited; report it.
+The Monitor expires after 30 minutes and silence is not success: re-arm it, without --fresh, while the PR is open or its Scalr apply is unfinished. If the user does not want this PR watched, run: gh-pr-watch-hook ignore -R $REPO $NUMBER
+EOF
+}
+
+post_tool_use() {
+  local input tool cmd cwd url="" dir
+  input=$(cat)
+  tool=$(jq -r '.tool_name // ""' <<<"$input")
+  cmd=$(jq -r '.tool_input.command // ""' <<<"$input")
+  cwd=$(jq -r '.cwd // ""' <<<"$input")
+  session "$(jq -r '.session_id // ""' <<<"$input")"
+
+  case "$tool" in
+  Monitor)
+    case "$cmd" in *gh-pr-watch*) ;; *) exit 0 ;; esac
+    watch_args "$cmd"
+    resolve "$ARG_PR" "$ARG_REPO" "$cwd" || exit 0
+    record
+    date +%s >"$DIR/armed/$(key)"
+    exit 0
+    ;;
+  Bash)
+    case "$cmd" in
+    *gh-pr-open* | *"gh pr create"*)
+      url=$(jq -r '.tool_response.stdout // (.tool_response | tostring)' <<<"$input" |
+        grep -oE "$PR_URL_RE" | tail -n 1)
+      ;;
+    *git*push*)
+      grep -qE '(^|[;&|(]|[[:space:]])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push([[:space:]]|$)' \
+        <<<"$cmd" || exit 0
+      # The repository pushed from: git -C DIR, else the last cd, else cwd.
+      dir=$(grep -oE 'git[[:space:]]+-C[[:space:]]+[^[:space:];&|]+' <<<"$cmd" | tail -n 1 | awk '{print $3}')
+      [ -n "$dir" ] || dir=$(grep -oE '(^|[;&|(])[[:space:]]*cd[[:space:]]+[^[:space:];&|)]+' <<<"$cmd" |
+        tail -n 1 | awk '{print $NF}')
+      dir=${dir//[\"\']/}
+      dir=${dir/#\~/$HOME}
+      case "$dir" in '' | /*) ;; *) dir="$cwd/$dir" ;; esac
+      [ -n "$dir" ] && [ -d "$dir" ] || dir=$cwd
+      url=$(cd "$dir" 2>/dev/null &&
+        gh pr view --json url,state --jq 'select(.state == "OPEN") | .url' 2>/dev/null)
+      ;;
+    *) exit 0 ;;
+    esac
+    ;;
+  *create_pull_request)
+    url=$(jq -r '.tool_response | tostring' <<<"$input" | grep -oE "$PR_URL_RE" | head -n 1)
+    ;;
+  *) exit 0 ;;
+  esac
+
+  [ -n "$url" ] && from_url "$url" || exit 0
+  record
+  ignored && exit 0
+  live && exit 0
+  jq -n --arg ctx "$(arm_call)" \
+    '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $ctx}}'
+}
+
+stop() {
+  local input reason="" keep="" state
+  input=$(cat)
+  [ "$(jq -r '.stop_hook_active // false' <<<"$input")" = true ] && exit 0
+  session "$(jq -r '.session_id // ""' <<<"$input")"
+  [ -s "$DIR/prs" ] || exit 0
+
+  while IFS=$T read -r REPO NUMBER; do
+    [ -n "$NUMBER" ] || continue
+    ignored && continue
+    if live; then
+      keep+="$REPO$T$NUMBER"$'\n'
+      continue
+    fi
+    # Closed and merged PRs drop off the list; one gh cannot read stays on it.
+    state=$(gh pr view "$NUMBER" -R "$REPO" --json state --jq .state 2>/dev/null) || state=UNKNOWN
+    case "$state" in
+    OPEN)
+      keep+="$REPO$T$NUMBER"$'\n'
+      reason+="$(arm_call)"$'\n\n'
+      ;;
+    UNKNOWN) keep+="$REPO$T$NUMBER"$'\n' ;;
+    esac
+  done <"$DIR/prs"
+  printf '%s' "$keep" >"$DIR/prs"
+
+  [ -n "$reason" ] || exit 0
+  jq -n --arg r "$reason" '{decision: "block", reason: $r}'
+}
+
+ignore() {
+  local repo="" pr=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    -R | --repo) [ $# -ge 2 ] || usage && repo=$2 && shift ;;
+    -*) usage ;;
+    *) pr=$1 ;;
+    esac
+    shift
+  done
+  [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] || {
+    echo "gh-pr-watch-hook: CLAUDE_CODE_SESSION_ID is not set" >&2
+    exit 1
+  }
+  session "$CLAUDE_CODE_SESSION_ID"
+  resolve "$pr" "$repo" . || {
+    echo "gh-pr-watch-hook: no PR found${pr:+ for $pr}" >&2
+    exit 1
+  }
+  record
+  touch "$DIR/ignored/$(key)"
+  echo "not nudging about $REPO#$NUMBER for the rest of this session"
+}
+
+case "${1:-}" in
+post-tool-use) post_tool_use ;;
+stop) stop ;;
+ignore) shift && ignore "$@" ;;
+*) usage ;;
+esac
