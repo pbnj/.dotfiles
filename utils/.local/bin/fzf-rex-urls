@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Pick URL(s) from a Rex block's scrollback with fzf and open
+#              them, like fzf-urls does for a tmux pane. Newest first.
+#              Linear issue IDs (ENG-123) are listed too, as their issue URL,
+#              when their prefix is a team key from `linear team list`.
+#              Rex's captures don't carry OSC 8 hyperlink targets, so only
+#              URLs shown as text are found; a label an app truncated with "…"
+#              is skipped.
+# Dependencies: brew install fzf; the linear CLI, logged in (optional: without
+#               it only URLs are listed)
+# Usage: fzf-rex-urls [BLOCK]
+#        BLOCK defaults to REX_BLOCK. Bind to a Rex floating layer, passing the
+#        block that was focused, so the picker closes once URLs are opened.
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+block="${1:-${REX_BLOCK:-}}"
+
+if [[ "${2:-}" == "--list" ]]; then
+  # Space-separated team keys, and the default workspace's slug for the URL.
+  linear_keys="$(linear team list --json 2>/dev/null | jq -r '[.[].key] | join(" ")')" || linear_keys=""
+  linear_workspace="$(linear auth list 2>/dev/null | awk '$1 == "*" { print $2 }')" || linear_workspace=""
+  [[ -n "${linear_workspace}" ]] || linear_keys=""
+
+  # One row per URL: the URL, then a tab and the Linear ID it was built from.
+  # Lines are read newest first, and the first row for each URL is kept.
+  rex capture --unwrap -b "${block}" |
+    tail -r |
+    LINEAR_KEYS="${linear_keys}" LINEAR_WORKSPACE="${linear_workspace}" perl -ne '
+      BEGIN { %keys = map { $_ => 1 } split " ", $ENV{LINEAR_KEYS} }
+      for (/(https?:\/\/[^\s\x27"<>()\[\]`]+)/g) {
+        s/[.,;:!?]+$//;
+        print "$_\n" unless /\xe2\x80\xa6$/;
+      }
+      # An ID inside a URL or a longer word is skipped.
+      while (/(?<![\w\/.-])([A-Z][A-Z0-9]*)-([0-9]+)(?![\w-])/g) {
+        print "https://linear.app/$ENV{LINEAR_WORKSPACE}/issue/$1-$2\t$1-$2\n" if $keys{$1};
+      }
+    ' |
+    awk -F '\t' '!seen[$1]++'
+  exit
+fi
+
+fzf \
+  --bind "start:reload:'$0' '${block}' --list" \
+  --bind "enter:become:open {+1}" \
+  --delimiter=$'\t' \
+  --multi \
+  --prompt='URL(s)> ' \
+  --header='<TAB>: select  <ENTER>: open' \
+  --reverse || true
+
+# vim:sts=2:ts=2:sw=2:et:

@@ -46,6 +46,32 @@ end
 rex.bind("ctrl+b>g", grep_scrollback)
 rex.bind("ctrl+b>ctrl+g", grep_scrollback)
 
+-- ctrl+b u: pick URL(s) from the focused block's scrollback with fzf and open
+-- them, in a floating layer (see utils/.local/bin/fzf-rex-urls). The layer's
+-- own block is a new one, so the focused block is passed as an argument.
+-- ctrl+b ctrl+u works too, for when ctrl is still held.
+local function pick_urls(ctx)
+  rex.session.new_layer({
+    bounds = { 0.1, 0.1, 0.8, 0.8 },
+    focus = true,
+    layout = rex.layout.block({
+      flavor = "com.superlogical.terminal.shell",
+      label = "urls",
+      options = {
+        command = {
+          "bash",
+          "-lc",
+          'fzf-rex-urls "$0"',
+          ctx.block_id or "",
+        },
+      },
+    }),
+  })
+  return true
+end
+rex.bind("ctrl+b>u", pick_urls)
+rex.bind("ctrl+b>ctrl+u", pick_urls)
+
 -- ctrl+b a: focus the block that most needs attention, switching windows if
 -- needed. Programs such as Claude Code report a status with OSC 7501; blocked
 -- (waiting for input) beats error beats done, and the most recent wins.
