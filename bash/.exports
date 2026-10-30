@@ -14,6 +14,14 @@ export HISTCONTROL=ignoreboth
 export GH_TELEMETRY=false
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/.ripgreprc"
 
+# fzf
+export FZF_DEFAULT_OPTS_FILE="${HOME}/.config/fzf/config"
+export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
+export FZF_CTRL_T_COMMAND="${FZF_DEFAULT_COMMAND}"
+export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=numbers {}'"
+export FZF_ALT_C_COMMAND='fd --type d --hidden --exclude .git'
+export FZF_ALT_C_OPTS="--preview 'ls -1A --color {}'"
+
 [[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]] && PATH="${HOME}/.local/bin:${PATH}"
 [[ ":${PATH}:" != *":${HOME}/.aws:"* ]] && PATH="${HOME}/.aws:${PATH}"
 

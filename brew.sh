@@ -30,6 +30,8 @@ brew install ddgr              # duckduckgo cli
 brew install direnv            # auto source .env files
 brew install docker            # docker cli
 brew install fzf               # fuzzy finder
+brew install fd                # better find
+brew install bat               # cat with syntax highlighting
 brew install gh                # github cli
 brew install git               # git cli
 brew install git-extras        # extra git utils

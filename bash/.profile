@@ -14,6 +14,7 @@ files=(
   "/opt/homebrew/etc/profile.d/bash_completion.sh"
 )
 for file in "${files[@]}"; do
+  # shellcheck source=/dev/null # the list is built at runtime
   [ -f "${file}" ] && source "${file}"
 done
 
@@ -25,6 +26,12 @@ if [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
   shopt -s cdspell
   shopt -s autocd
   shopt -s globstar
+fi
+
+# KEY BINDINGS (interactive shells only)
+# fzf: CTRL-T inserts a file, ALT-C cds into a subdirectory, CTRL-R searches history
+if [[ $- == *i* ]]; then
+  command -v fzf >/dev/null && eval "$(fzf --bash)"
 fi
 
 # Load every key whose passphrase is already in the login Keychain into the

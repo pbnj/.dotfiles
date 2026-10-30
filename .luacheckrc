@@ -10,6 +10,7 @@ globals = {
   "pairs",
   "pcall",
   "require",
+  "rex",
   "string",
   "table",
   "type",

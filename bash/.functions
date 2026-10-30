@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2030,SC2031 # paws sandboxes HOME in its own subshell, on purpose
 
 dateiso() {
         date +"%Y%m%dT%H%M%S"
@@ -105,4 +106,348 @@ llm() {
 __git_branch() {
   local branch
   branch=$(git symbolic-ref --short HEAD 2>/dev/null) && echo " ($branch)"
+}
+# __pick_repo_spec <text>: print the owner/repo named by a GitHub URL (the
+# repo, or a pull request, issue or file in it), a clone URL or a bare
+# owner/repo; print nothing for anything else
+__pick_repo_spec() {
+	local spec="${1:-}" url=""
+	spec="${spec#"${spec%%[![:space:]]*}"}"
+	spec="${spec%"${spec##*[![:space:]]}"}"
+	spec="${spec#git@github.com:}"
+	spec="${spec#http://}"
+	spec="${spec#https://}"
+	spec="${spec#www.}"
+	if [[ "${spec}" == github.com/* ]]; then
+		url=1
+		spec="${spec#github.com/}"
+	fi
+	spec="${spec%%[?#]*}"
+	# Only a URL may carry a path past the repo: /pull/123, /issues/4, /blob/...
+	if [[ -n "${url}" && "${spec}" =~ ^([^/]+/[^/]+)/ ]]; then
+		spec="${BASH_REMATCH[1]}"
+	fi
+	spec="${spec%/}"
+	spec="${spec%.git}"
+	if [[ "${spec}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+		printf '%s\n' "${spec}"
+	fi
+}
+
+# __pick_repo_unurl <query>: print the query with a GitHub URL in it rewritten
+# to the owner/repo it names. A deep link (pull request, issue, file) is saved
+# to $PICK_REPO_LINK first, since the rewrite loses it.
+__pick_repo_unurl() {
+	local query="${1:-}" spec
+	if [[ "${query}" == *github.com[/:]* ]]; then
+		spec="$(__pick_repo_spec "${query}")"
+		if [[ -n "${spec}" ]]; then
+			if [[ "${query}" =~ (https?://)?(www\.)?github\.com/[^/[:space:]]+/[^/[:space:]]+/[^/?#[:space:]]+[^[:space:]]* ]]; then
+				printf '%s\n' "${BASH_REMATCH[0]}" >"${PICK_REPO_LINK}"
+			fi
+			query="${spec}"
+		fi
+	fi
+	printf '%s\n' "${query}"
+}
+
+# __pick_repo_search <query>: owner/repo lines from GitHub for the query. The
+# sleep is a debounce: fzf kills a running reload when the next keystroke
+# starts another, so only a pause in typing hits the API. An exact owner/repo
+# is looked up directly, since search ranks by text and may bury it.
+__pick_repo_search() {
+	local query="${1:-}" spec
+	[[ -n "${query//[[:space:]]/}" ]] || return 0
+	sleep 0.3
+	spec="$(__pick_repo_spec "${query}")"
+	if [[ -n "${spec}" ]] &&
+		gh repo view "${spec}" --json nameWithOwner --jq .nameWithOwner 2>/dev/null; then
+		return 0
+	fi
+	gh search repos --limit 50 --json fullName --jq '.[].fullName' -- "${query}" 2>/dev/null || true
+}
+
+# __pick_repo_on_query: run by fzf on every query edit; prints the fzf actions
+# that rewrite a pasted URL, and pick the list: local while the query matches
+# a local repo (or is empty), otherwise GitHub, re-searched on every edit.
+# GitHub mode is marked by " (GitHub)" in the prompt.
+__pick_repo_on_query() {
+	local query="${FZF_QUERY}" prompt="${FZF_PROMPT}" rewritten
+	# shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+	local search='reload(eval "$PICK_REPO_LIB"; __pick_repo_search {q})'
+	rewritten="$(__pick_repo_unurl "${query}")"
+	if [[ "${rewritten}" != "${query}" ]]; then
+		# the change it makes runs this again
+		printf 'change-query(%s)' "${rewritten}"
+		return
+	fi
+	if [[ -z "${query//[[:space:]]/}" ]] ||
+		fzf --filter="${query}" --delimiter=/ --with-nth=-2.. <"${PICK_REPO_LIST}" | grep -q .; then
+		# shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+		[[ "${prompt}" == *" (GitHub)> " ]] &&
+			printf 'reload(cat "$PICK_REPO_LIST")+change-prompt:%s' "${prompt% (GitHub)> }> "
+	elif [[ "${prompt}" == *" (GitHub)> " ]]; then
+		printf '%s' "${search}"
+	else
+		printf '%s+change-prompt:%s' "${search}" "${prompt%> } (GitHub)> "
+	fi
+	return 0
+}
+
+# __pick_repo [fzf options...]: print the full path of a repo picked from
+# ~/Projects/github.com/<owner>/<repo>; the list shows owner/repo only.
+# When the query matches no local repo, the list switches to a GitHub repo
+# search that re-runs as you type, and switches back once a local repo
+# matches again. A GitHub pick is cloned into ~/Projects/github.com first.
+# A pasted GitHub URL narrows the list to the repo it names; set
+# PICK_REPO_LINK to a file to get back a pasted deep link into the picked repo.
+__pick_repo() {
+	local root="${HOME}/Projects/github.com" link="${PICK_REPO_LINK:-}" own_link=""
+	local list out rc line spec picked="" args=() arg
+	if [[ -z "${link}" ]]; then
+		link="$(mktemp)"
+		own_link=1
+	fi
+	list="$(mktemp)"
+	fd . "${root}" --type d --min-depth 2 --max-depth 2 | sed 's|/$||' >"${list}"
+
+	# Rewrite a URL in the initial query now, so --select-1 can still see it.
+	for arg in "$@"; do
+		[[ "${arg}" == --query=* ]] &&
+			arg="--query=$(PICK_REPO_LINK="${link}" __pick_repo_unurl "${arg#--query=}")"
+		args+=("${arg}")
+	done
+
+	# shellcheck disable=SC2094,SC2016 # fzf only reads the list; $vars expand in fzf's shell
+	out="$(PICK_REPO_LIST="${list}" PICK_REPO_LINK="${link}" \
+		PICK_REPO_LIB="$(declare -f __pick_repo_spec __pick_repo_unurl __pick_repo_search __pick_repo_on_query)" \
+		fzf <"${list}" --with-shell='bash -c' \
+			--delimiter=/ --with-nth=-2.. --prompt='Repo> ' \
+			--preview='[[ {} == /* ]] && git -C {} log --oneline --color -15 || gh repo view {}' \
+			--bind='start,change:transform:eval "$PICK_REPO_LIB"; __pick_repo_on_query' \
+			${args[@]+"${args[@]}"})"
+	rc=$?
+	rm -f "${list}"
+
+	# A GitHub pick is a bare owner/repo; any other line (a local path, or a
+	# line from --expect or print) passes through untouched.
+	if ((rc == 0)); then
+		while IFS= read -r line; do
+			if [[ "${line}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+				line="${root}/${line}"
+				if [[ ! -d "${line}/.git" ]]; then
+					gh repo clone "${BASH_REMATCH[0]}" "${line}" >&2 || rc=1
+				fi
+			fi
+			[[ "${line}" == /* ]] && picked+="${line,,}"$'\n'
+			printf '%s\n' "${line}"
+		done <<<"${out}"
+	fi
+
+	# Keep the deep link only if it points into a repo that was picked.
+	spec="$(__pick_repo_spec "$(<"${link}")")"
+	[[ -n "${spec}" && "${picked}" == *"/${spec,,}"$'\n'* ]] || : >"${link}"
+	[[ -n "${own_link}" ]] && rm -f "${link}"
+	return "${rc}"
+}
+
+# p [query]: cd into a repo; a unique match jumps straight there
+p() {
+	local dir
+	dir="$(__pick_repo --query="${*:-}" --select-1)" || return
+	cd "${dir}" || return
+}
+
+# __fai_icon <agent>: the Nerd Font icon an agent shows as in fai's prompt
+__fai_icon() {
+	case "${1}" in
+	claude) printf '\uec82' ;;  # cod-claude
+	copilot) printf '\uec1e' ;; # cod-copilot
+	pi) printf '\ue22c' ;;      # fae-pi
+	*) printf '%s' "${1}" ;;
+	esac
+}
+
+# __fai_prefill <rex|tmux> <block|pane> <text>: wait for the agent to take over
+# the terminal and settle (the screen unchanged across two samples), then type
+# <text> into its prompt without pressing Enter. Gives up after ~30s, e.g.
+# while a folder-trust dialog waits on an answer.
+__fai_prefill() {
+	local kind="${1}" target="${2}" text="${3}" prev="" cur cmd i
+	for ((i = 0; i < 60; i++)); do
+		sleep 0.5
+		if [[ "${kind}" == rex ]]; then
+			cmd="$(rex block call -b "${target}" process 2>/dev/null |
+				jq -r '.foreground.argv0 // .foreground.name // empty')"
+			cur="$(rex capture -b "${target}" 2>/dev/null)" || return 0
+		else
+			cmd="$(tmux display-message -p -t "${target}" '#{pane_current_command}' 2>/dev/null)" || return 0
+			cur="$(tmux capture-pane -p -t "${target}" 2>/dev/null)" || return 0
+		fi
+		[[ -z "${cmd}" || "${cmd}" =~ ^-?(bash|zsh|fish|sh)$ ]] && continue
+		if [[ -n "${cur//[[:space:]]/}" && "${cur}" == "${prev}" && "${cur,,}" != *trust* ]]; then
+			if [[ "${kind}" == rex ]]; then
+				rex send -b "${target}" "${text}"
+			else
+				tmux send-keys -t "${target}" -l "${text}"
+			fi
+			return 0
+		fi
+		prev="${cur}"
+	done
+}
+
+# __fai_prefill_bg <args...>: __fai_prefill, detached so it outlives fai and
+# the picker's floating layer
+__fai_prefill_bg() {
+	# shellcheck disable=SC2016 # expanded by the detached bash
+	nohup bash -c "$(declare -f __fai_prefill)"'; __fai_prefill "$@"' _ "$@" >/dev/null 2>&1 &
+	disown
+}
+
+# fai [query...] [-- | -flag...] [args...]: run an AI agent in a picked repo
+# without leaving the current directory. Words up to the first -flag (or --)
+# seed the picker, and a unique match launches straight away; the rest go to
+# the agent. TAB / SHIFT-TAB cycle the agent shown in the prompt. The agent
+# opens in a new tmux or Rex window named after the repo (or here, outside
+# both); CTRL-O runs it here instead. A GitHub URL picks its repo, and a pull
+# request, issue or file link is typed into the agent's prompt once it starts,
+# ready to be added to and sent.
+#   fai dotfiles --model opus
+#   fai dotfiles -- "fix the failing test"
+#   fai https://github.com/owner/repo/pull/123
+fai() {
+	# Agents offered, in TAB order; the first installed one is the default.
+	# Set FAI_AGENTS (an array) to override.
+	local all=(claude copilot pi) agents=() icons=() agent query=() out lines key=enter dir link url win pane
+	[[ -n "${FAI_AGENTS[*]:-}" ]] && all=("${FAI_AGENTS[@]}")
+	for agent in "${all[@]}"; do
+		if command -v "${agent}" >/dev/null 2>&1; then
+			agents+=("${agent}")
+			icons+=("$(__fai_icon "${agent}")")
+		fi
+	done
+	if [[ ${#agents[@]} -eq 0 ]]; then
+		echo "fai: none of '${all[*]}' is installed" >&2
+		return 1
+	fi
+	while [[ $# -gt 0 && "${1}" != -* ]]; do
+		query+=("${1}")
+		shift
+	done
+	[[ "${1:-}" == -- ]] && shift
+
+	# The prompt starts with the agent's icon; find it in the icons to step to
+	# the next icon, or to print the agent it stands for.
+	# shellcheck disable=SC2016 # expanded by the shell fzf runs transform in
+	local find='a=($FAI_AGENTS) ic=($FAI_ICONS) cur=${FZF_PROMPT%%[ >]*} i=0
+		while ((i < ${#ic[@]})) && [[ ${ic[i]} != "$cur" ]]; do ((i++)); done'
+	# shellcheck disable=SC2016
+	local cycle="${find}"'
+		printf "change-prompt:%s" "${ic[(i + step + ${#ic[@]}) % ${#ic[@]}]}${FZF_PROMPT#"$cur"}"'
+	# shellcheck disable=SC2016
+	local accept="${find}"'
+		printf "print(%s)+print(%s)+accept" "$key" "${a[i]}"'
+
+	link="$(mktemp)"
+	out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" __pick_repo \
+		--prompt="${icons[0]}> " --query="${query[*]}" --select-1 \
+		--header='ENTER: new window / CTRL-O: run here / TAB: next agent' \
+		--bind="tab:transform:step=1; ${cycle}" \
+		--bind="shift-tab:transform:step=-1; ${cycle}" \
+		--bind="enter:transform:key=enter; ${accept}" \
+		--bind="ctrl-o:transform:key=ctrl-o; ${accept}")"
+	url="$(<"${link}")"
+	rm -f "${link}"
+
+	# key, agent, dir -- or just dir when --select-1 skipped the picker
+	mapfile -t lines <<<"${out}"
+	dir="${lines[-1]}"
+	[[ -d "${dir}" ]] || return 1
+	agent="${agents[0]}"
+	if [[ ${#lines[@]} -ge 3 ]]; then
+		key="${lines[0]}"
+		agent="${lines[1]}"
+	fi
+
+	# tmux first: a tmux started inside Rex inherits REX_SESSION too
+	if [[ "${key}" == ctrl-o || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then
+		if [[ -n "${url}" ]]; then
+			if [[ -n "${TMUX_PANE:-}" ]]; then
+				__fai_prefill_bg tmux "${TMUX_PANE}" "${url}"
+			elif [[ -n "${REX_BLOCK:-}" ]]; then
+				__fai_prefill_bg rex "${REX_BLOCK}" "${url}"
+			else
+				echo "fai: paste this into ${agent}: ${url}" >&2
+			fi
+		fi
+		(cd "${dir}" && "${agent}" "$@")
+	elif [[ -n "${TMUX:-}" ]]; then
+		pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
+			-- "${agent}" "$@")" || return
+		[[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
+	else
+		out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+			-- "${agent}" "$@")" || return
+		win="$(jq -r .window_id <<<"${out}")"
+		[[ -n "${url}" ]] && __fai_prefill_bg rex "$(jq -r '.block_ids[0]' <<<"${out}")" "${url}"
+		# The Rex app keeps its own selected tab, so ask it to show the new one.
+		# It only takes this with Remote Control on (Settings > Rex Server).
+		# shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
+		rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
+	fi
+}
+
+# fcd [dir]: cd into any directory below the current one (or below dir)
+fcd() {
+	local dir
+	dir="$(fd . "${1:-.}" --type d --hidden --exclude .git |
+		fzf --prompt='cd> ' --preview='ls -1A --color {}')" || return
+	cd "${dir}" || return
+}
+
+# up: pick one of the current directory's parents
+up() {
+	local dir="${PWD}" parents=()
+	while [[ "${dir}" != / ]]; do
+		dir="$(dirname "${dir}")"
+		parents+=("${dir}")
+	done
+	dir="$(printf '%s\n' "${parents[@]}" |
+		fzf --prompt='up> ' --preview='ls -1A --color {}')" || return
+	cd "${dir}" || return
+}
+
+# fe [query]: open one or more files in nvim (Tab selects several)
+fe() {
+	fd --type f --hidden --exclude .git |
+		fzf --multi --query="${*:-}" --select-1 --prompt='Edit> ' \
+			--preview='bat --color=always --style=numbers {}' \
+			--bind='enter:become(nvim {+})'
+}
+
+# frg [pattern]: live ripgrep; Enter opens nvim at the matching line
+frg() {
+	local rg='rg --column --line-number --no-heading --color=always --smart-case'
+	fzf --ansi --disabled --query="${*:-}" --prompt='rg> ' \
+		--bind="start:reload:${rg} {q} || true" \
+		--bind="change:reload:sleep 0.1; ${rg} {q} || true" \
+		--delimiter=: \
+		--preview='bat --color=always --highlight-line {2} {1}' \
+		--preview-window='up,60%,+{2}+3/3,~3' \
+		--bind='enter:become(nvim {1} +{2})'
+}
+
+# fwt: cd into one of the current repo's git worktrees
+fwt() {
+	local dir
+	dir="$(git worktree list |
+		fzf --prompt='Worktree> ' --accept-nth=1 \
+			--preview='git -C {1} log --oneline --color -10')" || return
+	cd "${dir}" || return
+}
+
+# fdot [query]: edit a file in ~/.dotfiles
+fdot() {
+	(cd "${HOME}/.dotfiles" && fe "$@")
 }
