@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Refresh user activity every minute to discourage idle locking.
+# Your idle-lock timeout must be longer than this interval.
+set -euo pipefail
+
+if ! command -v caffeinate >/dev/null 2>&1; then
+  printf 'Error: caffeinate is required (macOS only).\n' >&2
+  exit 1
+fi
+
+child_pid=''
+cleanup() {
+  if [[ -n "$child_pid" ]]; then
+    kill "$child_pid" 2>/dev/null || true
+    wait "$child_pid" 2>/dev/null || true
+  fi
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+printf 'Keeping Mac and display awake; refreshing activity every minute. Ctrl+C to stop.\n'
+
+while true; do
+  caffeinate -diu -t 60 &
+  child_pid=$!
+  wait "$child_pid"
+  child_pid=''
+done
