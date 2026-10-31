@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# gh-pr-watch-hook -- Claude Code hooks that keep a gh-pr-watch armed on every
-# PR a session opens or pushes to. Wired in ~/.claude/settings.json:
+# gh-pr-watch-hook -- Claude Code and Pi hooks that keep a gh-pr-watch armed on
+# every PR a session opens or pushes to. Wired in ~/.claude/settings.json:
 #
 #   PostToolUse, matcher Bash|Monitor|mcp__.*create_pull_request:
 #                                 gh-pr-watch-hook post-tool-use
 #   Stop:                         gh-pr-watch-hook stop
+# Pi's gh-pr-watch extension invokes the same commands with --agent pi.
 #
 # post-tool-use: once a PR is opened (gh-pr-open, gh pr create, a GitHub MCP
 #   create_pull_request) or pushed to (git push on a branch with an open PR)
@@ -14,8 +15,8 @@
 # stop: blocks the end of Claude's turn while a PR this session opened or
 #   pushed to is still open with no live watch. Only once per stop: a stop the
 #   hook already blocked (stop_hook_active) goes through, so it cannot loop.
-# ignore [-R OWNER/REPO] [PR]: no more nudges about PR in this session
-#   ($CLAUDE_CODE_SESSION_ID), for when the user does not want it watched.
+# [--agent pi] ignore [-R OWNER/REPO] [PR]: no more nudges about PR in this
+#   agent's session (CLAUDE_CODE_SESSION_ID or PI_SESSION_ID).
 #
 # A watch is live when gh-pr-watch's snapshot of the PR names this session and
 # was written within two poll intervals, or a Monitor armed it in the last
@@ -36,11 +37,12 @@ STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/gh-pr-watch-hook"
 GRACE=180
 PR_URL_RE='https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+'
 T=$'\t'
+AGENT=claude
 SESSION="" DIR="" REPO="" NUMBER=""
 
 usage() {
-  echo "usage: gh-pr-watch-hook post-tool-use|stop  (hook JSON on stdin)" >&2
-  echo "       gh-pr-watch-hook ignore [-R OWNER/REPO] [PR]" >&2
+  echo "usage: gh-pr-watch-hook [--agent claude|pi] post-tool-use|stop  (hook JSON on stdin)" >&2
+  echo "       gh-pr-watch-hook [--agent claude|pi] ignore [-R OWNER/REPO] [PR]" >&2
   exit 2
 }
 
@@ -114,8 +116,8 @@ live() {
   [ $((now - ${armed:-0})) -le "$GRACE" ] && return 0
   for f in "$CACHE/$REPO"/*/"$NUMBER".json; do
     [ -f "$f" ] || continue
-    jq -e --arg s "$SESSION" --argjson now "$now" \
-      '.watcher.claude_session == $s and ($now - .fetched_at) <= 2 * .interval + 60' \
+    jq -e --arg s "$SESSION" --arg agent "$AGENT" --argjson now "$now" \
+      '.watcher[($agent + "_session")] == $s and ($now - .fetched_at) <= 2 * .interval + 60' \
       "$f" >/dev/null 2>&1 && return 0
   done
   return 1
@@ -123,8 +125,9 @@ live() {
 
 # arm_call: the Monitor call that arms the PR's watch, and how to read it.
 arm_call() {
-  local fresh=" --fresh"
+  local fresh=" --fresh" ignore_agent=""
   [ -f "$DIR/armed/$(key)" ] && fresh=""
+  [ "$AGENT" = pi ] && ignore_agent=" --agent pi"
   cat <<EOF
 No gh-pr-watch is running on $REPO#$NUMBER in this session. Arm one now with the Monitor tool, without asking:
 
@@ -141,7 +144,7 @@ Each line it prints is an event, printed once:
 - SCALR approval: notify the user (PushNotification too, if available). Never run scalr confirm-run unasked.
 - SCALR policy / errored / no run / cannot watch, WATCH ... failing: tell the user.
 - "... -- stopping": the watch has exited; report it.
-The Monitor expires after 30 minutes and silence is not success: re-arm it, without --fresh, while the PR is open or its Scalr apply is unfinished. If the user does not want this PR watched, run: gh-pr-watch-hook ignore -R $REPO $NUMBER
+The Monitor expires after 30 minutes and silence is not success: re-arm it, without --fresh, while the PR is open or its Scalr apply is unfinished. If the user does not want this PR watched, run: gh-pr-watch-hook$ignore_agent ignore -R $REPO $NUMBER
 EOF
 }
 
@@ -239,11 +242,13 @@ ignore() {
     esac
     shift
   done
-  [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] || {
-    echo "gh-pr-watch-hook: CLAUDE_CODE_SESSION_ID is not set" >&2
+  local session_var=CLAUDE_CODE_SESSION_ID
+  [ "$AGENT" = pi ] && session_var=PI_SESSION_ID
+  [ -n "${!session_var:-}" ] || {
+    echo "gh-pr-watch-hook: $session_var is not set" >&2
     exit 1
   }
-  session "$CLAUDE_CODE_SESSION_ID"
+  session "${!session_var}"
   resolve "$pr" "$repo" . || {
     echo "gh-pr-watch-hook: no PR found${pr:+ for $pr}" >&2
     exit 1
@@ -252,6 +257,13 @@ ignore() {
   touch "$DIR/ignored/$(key)"
   echo "not nudging about $REPO#$NUMBER for the rest of this session"
 }
+
+if [ "${1:-}" = --agent ]; then
+  [ $# -ge 2 ] || usage
+  AGENT=$2
+  shift 2
+fi
+case "$AGENT" in claude | pi) ;; *) usage ;; esac
 
 case "${1:-}" in
 post-tool-use) post_tool_use ;;
