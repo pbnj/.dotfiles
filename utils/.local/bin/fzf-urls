@@ -5,6 +5,10 @@
 #              fzf and open them. Newest first.
 #              Linear issue IDs (ENG-123) are listed too, as their issue URL,
 #              when their prefix is a team key from `linear team list`.
+#              GitHub references are listed too, as their issue URL (GitHub
+#              redirects it to the PR when the number is one): owner/repo#123
+#              as written, and repo#123 when a clone of repo is under
+#              ~/Projects/github.com/<owner>/, once per owner.
 #              tmux keeps OSC 8 hyperlink targets (apps like Claude Code show a
 #              label and hide the URL in the escape), so those are listed too.
 #              Rex's captures don't carry them, so there only URLs shown as
@@ -48,14 +52,36 @@ capture() {
 }
 
 if [[ "${2:-}" == "--list" ]]; then
-  # Space-separated team keys, and the default workspace's slug for the URL.
-  linear_keys="$(linear team list --json 2>/dev/null | jq -r '[.[].key] | join(" ")')" || linear_keys=""
-  linear_workspace="$(linear auth list 2>/dev/null | awk '$1 == "*" { print $2 }')" || linear_workspace=""
-  [[ -n "${linear_workspace}" ]] || linear_keys=""
+  # The default Linear workspace's slug for the URL, and its space-separated
+  # team keys. They rarely change, so they're cached for a day; the two linear
+  # calls run at once when the cache is refreshed.
+  linear_cache="${XDG_CACHE_HOME:-${HOME}/.cache}/fzf-urls/linear"
+  if [[ -z "$(find "${linear_cache}" -mmin -1440 2>/dev/null)" ]]; then
+    mkdir -p "${linear_cache%/*}"
+    tmp="$(mktemp "${linear_cache}.XXXXXX")"
+    linear team list --json >"${tmp}.teams" 2>/dev/null &
+    linear auth list 2>/dev/null | awk '$1 == "*" { print $2 }' >"${tmp}" || true
+    wait $! || true
+    if [[ -s "${tmp}" && -s "${tmp}.teams" ]]; then
+      jq -r '[.[].key] | join(" ")' "${tmp}.teams" >>"${tmp}" 2>/dev/null || true
+      mv "${tmp}" "${linear_cache}"
+    fi
+    rm -f "${tmp}" "${tmp}.teams"
+  fi
+  { read -r linear_workspace && read -r linear_keys; } <"${linear_cache}" 2>/dev/null || true
+  [[ -n "${linear_workspace:-}" ]] || linear_workspace="" linear_keys=""
+
+  # Space-separated owner/repo of every local clone, for repo#123.
+  shopt -s nullglob
+  clones=("${HOME}"/Projects/github.com/*/*/)
+  shopt -u nullglob
+  clones=("${clones[@]%/}")
+  clones=("${clones[@]#"${HOME}"/Projects/github.com/}")
+  github_repos="${clones[*]-}"
 
   # One row per URL: the URL, then a tab and where it came from (@url, or the
-  # Linear ID it was built from). Lines are read newest first, and the first
-  # row for each URL is kept.
+  # Linear ID or GitHub reference it was built from). Lines are read newest
+  # first, and the first row for each URL is kept.
   {
     if [[ "${target}" == %* ]]; then
       url="$(tmux display-message -p -t "${target}" '#{@url}')"
@@ -63,8 +89,13 @@ if [[ "${2:-}" == "--list" ]]; then
     fi
     capture |
     perl -e 'print reverse <>' |
-    LINEAR_KEYS="${linear_keys}" LINEAR_WORKSPACE="${linear_workspace}" perl -ne '
-      BEGIN { %keys = map { $_ => 1 } split " ", $ENV{LINEAR_KEYS} }
+    LINEAR_KEYS="${linear_keys}" LINEAR_WORKSPACE="${linear_workspace}" \
+      GITHUB_REPOS="${github_repos}" perl -ne '
+      BEGIN {
+        %keys = map { $_ => 1 } split " ", $ENV{LINEAR_KEYS};
+        # Lowercased repo name => owner/repo of each clone of it.
+        push @{ $clones{lc((split m{/})[1])} }, $_ for split " ", $ENV{GITHUB_REPOS};
+      }
       # OSC 8 hyperlink targets, then strip escapes to read the text. A target
       # is taken as the app sent it, except that it ends at "|" or a
       # box-drawing border, which apps that link URLs in text can sweep in.
@@ -80,6 +111,13 @@ if [[ "${2:-}" == "--list" ]]; then
       # An ID inside a URL or a longer word is skipped.
       while (/(?<![\w\/.-])([A-Z][A-Z0-9]*)-([0-9]+)(?![\w-])/g) {
         print "https://linear.app/$ENV{LINEAR_WORKSPACE}/issue/$1-$2\t$1-$2\n" if $keys{$1};
+      }
+      # GitHub references: owner/repo#123, or repo#123 for a local clone. A
+      # reference inside a URL, a path or a longer word is skipped.
+      while (/(?<![\w\/.#-])(?:([A-Za-z0-9][A-Za-z0-9-]*)\/)?([\w.-]+)#([0-9]+)(?![\w-])/g) {
+        my ($o, $r, $n) = ($1, $2, $3);
+        my @repos = defined $o ? ("$o/$r") : @{ $clones{lc $r} || [] };
+        print "https://github.com/$_/issues/$n\t", (defined $o ? "$o/" : ""), "$r#$n\n" for @repos;
       }
     '
   } |
