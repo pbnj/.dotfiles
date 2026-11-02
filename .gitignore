@@ -33,6 +33,7 @@ spell/*
 ssh/.ssh/*
 tags*
 tmp/
+utils/.local/bin/braintrust-setup
 utils/.local/bin/claude
 utils/.local/bin/custodian
 utils/.local/bin/cz
@@ -40,6 +41,7 @@ utils/.local/bin/devpod
 utils/.local/bin/git-cz
 utils/.local/bin/linear-claude-cloud
 utils/.local/bin/pi
+utils/.local/bin/poetry
 utils/.local/bin/pre-commit
 utils/.local/bin/prek
 utils/.local/bin/twg
