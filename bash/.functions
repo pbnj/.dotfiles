@@ -352,6 +352,7 @@ __fai_prefill_bg() {
 # fai asks for one (seeded with any link below) unless args already give it. A GitHub URL picks its repo, and a pull
 # request, issue or file link is typed into the agent's prompt once it starts,
 # ready to be added to and sent.
+# Set FAI_PICK=1 to always stop at the picker, even on a unique match.
 #   fai dotfiles --model opus
 #   fai dotfiles -- "fix the failing test"
 #   fai https://github.com/owner/repo/pull/123
@@ -359,6 +360,8 @@ fai() {
 	# Agents offered, in TAB order; the first installed one is the default.
 	# Set FAI_AGENTS (an array) to override.
 	local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane
+	local select=(--select-1)
+	[[ -n "${FAI_PICK:-}" ]] && select=()
 	[[ -n "${FAI_AGENTS[*]:-}" ]] && all=("${FAI_AGENTS[@]}")
 	for agent in "${all[@]}"; do
 		cmd="${agent}"
@@ -392,7 +395,7 @@ fai() {
 
 	link="$(mktemp)"
 	out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" __pick_repo \
-		--prompt="${icons[0]}> " --query="${query[*]}" --select-1 \
+		--prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
 		--header='ENTER: new window / CTRL-O: run here / TAB: next agent / CTRL-X: delete' \
 		--bind="tab:transform:step=1; ${cycle}" \
 		--bind="shift-tab:transform:step=-1; ${cycle}" \

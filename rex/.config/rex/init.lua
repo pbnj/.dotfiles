@@ -7,25 +7,43 @@
 -- inside Rex.
 rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 
--- ctrl+b p: pick a project with fai (see bash/.functions) in a floating
--- layer, like a tmux popup. fai opens each pick in a new Rex window, and the
--- layer closes once fai exits. bash -l loads ~/.profile, which sources fai;
--- -i makes it an interactive shell. ctrl+b ctrl+p works too, for when ctrl is
--- still held.
-local function pick_project()
-  rex.session.new_layer({
-    bounds = { 0.1, 0.1, 0.8, 0.8 },
-    focus = true,
-    layout = rex.layout.block({
-      flavor = "com.superlogical.terminal.shell",
-      label = "fai",
-      options = { command = { "bash", "-lic", "fai" } },
-    }),
-  })
-  return true
-end
-rex.bind("ctrl+b>p", pick_project)
-rex.bind("ctrl+b>ctrl+p", pick_project)
+-- fai: pick a project with fai (see bash/.functions) in a floating layer,
+-- like a tmux popup. fai opens each pick in a new Rex window, and the layer
+-- closes once fai exits. bash -l loads ~/.profile, which sources fai; -i
+-- makes it an interactive shell. An optional url is passed to fai, which
+-- picks a GitHub URL's repo and types a deep link into the agent's prompt;
+-- the browser hotkey (macos/.local/share/agent-url) runs this with the
+-- frontmost tab's URL. With a url, FAI_PICK keeps the picker open even on a
+-- unique match, so TAB can still choose the agent before Enter.
+rex.action({
+  name = "fai",
+  title = "Pick a Project with fai",
+  args = { url = "string?" },
+  run = function(_, args)
+    local command = { "bash", "-lic", "fai", "bash" }
+    if args and args.url and args.url ~= "" then
+      command = { "bash", "-lic", 'FAI_PICK=1 fai "$@"', "bash", args.url }
+    end
+    local _, err = rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "fai",
+        options = { command = command },
+      }),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+    return true
+  end,
+})
+
+-- ctrl+b p: fai with no URL. ctrl+b ctrl+p works too, for when ctrl is still
+-- held.
+rex.bind("ctrl+b>p", "fai")
+rex.bind("ctrl+b>ctrl+p", "fai")
 
 -- ctrl+b g: fuzzy-grep the scrollback of every block in a floating layer,
 -- and jump to the chosen line (see utils/.local/bin/fzf-rex-grep). bash -l

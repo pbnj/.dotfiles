@@ -1,89 +1,94 @@
 #!/usr/bin/python3
-"""Build URL capture and safely merge native agent-url hotkeys into Tinycast."""
+"""Build URL capture and safely merge the browser-URL → fai hotkey into Tinycast."""
 
 import argparse
-from datetime import datetime
 import json
 import os
-from pathlib import Path
 import plistlib
 import subprocess
 import tempfile
 import time
 import uuid
+from datetime import datetime
+from pathlib import Path
 
 from launch import CACHE, ROOT, load_config
 
 DOMAIN = "com.tinycast.app"
 HYPER = 256 | 2048 | 4096  # Carbon cmdKey | optionKey | controlKey
 SHIFT = 512
+COMMAND_KEY = "fai"
+# Every command this launcher owns is named with this prefix.
+NAME_PREFIX = "Browser URL — "
 
 
 def command_id(key):
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "local:tinycast-agent-url:" + key))
 
 
+def owned_ids(commands):
+    """IDs (lowercase) of our commands: named "Browser URL — …" or running
+    agent-url. A legacy preset's ID is not enough, since a command re-purposed
+    in Tinycast Settings keeps its ID."""
+    owned = {command_id(COMMAND_KEY)}
+    owned |= {
+        command["id"].lower()
+        for command in commands
+        if command.get("name", "").startswith(NAME_PREFIX)
+        or "/.local/bin/agent-url" in command.get("command", "")
+    }
+    return owned
+
+
 def configure(preferences, config):
-    """Pure merge: never overwrite someone else's command or hotkey."""
+    """Pure merge: replace our commands, never someone else's command or hotkey."""
     if preferences.get("hyperKeyPhysicalKey", "none") == "none":
         raise ValueError("Enable your Hyper key in Tinycast before installing.")
-    if preferences.get("hyperKeyIncludesShift", False):
-        raise ValueError(
-            "Tinycast Hyper must exclude Shift to distinguish Copilot hotkeys."
-        )
     updated = dict(preferences)
     commands = json.loads(preferences.get("customCommands", b"[]"))
-    owned = {command_id(key) for key in config["presets"]}
+    owned = owned_ids(commands)
     existing = [command for command in commands if command["id"].lower() not in owned]
-    names = {command["name"].casefold() for command in existing}
-    bound = set(preferences.get("boundCustomCommandIDs", []))
-    desired_chords = set()
-    for key, preset in config["presets"].items():
-        identifier = command_id(key)
-        binding_key = "hotkey.customCommand." + identifier
-        modifiers = HYPER | (SHIFT if preset["shift"] else 0)
-        chord = {"carbonKeyCode": preset["key_code"], "carbonModifiers": modifiers}
-        signature = (preset["key_code"], modifiers)
-        if signature in desired_chords:
-            raise ValueError("Duplicate shortcut in config.json: " + key)
-        desired_chords.add(signature)
-        for pref_key, value in preferences.items():
-            if not pref_key.startswith("hotkey.") or pref_key == binding_key:
-                continue
-            # An old binding for one of our other presets will be replaced below.
-            if pref_key.removeprefix("hotkey.customCommand.") in owned:
-                continue
-            try:
-                assigned = json.loads(value).get("combo", {}).get("_0")
-            except (TypeError, ValueError):
-                continue
-            if assigned == chord:
-                raise ValueError(
-                    "Shortcut for {} is already assigned to {}.".format(key, pref_key)
-                )
-        if preset["name"].casefold() in names:
-            raise ValueError("A custom command already uses the name " + preset["name"])
-        names.add(preset["name"].casefold())
-        existing.append(
-            {
-                "id": identifier,
-                "name": preset["name"],
-                "command": 'exec "$HOME/.local/bin/agent-url" ' + key,
-                "isEnabled": True,
-                "showsInRootSearch": True,
-                "loadsShellEnvironment": False,
-                "requiresConfirmation": False,
-                "showsConfirmation": False,
-                "showsOutput": False,
-                "arguments": [],
-                "workingDirectory": "~",
-                "iconSymbol": "terminal",
-            }
-        )
-        updated[binding_key] = json.dumps(
-            {"combo": {"_0": chord}}, separators=(",", ":")
-        )
-        bound.add(identifier)
+    bound = {
+        identifier
+        for identifier in preferences.get("boundCustomCommandIDs", [])
+        if identifier.lower() not in owned
+    }
+    for pref_key in preferences:
+        if pref_key.startswith("hotkey.customCommand.") and (
+            pref_key.removeprefix("hotkey.customCommand.").lower() in owned
+        ):
+            del updated[pref_key]
+    identifier = command_id(COMMAND_KEY)
+    binding_key = "hotkey.customCommand." + identifier
+    modifiers = HYPER | (SHIFT if config["shift"] else 0)
+    chord = {"carbonKeyCode": config["key_code"], "carbonModifiers": modifiers}
+    for pref_key, value in updated.items():
+        if not pref_key.startswith("hotkey."):
+            continue
+        try:
+            assigned = json.loads(value).get("combo", {}).get("_0")
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if assigned == chord:
+            raise ValueError("The shortcut is already assigned to " + pref_key)
+    existing.append(
+        {
+            "id": identifier,
+            "name": config["name"],
+            "command": 'exec "$HOME/.local/bin/agent-url"',
+            "isEnabled": True,
+            "showsInRootSearch": True,
+            "loadsShellEnvironment": False,
+            "requiresConfirmation": False,
+            "showsConfirmation": False,
+            "showsOutput": False,
+            "arguments": [],
+            "workingDirectory": "~",
+            "iconSymbol": "terminal",
+        }
+    )
+    updated[binding_key] = json.dumps({"combo": {"_0": chord}}, separators=(",", ":"))
+    bound.add(identifier)
     updated["customCommands"] = json.dumps(existing, separators=(",", ":")).encode()
     updated["boundCustomCommandIDs"] = sorted(bound)
     updated["customCommandsEnabled"] = True
@@ -97,7 +102,9 @@ def export_preferences():
     return plistlib.loads(result.stdout)
 
 
-def import_preferences(preferences):
+def import_preferences(preferences, remove=()):
+    """Merge preferences into the domain (defaults import never deletes), then
+    delete the keys in remove."""
     with tempfile.NamedTemporaryFile(suffix=".plist") as handle:
         handle.write(plistlib.dumps(preferences))
         handle.flush()
@@ -106,12 +113,16 @@ def import_preferences(preferences):
             check=True,
             stdout=subprocess.DEVNULL,
         )
+    for key in remove:
+        subprocess.run(["/usr/bin/defaults", "delete", DOMAIN, key], check=True)
 
 
 def is_running():
     return (
         subprocess.run(
-            ["/usr/bin/pgrep", "-x", "Tinycast"], stdout=subprocess.DEVNULL
+            ["/usr/bin/pgrep", "-x", "Tinycast"],
+            stdout=subprocess.DEVNULL,
+            check=False,
         ).returncode
         == 0
     )
@@ -119,10 +130,10 @@ def is_running():
 
 def build_helper():
     CACHE.mkdir(parents=True, exist_ok=True)
-    binary = CACHE / "browser-url"
-    source = ROOT / "browser-url.swift"
+    binary = CACHE / "fai"
+    source = ROOT / "fai.swift"
     if not binary.exists() or source.stat().st_mtime > binary.stat().st_mtime:
-        temporary = CACHE / "browser-url.build"
+        temporary = CACHE / "fai.build"
         subprocess.run(
             [
                 "/usr/bin/swiftc",
@@ -151,16 +162,11 @@ def main():
         export_preferences(), config
     )  # Preflight before building, quitting, or writing.
     if args.check:
-        print(
-            "All {} native shortcuts are available (or already owned by agent-url).".format(
-                len(config["presets"])
-            )
-        )
+        print("The shortcut is available (or already owned by agent-url).")
         return
     live = Path.home() / ".local/share/agent-url"
-    if live.exists() or live.is_symlink():
-        if live.resolve() != ROOT:
-            raise ValueError("Refusing to replace existing " + str(live))
+    if (live.exists() or live.is_symlink()) and live.resolve() != ROOT:
+        raise ValueError("Refusing to replace existing " + str(live))
     wrapper = Path.home() / ".local/bin/agent-url"
     if not wrapper.exists():
         raise ValueError("Install utils/.local/bin/agent-url into ~/.local/bin first.")
@@ -202,17 +208,18 @@ def main():
             os.fchmod(handle.fileno(), 0o600)
             handle.write(plistlib.dumps(original))
         try:
-            import_preferences(updated)
+            import_preferences(updated, remove=sorted(original.keys() - updated.keys()))
             actual = export_preferences()
             for key in updated:
                 if actual.get(key) != updated[key]:
                     raise ValueError("Preference verification failed: " + key)
+            for key in original.keys() - updated.keys():
+                if key in actual:
+                    raise ValueError("Preference verification failed: " + key)
         except Exception:
             import_preferences(original)
             raise
-        print(
-            "Installed {} Tinycast commands and hotkeys.".format(len(config["presets"]))
-        )
+        print("Installed the Tinycast command and hotkey: " + config["name"])
         print("Previous preferences: " + str(backup))
     finally:
         if was_running:
