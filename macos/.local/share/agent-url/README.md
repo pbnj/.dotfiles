@@ -1,7 +1,7 @@
 # Browser URL → fai
 
 A native Tinycast hotkey that opens the frontmost browser tab's URL in
-[`fai`](../../../../bash/.functions), the Rex fuzzy project launcher.
+[`fai`](../../../../utils/.local/bin/fai), the Rex fuzzy project launcher.
 
 | Shortcut | Runs        |
 | -------- | ----------- |
@@ -15,10 +15,11 @@ Rex's `ctrl+b f`, but seeded with the URL:
   needed) and, with a unique match, launches the default agent straight away in
   a new Rex window. A pull request, issue or file link is typed into the agent's
   prompt, unsubmitted.
-- Any other URL becomes the picker's query, which falls back to a GitHub repo
-  search; edit it to pick a repo. Its link is not prefilled.
-- TAB / SHIFT-TAB in the picker choose the agent; see `fai` in `bash/.functions`
-  for the rest.
+- Any other URL (a Linear issue, a blog post) is shown under the picker, which
+  lists your repos; pick one, and the URL is typed into the agent's prompt,
+  unsubmitted.
+- TAB / SHIFT-TAB in the picker choose the agent; see
+  [`fai`](../../../../utils/.local/bin/fai) for the rest.
 
 ## How it works
 
