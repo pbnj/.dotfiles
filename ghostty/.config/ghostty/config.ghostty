@@ -21,10 +21,10 @@ window-new-tab-position = current
 window-show-tab-bar = auto
 
 # ghostty +list-fonts
-font-family = "JetBrainsMono"
+font-family = "IoskeleyMonoTerm Nerd Font Mono"
 
 # ghostty +list-themes
-theme = "light:TokyoNight Day,dark:TokyoNight Moon"
+# theme = "light:TokyoNight Day,dark:TokyoNight Moon"
 
 # Keybindings
 # https://ghostty.org/docs/config/keybind/reference

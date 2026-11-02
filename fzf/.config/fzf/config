@@ -1,3 +1,4 @@
+--color=16
 --bind='ctrl-j:preview-down'
 --bind='ctrl-k:preview-up'
 --bind='ctrl-d:preview-half-page-down'
