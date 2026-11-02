@@ -87,8 +87,8 @@ printf x > /tmp/f.toml && mdls -raw -name kMDItemContentType /tmp/f.toml
   That is why it is last: tmux can place a window inside the session you are
   already looking at.
 - The tmux window is named after the basename of the file's git root, the same
-  convention as `fzf-tmux-project`, so a Finder open lands next to the work
-  instead of alongside it.
+  convention as `fai`, so a Finder open lands next to the work instead of
+  alongside it.
 - tmux can be running with nothing on screen (a detached session). In that case
   the wrapper still creates the window, then opens a Ghostty window running
   `tmux attach` so it is visible. tmux is never _started_ on your behalf: no

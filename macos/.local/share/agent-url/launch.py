@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -115,7 +116,37 @@ def fai_command(rex, session):
     return [rex, "do", "-s", session, REX_ACTION, "--args", "-"]
 
 
+def frontmost():
+    """Bundle ID of the frontmost app, or "" if it can't be read."""
+    result = subprocess.run(
+        [
+            "/usr/bin/osascript",
+            "-e",
+            "id of application (path to frontmost application as text)",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    return result.stdout.strip()
+
+
+def activate_rex(timeout=3.0, interval=0.05):
+    """Bring the Rex app to the front and wait until it is.
+
+    A layer created while Rex is in the background shows in front, but once
+    the app activates it gives keyboard focus back to the block it had.
+    Created after activation, the layer gets focus as with ctrl+b p.
+    """
+    subprocess.run(["/usr/bin/open", "-b", REX_BUNDLE], check=False)
+    deadline = time.monotonic() + timeout
+    while frontmost() != REX_BUNDLE and time.monotonic() < deadline:
+        time.sleep(interval)
+
+
 def open_fai(rex, session, url):
+    activate_rex()
     result = subprocess.run(
         fai_command(rex, session),
         input=json.dumps({"url": url}),
@@ -126,7 +157,6 @@ def open_fai(rex, session, url):
     )
     if result.returncode:
         raise ValueError("Rex could not open fai: " + result.stderr.strip())
-    subprocess.run(["/usr/bin/open", "-b", REX_BUNDLE], check=False)
 
 
 def main():

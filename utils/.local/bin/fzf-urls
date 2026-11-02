@@ -1,39 +1,105 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# fuzzy open URLs
+# Author: Peter Benjamin
+# Description: Pick URL(s) from a tmux pane's or a Rex block's scrollback with
+#              fzf and open them. Newest first.
+#              Linear issue IDs (ENG-123) are listed too, as their issue URL,
+#              when their prefix is a team key from `linear team list`.
+#              tmux keeps OSC 8 hyperlink targets (apps like Claude Code show a
+#              label and hide the URL in the escape), so those are listed too.
+#              Rex's captures don't carry them, so there only URLs shown as
+#              text are found. A label an app truncated with "…" is skipped.
+#              Full-screen apps (alternate screen) keep their own scrollback,
+#              so only what they currently show is visible.
+#              In tmux, the pane's (else its window's) @url option, if set, is
+#              listed first.
+# Dependencies: brew install fzf jq; the linear CLI, logged in (optional:
+#               without it only URLs are listed)
+# Usage: fzf-urls [PANE|BLOCK]
+#        A tmux pane (%3) or a Rex block (block:...). Defaults to TMUX_PANE in
+#        tmux, else REX_BLOCK.
+#        tmux: bind with run-shell -b, passing '#{pane_id}'; the picker opens
+#        in a tmux popup.
+#        Rex: bind to a floating layer, passing the block that was focused, so
+#        the picker closes once URLs are opened.
 
 set -euo pipefail
-[[ -n "${DEBUG:-}" ]] && set -x
+[[ "${DEBUG:-}" == "true" ]] && set -x
 
-# How it works:
-#   1. Dump content of tmux buffer, escape sequences included, to stdout.
-#   2. Collect OSC 8 hyperlink targets (apps like Claude Code show a label and
-#      hide the URL in the escape), then strip escapes and grep plain URLs.
-#   3. Search & select one or more URLs via `fzf` fuzzy finder.
-#   4. Open selected URL(s).
-#
-# Full-screen apps (alternate screen) keep their own scrollback, so only what
-# they currently show is visible to tmux.
+target="${1:-}"
+if [[ -z "${target}" ]]; then
+  if [[ -n "${TMUX:-}" && -n "${TMUX_PANE:-}" ]]; then
+    target="${TMUX_PANE}"
+  else
+    target="${REX_BLOCK:-}"
+  fi
+fi
 
-if [[ "${1:-}" == "--list" ]]; then
-  tmux capture-pane -epJS- |
-    perl -ne '
-      print "$1\n" while /\e\]8;[^;\a\e]*;(https?:\/\/[^\a\e]+)/g;
+# capture: the target's scrollback, joined lines, oldest first
+capture() {
+  case "${target}" in
+  %*) tmux capture-pane -epJS- -t "${target}" ;;
+  block:*) rex capture --unwrap -b "${target}" ;;
+  *)
+    echo "fzf-urls: not a tmux pane or Rex block: '${target}'" >&2
+    return 1
+    ;;
+  esac
+}
+
+if [[ "${2:-}" == "--list" ]]; then
+  # Space-separated team keys, and the default workspace's slug for the URL.
+  linear_keys="$(linear team list --json 2>/dev/null | jq -r '[.[].key] | join(" ")')" || linear_keys=""
+  linear_workspace="$(linear auth list 2>/dev/null | awk '$1 == "*" { print $2 }')" || linear_workspace=""
+  [[ -n "${linear_workspace}" ]] || linear_keys=""
+
+  # One row per URL: the URL, then a tab and where it came from (@url, or the
+  # Linear ID it was built from). Lines are read newest first, and the first
+  # row for each URL is kept.
+  {
+    if [[ "${target}" == %* ]]; then
+      url="$(tmux display-message -p -t "${target}" '#{@url}')"
+      [[ -n "${url}" ]] && printf '%s\t@url\n' "${url}"
+    fi
+    capture |
+    perl -e 'print reverse <>' |
+    LINEAR_KEYS="${linear_keys}" LINEAR_WORKSPACE="${linear_workspace}" perl -ne '
+      BEGIN { %keys = map { $_ => 1 } split " ", $ENV{LINEAR_KEYS} }
+      # OSC 8 hyperlink targets, then strip escapes to read the text. A target
+      # is taken as the app sent it, except that it ends at "|" or a
+      # box-drawing border, which apps that link URLs in text can sweep in.
+      print "$1\n" while /\e\]8;[^;\a\e]*;(https?:\/\/(?:(?!\xe2[\x94\x95])[^\a\e|])+)/g;
       s/\e\][^\a\e]*(?:\a|\e\\)//g;
       s/\e\[[0-9;:?<=>]*[ -\/]*[@-~]//g;
-      # Skip labels an app truncated with "…"; their full target came via OSC 8.
-      for (/(https?:\/\/[^\s\x27")]+)/g) { print "$_\n" unless /\xe2\x80\xa6$/ }
-    ' |
-    sort -u
+      # A URL stops at whitespace, quotes, brackets, backticks, "|", and the
+      # box-drawing borders TUIs draw (U+2500-U+257F: \xe2\x94 or \xe2\x95).
+      for (/(https?:\/\/(?:(?!\xe2[\x94\x95])[^\s\x27"<>()\[\]`|])+)/g) {
+        s/[.,;:!?]+$//;
+        print "$_\n" unless /\xe2\x80\xa6$/;
+      }
+      # An ID inside a URL or a longer word is skipped.
+      while (/(?<![\w\/.-])([A-Z][A-Z0-9]*)-([0-9]+)(?![\w-])/g) {
+        print "https://linear.app/$ENV{LINEAR_WORKSPACE}/issue/$1-$2\t$1-$2\n" if $keys{$1};
+      }
+    '
+  } |
+    awk -F '\t' '!seen[$1]++'
   exit
 fi
 
+capture >/dev/null
+
+popup=()
+[[ "${target}" == %* ]] && popup=(--tmux 'center,80%')
+
 fzf \
-  --bind "start:reload:'$0' --list" \
-  --bind "enter:become:open {+}" \
+  --bind "start:reload:'$0' '${target}' --list" \
+  --bind "enter:become:open {+1}" \
+  --delimiter=$'\t' \
   --multi \
   --prompt='URL(s)> ' \
+  --header='<TAB>: select  <ENTER>: open' \
   --reverse \
-  --tmux 'center,80%' || true
+  ${popup[@]+"${popup[@]}"} || true
 
 # vim:sts=2:ts=2:sw=2:et:

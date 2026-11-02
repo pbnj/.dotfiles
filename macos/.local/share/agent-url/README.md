@@ -28,10 +28,11 @@ Rex's `ctrl+b p`, but seeded with the URL:
    helper (Accessibility's window document URL, else the address bar via
    Command+L; never the clipboard). Firefox, Brave, Chrome, Safari, Edge, Arc,
    Zen, Vivaldi and Opera are supported.
-3. It finds the session the connected Rex app shows and runs the `fai` action
-   from `rex/.config/rex/init.lua` there (`rex do -s SESSION fai --args -`). The
-   URL goes on stdin, so it never lands in argv. Then it brings Rex to the
-   front.
+3. It brings Rex to the front and waits until it is frontmost, then runs the
+   `fai` action from `rex/.config/rex/init.lua` in the session the Rex app shows
+   (`rex do -s SESSION fai --args -`). The URL goes on stdin, so it never lands
+   in argv. A layer created while Rex was still in the background would show in
+   front, but keyboard focus would stay on the block behind it.
 
 The Rex app must be running; otherwise Tinycast shows an error.
 

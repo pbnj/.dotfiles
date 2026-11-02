@@ -351,7 +351,8 @@ __fai_prefill_bg() {
 # claude.ai/code, attached with `claude --cloud`; it needs a task up front, so
 # fai asks for one (seeded with any link below) unless args already give it. A GitHub URL picks its repo, and a pull
 # request, issue or file link is typed into the agent's prompt once it starts,
-# ready to be added to and sent.
+# ready to be added to and sent. In tmux, the new window's @url is the repo and
+# its pane's is that link, for prefix C-u.
 # Set FAI_PICK=1 to always stop at the picker, even on a unique match.
 #   fai dotfiles --model opus
 #   fai dotfiles -- "fix the failing test"
@@ -403,6 +404,7 @@ fai() {
 		--bind="ctrl-o:transform:key=ctrl-o; ${accept}")"
 	url="$(<"${link}")"
 	rm -f "${link}"
+	link="${url}" # kept for tmux's @url; the cloud agent clears url below
 
 	# key, agent, dir -- or just dir when --select-1 skipped the picker
 	mapfile -t lines <<<"${out}"
@@ -430,7 +432,9 @@ fai() {
 		if [[ -n "${url}" ]]; then
 			if [[ -n "${TMUX_PANE:-}" ]]; then
 				__fai_prefill_bg tmux "${TMUX_PANE}" "${url}"
-			elif [[ -n "${REX_BLOCK:-}" ]]; then
+			elif [[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]]; then
+				# A tmux popup has TMUX but no TMUX_PANE; a REX_BLOCK there is
+				# the block running tmux, not this agent.
 				__fai_prefill_bg rex "${REX_BLOCK}" "${url}"
 			else
 				echo "fai: paste this into ${agent}: ${url}" >&2
@@ -440,6 +444,12 @@ fai() {
 	elif [[ -n "${TMUX:-}" ]]; then
 		pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
 			-- "${cmd[@]}" "$@")" || return
+		# @url: the window's links its tab to the repo; the pane's is the deep
+		# link it was opened with. Both are listed by prefix C-u (fzf-urls).
+		if [[ "${dir}" == "${HOME}/Projects/github.com/"*/* ]]; then
+			tmux set-option -w -t "${pane}" @url "https://github.com/${dir#"${HOME}/Projects/github.com/"}"
+		fi
+		[[ -n "${link}" ]] && tmux set-option -p -t "${pane}" @url "${link}"
 		[[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
 	else
 		out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \

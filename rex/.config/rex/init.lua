@@ -65,7 +65,7 @@ rex.bind("ctrl+b>g", grep_scrollback)
 rex.bind("ctrl+b>ctrl+g", grep_scrollback)
 
 -- ctrl+b u: pick URL(s) from the focused block's scrollback with fzf and open
--- them, in a floating layer (see utils/.local/bin/fzf-rex-urls). The layer's
+-- them, in a floating layer (see utils/.local/bin/fzf-urls). The layer's
 -- own block is a new one, so the focused block is passed as an argument.
 -- ctrl+b ctrl+u works too, for when ctrl is still held.
 local function pick_urls(ctx)
@@ -79,7 +79,7 @@ local function pick_urls(ctx)
         command = {
           "bash",
           "-lc",
-          'fzf-rex-urls "$0"',
+          'fzf-urls "$0"',
           ctx.block_id or "",
         },
       },

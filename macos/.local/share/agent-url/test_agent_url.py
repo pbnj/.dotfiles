@@ -82,20 +82,45 @@ class LauncherTests(unittest.TestCase):
         ):
             launch.rex_target()
 
-    def test_open_fai_sends_the_url_on_stdin_and_shows_rex(self):
+    def test_open_fai_activates_rex_first_then_sends_the_url_on_stdin(self):
         url = "https://github.com/org/repo/pull/1?token=secret"
-        with self.ls("") as run:
+        with patch("launch.activate_rex") as activate, self.ls("") as run:
+            activate.side_effect = lambda: self.assertEqual(run.call_count, 0)
             launch.open_fai("/bin/rex", SESSION, url)
-        action, show = run.call_args_list
+        activate.assert_called_once()
+        (action,) = run.call_args_list
         argv = action.args[0]
         self.assertEqual(argv, ["/bin/rex", "do", "-s", SESSION, "fai", "--args", "-"])
         self.assertNotIn(url, " ".join(argv))
         self.assertEqual(json.loads(action.kwargs["input"]), {"url": url})
-        self.assertEqual(show.args[0], ["/usr/bin/open", "-b", launch.REX_BUNDLE])
 
-    def test_open_fai_failure_raises_without_showing_rex(self):
+    def test_activate_rex_waits_until_rex_is_frontmost(self):
+        fronts = iter(["com.google.Chrome", "com.google.Chrome", launch.REX_BUNDLE])
+        with (
+            patch("launch.frontmost", side_effect=lambda: next(fronts)),
+            patch("launch.time.sleep") as sleep,
+            self.ls("") as run,
+        ):
+            launch.activate_rex()
+        self.assertEqual(
+            run.call_args.args[0], ["/usr/bin/open", "-b", launch.REX_BUNDLE]
+        )
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_activate_rex_gives_up_after_the_timeout(self):
+        with (
+            patch("launch.frontmost", return_value="com.google.Chrome"),
+            patch("launch.time.sleep") as sleep,
+            patch("launch.time.monotonic", side_effect=[0.0, 1.0, 4.0]),
+            self.ls(""),
+        ):
+            launch.activate_rex(timeout=3.0)
+        self.assertEqual(sleep.call_count, 1)
+
+    def test_open_fai_failure_raises(self):
         failed = subprocess.CompletedProcess([], 1, "", "no action named fai")
         with (
+            patch("launch.activate_rex"),
             patch("launch.subprocess.run", return_value=failed) as run,
             self.assertRaisesRegex(ValueError, "no action named fai"),
         ):
