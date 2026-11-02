@@ -9,7 +9,7 @@ A native Tinycast hotkey that opens the frontmost browser tab's URL in
 
 Hyper is Tinycast's Caps Lock → Control+Option+Command. Focus a browser tab,
 press Hyper+A, and fai opens in a floating layer in the Rex app, exactly as with
-Rex's `ctrl+b p`, but seeded with the URL:
+Rex's `ctrl+b f`, but seeded with the URL:
 
 - A GitHub URL picks its repo (cloning it into `~/Projects/github.com` if
   needed) and, with a unique match, launches the default agent straight away in

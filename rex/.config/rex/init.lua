@@ -40,10 +40,10 @@ rex.action({
   end,
 })
 
--- ctrl+b p: fai with no URL. ctrl+b ctrl+p works too, for when ctrl is still
+-- ctrl+b f: fai with no URL. ctrl+b ctrl+f works too, for when ctrl is still
 -- held.
-rex.bind("ctrl+b>p", "fai")
-rex.bind("ctrl+b>ctrl+p", "fai")
+rex.bind("ctrl+b>f", "fai")
+rex.bind("ctrl+b>ctrl+f", "fai")
 
 -- ctrl+b g: fuzzy-grep the scrollback of every block in a floating layer,
 -- and jump to the chosen line (see utils/.local/bin/fzf-rex-grep). bash -l
