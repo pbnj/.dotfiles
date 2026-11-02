@@ -129,12 +129,11 @@ __git_branch() {
   branch=$(git symbolic-ref --short HEAD 2>/dev/null) && echo " ($branch)"
 }
 
-# p [query]: cd into a repo picked with pick-repo (utils/.local/bin); a unique
-# match jumps straight there. fai, which runs an agent in a picked repo, is a
-# script there too.
+# p [query]: cd into a repo picked with fai-pick-repo (utils/.local/bin), the
+# picker fai runs agents from; a unique match jumps straight there.
 p() {
 	local dir
-	dir="$(pick-repo --query="${*:-}" --select-1)" || return
+	dir="$(fai-pick-repo --query="${*:-}" --select-1)" || return
 	cd "${dir}" || return
 }
 

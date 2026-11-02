@@ -15,7 +15,7 @@
 #              deeper than the repo, kept only if its repo was picked, or any
 #              other URL, whatever was picked.
 # Dependencies: brew install fd fzf gh
-# Usage: pick-repo [fzf options...]
+# Usage: fai-pick-repo [fzf options...]
 #        p (bash/.functions) cds into the pick; fai runs an agent in it.
 
 set -uo pipefail

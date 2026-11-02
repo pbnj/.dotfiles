@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 # Author: Peter Benjamin
-# Description: Run an AI agent in a repo picked with pick-repo, without leaving
-#              the current directory. Words up to the first -flag (or --) seed
-#              the picker, and a unique match launches straight away; the rest
-#              go to the agent. TAB / SHIFT-TAB cycle the agent shown in the
-#              prompt. The agent opens in a new tmux or Rex window named after
-#              the repo (or here, outside both); CTRL-O runs it here instead.
+# Description: Run an AI agent in a repo picked with fai-pick-repo, without
+#              leaving the current directory. Words up to the first -flag (or
+#              --) seed the picker, and a unique match launches straight away;
+#              the rest go to the agent. TAB / SHIFT-TAB cycle the agent shown
+#              in the prompt. The agent opens in a new tmux or Rex window named
+#              after the repo (or here, outside both); CTRL-O runs it here
+#              instead.
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
 #              (seeded with any link below) unless args already give it.
@@ -16,7 +17,7 @@
 #              link, or any other URL, is typed into the agent's prompt once it
 #              starts, ready to be added to and sent. In tmux, the new window's
 #              @url is the repo and its pane's is that link, for prefix C-u.
-# Dependencies: pick-repo (alongside), fzf, jq; tmux or rex to open windows
+# Dependencies: fai-pick-repo (alongside), fzf, jq; tmux or rex for windows
 # Usage: fai [query...] [-- | -flag...] [args...]
 #          fai dotfiles --model opus
 #          fai dotfiles -- "fix the failing test"
@@ -115,7 +116,7 @@ fai() {
     printf "print(%s)+print(%s)+accept" "$key" "${a[i]}"'
 
   link="$(mktemp)"
-  out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/pick-repo" \
+  out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
     --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
     --header='ENTER: new window / CTRL-O: run here / TAB: next agent / CTRL-X: delete' \
     --bind="tab:transform:step=1; ${cycle}" \
