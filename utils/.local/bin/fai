@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Run an AI agent in a repo picked with fai-pick-repo, without
+#              leaving the current directory. Words up to the first -flag (or
+#              --) seed the picker, and a unique match launches straight away;
+#              the rest go to the agent. TAB / SHIFT-TAB cycle the agent shown
+#              in the prompt. The agent opens in a new tmux or Rex window named
+#              after the repo (or here, outside both); CTRL-O runs it here
+#              instead.
+#              The cloud agent is Claude Code on claude.ai/code, attached with
+#              `claude --cloud`; it needs a task up front, so fai asks for one
+#              (seeded with any link below) unless args already give it.
+#              A URL is a link to work on. A GitHub URL picks its repo; any
+#              other URL (a Linear issue, a blog post) is shown under the
+#              picker while you pick the repo. A pull request, issue or file
+#              link, or any other URL, is typed into the agent's prompt once it
+#              starts, ready to be added to and sent. In tmux, the new window's
+#              @url is the repo and its pane's is that link, for prefix C-u.
+# Dependencies: fai-pick-repo (alongside), fzf, jq; tmux or rex for windows
+# Usage: fai [query...] [-- | -flag...] [args...]
+#          fai dotfiles --model opus
+#          fai dotfiles -- "fix the failing test"
+#          fai https://github.com/owner/repo/pull/123
+#          fai https://linear.app/team/issue/ENG-123
+#        FAI_PICK=1 always stops at the picker, even on a unique match.
+#        FAI_AGENTS="claude pi" sets the agents offered, in TAB order; the
+#        first installed one is the default.
+
+set -uo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+self="$(realpath "${BASH_SOURCE[0]}")"
+
+# __fai_icon <agent>: the Nerd Font icon an agent shows as in fai's prompt
+__fai_icon() {
+  case "${1}" in
+  claude) printf '\uec82' ;;  # cod-claude
+  cloud) printf '\uebaa' ;;   # cod-cloud
+  copilot) printf '\uec1e' ;; # cod-copilot
+  pi) printf '\ue22c' ;;      # fae-pi
+  *) printf '%s' "${1}" ;;
+  esac
+}
+
+# __fai_prefill <rex|tmux> <block|pane> <text>: wait for the agent to take over
+# the terminal and settle (the screen unchanged across two samples), then type
+# <text> into its prompt without pressing Enter. Gives up after ~30s, e.g.
+# while a folder-trust dialog waits on an answer.
+__fai_prefill() {
+  local kind="${1}" target="${2}" text="${3}" prev="" cur cmd i
+  for ((i = 0; i < 60; i++)); do
+    sleep 0.5
+    if [[ "${kind}" == rex ]]; then
+      cmd="$(rex block call -b "${target}" process 2>/dev/null |
+        jq -r '.foreground.argv0 // .foreground.name // empty')"
+      cur="$(rex capture -b "${target}" 2>/dev/null)" || return 0
+    else
+      cmd="$(tmux display-message -p -t "${target}" '#{pane_current_command}' 2>/dev/null)" || return 0
+      cur="$(tmux capture-pane -p -t "${target}" 2>/dev/null)" || return 0
+    fi
+    [[ -z "${cmd}" || "${cmd}" =~ ^-?(bash|zsh|fish|sh)$ ]] && continue
+    if [[ -n "${cur//[[:space:]]/}" && "${cur}" == "${prev}" && "${cur,,}" != *trust* ]]; then
+      if [[ "${kind}" == rex ]]; then
+        rex send -b "${target}" "${text}"
+      else
+        tmux send-keys -t "${target}" -l "${text}"
+      fi
+      return 0
+    fi
+    prev="${cur}"
+  done
+}
+
+# __fai_prefill_bg <args...>: __fai_prefill, detached so it outlives fai and
+# the picker's floating layer
+__fai_prefill_bg() {
+  nohup "${self}" --prefill "$@" >/dev/null 2>&1 &
+  disown
+}
+
+fai() {
+  # Agents offered, in TAB order; the first installed one is the default.
+  local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane
+  local select=(--select-1)
+  [[ -n "${FAI_PICK:-}" ]] && select=()
+  [[ -n "${FAI_AGENTS:-}" ]] && read -ra all <<<"${FAI_AGENTS}"
+  for agent in "${all[@]}"; do
+    cmd="${agent}"
+    [[ "${agent}" == cloud ]] && cmd=claude
+    if command -v "${cmd}" >/dev/null 2>&1; then
+      agents+=("${agent}")
+      icons+=("$(__fai_icon "${agent}")")
+    fi
+  done
+  if [[ ${#agents[@]} -eq 0 ]]; then
+    echo "fai: none of '${all[*]}' is installed" >&2
+    return 1
+  fi
+  while [[ $# -gt 0 && "${1}" != -* ]]; do
+    query+=("${1}")
+    shift
+  done
+  [[ "${1:-}" == -- ]] && shift
+
+  # The prompt starts with the agent's icon; find it in the icons to step to
+  # the next icon, or to print the agent it stands for.
+  # shellcheck disable=SC2016 # expanded by the shell fzf runs transform in
+  local find='a=($FAI_AGENTS) ic=($FAI_ICONS) cur=${FZF_PROMPT%%[ >]*} i=0
+    while ((i < ${#ic[@]})) && [[ ${ic[i]} != "$cur" ]]; do ((i++)); done'
+  # shellcheck disable=SC2016
+  local cycle="${find}"'
+    printf "change-prompt:%s" "${ic[(i + step + ${#ic[@]}) % ${#ic[@]}]}${FZF_PROMPT#"$cur"}"'
+  # shellcheck disable=SC2016
+  local accept="${find}"'
+    printf "print(%s)+print(%s)+accept" "$key" "${a[i]}"'
+
+  link="$(mktemp)"
+  out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
+    --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
+    --header='ENTER: new window / CTRL-O: run here / TAB: next agent / CTRL-X: delete' \
+    --bind="tab:transform:step=1; ${cycle}" \
+    --bind="shift-tab:transform:step=-1; ${cycle}" \
+    --bind="enter:transform:key=enter; ${accept}" \
+    --bind="ctrl-o:transform:key=ctrl-o; ${accept}")"
+  url="$(<"${link}")"
+  rm -f "${link}"
+  link="${url}" # kept for tmux's @url; the cloud agent clears url below
+
+  # key, agent, dir -- or just dir when --select-1 skipped the picker
+  mapfile -t lines <<<"${out}"
+  dir="${lines[-1]}"
+  [[ -d "${dir}" ]] || return 1
+  agent="${agents[0]}"
+  if [[ ${#lines[@]} -ge 3 ]]; then
+    key="${lines[0]}"
+    agent="${lines[1]}"
+  fi
+  cmd=("${agent}")
+  if [[ "${agent}" == cloud ]]; then
+    cmd=(claude --cloud)
+    if [[ $# -eq 0 ]]; then
+      local task
+      read -rep "Task for claude.ai/code: " -i "${url}" task || return
+      [[ -n "${task//[[:space:]]/}" ]] || return 1
+      set -- "${task}"
+    fi
+    url=""
+  fi
+
+  # tmux first: a tmux started inside Rex inherits REX_SESSION too
+  if [[ "${key}" == ctrl-o || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then
+    if [[ -n "${url}" ]]; then
+      if [[ -n "${TMUX_PANE:-}" ]]; then
+        __fai_prefill_bg tmux "${TMUX_PANE}" "${url}"
+      elif [[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]]; then
+        # A tmux popup has TMUX but no TMUX_PANE; a REX_BLOCK there is
+        # the block running tmux, not this agent.
+        __fai_prefill_bg rex "${REX_BLOCK}" "${url}"
+      else
+        echo "fai: paste this into ${agent}: ${url}" >&2
+      fi
+    fi
+    (cd "${dir}" && "${cmd[@]}" "$@")
+  elif [[ -n "${TMUX:-}" ]]; then
+    pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
+      -- "${cmd[@]}" "$@")" || return
+    # @url: the window's links its tab to the repo; the pane's is the deep
+    # link it was opened with. Both are listed by prefix C-u (fzf-urls).
+    if [[ "${dir}" == "${HOME}/Projects/github.com/"*/* ]]; then
+      tmux set-option -w -t "${pane}" @url "https://github.com/${dir#"${HOME}/Projects/github.com/"}"
+    fi
+    [[ -n "${link}" ]] && tmux set-option -p -t "${pane}" @url "${link}"
+    [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
+  else
+    out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+      -- "${cmd[@]}" "$@")" || return
+    win="$(jq -r .window_id <<<"${out}")"
+    [[ -n "${url}" ]] && __fai_prefill_bg rex "$(jq -r '.block_ids[0]' <<<"${out}")" "${url}"
+    # The Rex app keeps its own selected tab, so ask it to show the new one.
+    # It only takes this with Remote Control on (Settings > Rex Server).
+    # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
+    rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
+  fi
+}
+
+# --prefill is __fai_prefill_bg running this script again, detached.
+if [[ "${1:-}" == --prefill ]]; then
+  shift
+  __fai_prefill "$@"
+else
+  fai "$@"
+fi
+
+# vim:sts=2:ts=2:sw=2:et:
