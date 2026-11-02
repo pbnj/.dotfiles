@@ -9,6 +9,27 @@ brew() {
         arch -arm64 brew "$@"
 }
 
+# Upgrade brew, then global mise tools, in the foreground so prompts can be answered.
+uac() {
+        local failed=0
+
+        if brew upgrade && brew cleanup --prune=all; then
+                printf 'uac: brew completed\n'
+        else
+                printf 'uac: brew failed\n' >&2
+                failed=1
+        fi
+
+        if mise upgrade --global --bump --pin && mise prune; then
+                printf 'uac: mise completed\n'
+        else
+                printf 'uac: mise failed\n' >&2
+                failed=1
+        fi
+
+        return "$failed"
+}
+
 paws() (
         # run in a subshell so the exported config, the trap, and the
         # temp file never leak into the interactive shell

@@ -16,9 +16,6 @@ alias vga='nvim -c "lua Snacks.picker.grep({ title = \"Grep (all projects)\", di
 alias awsc='nvim -c AWSConsole'
 alias okta='nvim -c Okta'
 
-# brew
-alias buc='brew upgrade && brew cleanup --prune=all'
-
 # tmux
 alias tm="tmux -u a || tmux -u"
 
