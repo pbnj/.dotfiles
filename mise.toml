@@ -4,8 +4,11 @@ hadolint = "2.15.1"
 # luacheck has no mise backend, so luarocks (bundled with mise's lua) installs
 # it into the lua install when mise installs lua.
 lua = { version = "5.4.9", postinstall = "luarocks install luacheck 1.2.0" }
+node = "26.13.0"
 "npm:markdownlint-cli2" = "0.23.3"
 "npm:oxfmt" = "0.72.0"
+"npm:snyk" = "1.1308.3"
+"npm:vscode-langservers-extracted" = "4.10.0"
 "pipx:commitizen" = "4.19.1"
 prek = "0.5.5"
 ruff = "0.17.0"

@@ -57,7 +57,6 @@ brew install ripgrep          # better grep
 brew install shellcheck       # shell/bash linter
 brew install shfmt            # shell/bash formatter
 brew install slides           # terminal presentation tool
-brew install snyk             # security scanner
 brew install stow             # symlink farm manager
 brew install tenv             # terraform/opentofu version manager
 brew install tflint           # terraform linter
