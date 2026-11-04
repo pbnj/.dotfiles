@@ -31,7 +31,10 @@ rex.action({
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
         label = "fai",
-        options = { command = command },
+        -- shell = "none": bash -lic already loads the profile; without it,
+        -- Rex would run the command through the login shell too, loading
+        -- the profile twice and delaying the picker by ~0.2s.
+        options = { shell = "none", command = command },
       }),
     })
     if err ~= nil then
@@ -57,7 +60,7 @@ local function grep_scrollback()
     layout = rex.layout.block({
       flavor = "com.superlogical.terminal.shell",
       label = "grep",
-      options = { command = { "bash", "-lc", "fzf-rex-grep" } },
+      options = { shell = "none", command = { "bash", "-lc", "fzf-rex-grep" } },
     }),
   })
   return true
@@ -77,6 +80,7 @@ local function pick_urls(ctx)
       flavor = "com.superlogical.terminal.shell",
       label = "urls",
       options = {
+        shell = "none",
         command = {
           "bash",
           "-lc",
