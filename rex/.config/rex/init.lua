@@ -95,6 +95,47 @@ end
 rex.bind("ctrl+b>u", pick_urls)
 rex.bind("ctrl+b>ctrl+u", pick_urls)
 
+-- cmd+shift+enter: a floating scratch shell in the focused block's working
+-- directory. The terminal's pwd is what the shell last reported with OSC 7;
+-- bash doesn't report it by default, so fall back to the foreground process's
+-- cwd. With neither (e.g. a non-terminal block), the shell starts in $HOME.
+local function block_cwd(ctx)
+  if not ctx.block_id then
+    return nil
+  end
+  local ok, pwd = pcall(rex.block.call, "com.superlogical.terminal", "pwd", {
+    session_id = ctx.session_id,
+    block_id = ctx.block_id,
+  })
+  local dir = ok and pwd and (pwd.pwd or pwd.path or pwd.cwd)
+  if dir and dir ~= "" then
+    return dir
+  end
+  local ok2, proc =
+    pcall(rex.block.call, "com.superlogical.terminal", "process", {
+      session_id = ctx.session_id,
+      block_id = ctx.block_id,
+    })
+  if ok2 and proc and proc.foreground and proc.foreground.cwd then
+    return proc.foreground.cwd
+  end
+  return nil
+end
+
+local function scratch(ctx)
+  rex.session.new_layer({
+    bounds = { 0.1, 0.1, 0.8, 0.8 },
+    focus = true,
+    layout = rex.layout.block({
+      flavor = "com.superlogical.terminal.shell",
+      label = "scratch",
+      options = { cwd = block_cwd(ctx) },
+    }),
+  })
+  return true
+end
+rex.bind("cmd+shift+enter", scratch)
+
 -- ctrl+b a: focus the block that most needs attention, switching windows if
 -- needed. Programs such as Claude Code report a status with OSC 7501; blocked
 -- (waiting for input) beats error beats done, and the most recent wins.
