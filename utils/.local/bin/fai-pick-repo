@@ -8,13 +8,19 @@
 #              once a local repo matches again. A GitHub pick is cloned into
 #              ~/Projects/github.com first. CTRL-X deletes the highlighted
 #              local clone, after asking.
+#              CTRL-T toggles a grep mode: the query is a ripgrep search
+#              through every local clone (re-run as you type), each hit shown
+#              as owner/repo/path:line:text and previewed around its line.
+#              Picking a hit prints its repo, and its path:line is written to
+#              PICK_REPO_LINK (after any URL there) for fai to type into the
+#              agent's prompt. CTRL-T again goes back to repo names.
 #              A pasted URL is taken out of the query and shown in the footer.
 #              A GitHub URL narrows the list to the repo it names; any other
 #              URL (a Linear issue, a blog post) leaves the list to you. Set
 #              PICK_REPO_LINK to a file to get the URL back: a GitHub link
 #              deeper than the repo, kept only if its repo was picked, or any
 #              other URL, whatever was picked.
-# Dependencies: brew install fd fzf gh
+# Dependencies: brew install bat fd fzf gh ripgrep
 # Usage: fai-pick-repo [fzf options...]
 #        p (bash/.functions) cds into the pick; fai runs an agent in it.
 
@@ -93,6 +99,57 @@ __pick_repo_search() {
   gh search repos --limit 50 --json fullName --jq '.[].fullName' -- "${query}" 2>/dev/null || true
 }
 
+# __pick_repo_grep <query>: ripgrep the query through every local clone, as
+# owner/repo/path:line:text. Like __pick_repo_search, the sleep debounces;
+# a one-character query would match nearly every line, so it waits for two.
+__pick_repo_grep() {
+  local query="${1:-}" root="${HOME}/Projects/github.com" dirs=()
+  ((${#query} >= 2)) || return 0
+  sleep 0.2
+  cd "${root}" || return 0
+  mapfile -t dirs < <(sed "s|^${root}/||" "${PICK_REPO_LIST}")
+  rg --line-number --no-heading --color=always --smart-case \
+    --max-columns=300 --max-columns-preview -- "${query}" "${dirs[@]}" 2>/dev/null || true
+}
+
+# __pick_repo_preview <line>: the preview for a list line: a local clone's
+# recent commits, a grep hit's file around its line, or a GitHub repo.
+__pick_repo_preview() {
+  local line="${1:-}" root="${HOME}/Projects/github.com" n
+  if [[ "${line}" == /* ]]; then
+    git -C "${line}" log --oneline --color -15
+  elif [[ "${line}" =~ ^([^/]+/[^/]+/[^:]+):([0-9]+): ]]; then
+    n="${BASH_REMATCH[2]}"
+    bat --color=always --style=numbers,header --highlight-line "${n}" \
+      --line-range "$((n > 10 ? n - 10 : 1)):" "${root}/${BASH_REMATCH[1]}"
+  else
+    gh repo view "${line}"
+  fi
+}
+
+# __pick_repo_on_toggle: run by fzf on CTRL-T; prints the actions that switch
+# between grep mode, marked by " (rg)" in the prompt, and repo names. Back
+# from grep, the list is local or GitHub depending on the query, as in
+# __pick_repo_on_query.
+__pick_repo_on_toggle() {
+  local query="${FZF_QUERY}" prompt="${FZF_PROMPT}" base
+  # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+  if [[ "${prompt}" == *" (rg)> " ]]; then
+    base="${prompt% (rg)> }"
+    printf '%s' 'enable-search+change-with-nth(-2..)+'
+    if [[ -z "${query//[[:space:]]/}" ]] ||
+      fzf --filter="${query}" --delimiter=/ --with-nth=-2.. <"${PICK_REPO_LIST}" | grep -q .; then
+      printf 'reload(cat "$PICK_REPO_LIST")+change-prompt:%s> ' "${base}"
+    else
+      printf 'reload("$PICK_REPO_SELF" --search {q})+change-prompt:%s (GitHub)> ' "${base}"
+    fi
+  else
+    base="${prompt% (GitHub)> }"
+    base="${base%> }"
+    printf 'disable-search+change-with-nth(1..)+reload("$PICK_REPO_SELF" --grep {q})+change-prompt:%s (rg)> ' "${base}"
+  fi
+}
+
 # __pick_repo_on_query: run by fzf on every query edit; prints the fzf actions
 # that rewrite a pasted URL, and pick the list: local while the query matches
 # a local repo (or is empty), otherwise GitHub, re-searched on every edit.
@@ -101,6 +158,11 @@ __pick_repo_on_query() {
   local query="${FZF_QUERY}" prompt="${FZF_PROMPT}" rewritten
   # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
   local search='reload("$PICK_REPO_SELF" --search {q})'
+  if [[ "${prompt}" == *" (rg)> " ]]; then
+    # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+    printf '%s' 'reload("$PICK_REPO_SELF" --grep {q})'
+    return 0
+  fi
   rewritten="$(__pick_repo_unurl "${query}")"
   if [[ "${rewritten}" != "${query}" ]]; then
     # the change it makes runs this again
@@ -147,9 +209,10 @@ __pick_repo_delete() {
 }
 
 # __pick_repo_on_delete: run by fzf on CTRL-X; prints the actions that delete
-# the highlighted local clone. A GitHub search result is left alone.
+# the highlighted local clone. A GitHub search result or a grep hit is left
+# alone.
 __pick_repo_on_delete() {
-  [[ "${FZF_PROMPT}" == *" (GitHub)> " ]] && return 0
+  [[ "${FZF_PROMPT}" == *" (GitHub)> " || "${FZF_PROMPT}" == *" (rg)> " ]] && return 0
   # shellcheck disable=SC2016 # expanded by the shell fzf runs execute in
   printf '%s' 'execute("$PICK_REPO_SELF" --delete {})+reload(cat "$PICK_REPO_LIST")'
 }
@@ -159,7 +222,7 @@ __pick_repo() {
   local root="${HOME}/Projects/github.com" link="${PICK_REPO_LINK:-}" own_link=""
   local self
   self="$(realpath "${BASH_SOURCE[0]}")"
-  local list out rc line spec picked="" args=() arg
+  local list out rc line spec picked="" args=() arg ref=""
   if [[ -z "${link}" ]]; then
     link="$(mktemp)"
     own_link=1
@@ -178,20 +241,25 @@ __pick_repo() {
   # shellcheck disable=SC2094,SC2016 # fzf only reads the list; $vars expand in fzf's shell
   out="$(PICK_REPO_LIST="${list}" PICK_REPO_LINK="${link}" \
     PICK_REPO_SELF="${self}" \
-    fzf <"${list}" --with-shell='bash -c' \
+    fzf <"${list}" --with-shell='bash -c' --ansi \
       --delimiter=/ --with-nth=-2.. --prompt='Repo> ' \
-      --preview='[[ {} == /* ]] && git -C {} log --oneline --color -15 || gh repo view {}' \
+      --preview='"$PICK_REPO_SELF" --preview {}' \
       --bind='start,change:transform:"$PICK_REPO_SELF" --on-query' \
+      --bind='ctrl-t:transform:"$PICK_REPO_SELF" --on-toggle' \
       --bind='ctrl-x:transform:"$PICK_REPO_SELF" --on-delete' \
       ${args[@]+"${args[@]}"})"
   rc=$?
   rm -f "${list}"
 
-  # A GitHub pick is a bare owner/repo; any other line (a local path, or a
-  # line from --expect or print) passes through untouched.
+  # A grep hit becomes its repo's path, keeping its path:line; a GitHub pick
+  # is a bare owner/repo; any other line (a local path, or a line from
+  # --expect or print) passes through untouched.
   if ((rc == 0)); then
     while IFS= read -r line; do
-      if [[ "${line}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+      if [[ "${line}" =~ ^([^/]+/[^/]+)/([^:]+):([0-9]+): ]]; then
+        ref="${BASH_REMATCH[2]}:${BASH_REMATCH[3]}"
+        line="${root}/${BASH_REMATCH[1]}"
+      elif [[ "${line}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
         line="${root}/${line}"
         if [[ ! -d "${line}/.git" ]]; then
           gh repo clone "${BASH_REMATCH[0]}" "${line}" >&2 || rc=1
@@ -206,6 +274,10 @@ __pick_repo() {
   # other link is kept whatever was picked.
   spec="$(__pick_repo_spec "$(<"${link}")")"
   [[ -z "${spec}" || "${picked}" == *"/${spec,,}"$'\n'* ]] || : >"${link}"
+  if [[ -n "${ref}" ]]; then
+    spec="$(<"${link}")"
+    printf '%s\n' "${spec:+${spec} }${ref}" >"${link}"
+  fi
   [[ -n "${own_link}" ]] && rm -f "${link}"
   return "${rc}"
 }
@@ -214,6 +286,9 @@ __pick_repo() {
 case "${1:-}" in
 --on-query) __pick_repo_on_query ;;
 --on-delete) __pick_repo_on_delete ;;
+--on-toggle) __pick_repo_on_toggle ;;
+--grep) __pick_repo_grep "${2:-}" ;;
+--preview) __pick_repo_preview "${2:-}" ;;
 --search) __pick_repo_search "${2:-}" ;;
 --delete) __pick_repo_delete "${2:-}" ;;
 *) __pick_repo "$@" ;;

@@ -8,7 +8,9 @@
 #              in the prompt. The agent opens in a new tmux or Rex window named
 #              after the repo (or here, outside both), or in a split of the
 #              repo's window when one is already open; CTRL-O runs it here
-#              instead.
+#              instead. CTRL-T toggles a ripgrep search through every local
+#              clone; picking a hit opens its repo with its path:line typed
+#              into the agent's prompt.
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
 #              (seeded with any link below) unless args already give it.
@@ -140,7 +142,7 @@ fai() {
   link="$(mktemp)"
   out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
     --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
-    --header='ENTER: repo window / CTRL-O: run here / TAB: next agent / CTRL-X: delete' \
+    --header='ENTER: repo window / CTRL-O: run here / TAB: next agent / CTRL-T: grep / CTRL-X: delete' \
     --bind="tab:transform:step=1; ${cycle}" \
     --bind="shift-tab:transform:step=-1; ${cycle}" \
     --bind="enter:transform:key=enter; ${accept}" \
@@ -203,7 +205,8 @@ fai() {
     if [[ "${dir}" == "${HOME}/Projects/github.com/"*/* ]]; then
       tmux set-option -w -t "${pane}" @url "https://github.com/${dir#"${HOME}/Projects/github.com/"}"
     fi
-    [[ -n "${link}" ]] && tmux set-option -p -t "${pane}" @url "${link}"
+    # The link may be a URL, a grep hit's path:line, or a URL then a path:line.
+    [[ "${link}" == http* ]] && tmux set-option -p -t "${pane}" @url "${link%% *}"
     [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
   else
     local block anchor
