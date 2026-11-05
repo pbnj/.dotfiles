@@ -136,6 +136,37 @@ local function scratch(ctx)
 end
 rex.bind("cmd+shift+enter", scratch)
 
+-- ctrl+b c: a coding agent (Claude Code, or $REX_AGENT) in a split to the
+-- right of the focused block, in that block's working directory. bash -lic
+-- loads the profile so the agent has the usual PATH; shell = "none" keeps Rex
+-- from loading it a second time. ctrl+b ctrl+c works too, for when ctrl is
+-- still held.
+local function agent_split(ctx)
+  local _, err = rex.session.new_split({
+    session_id = ctx.session_id,
+    anchor_id = ctx.block_id,
+    direction = "horizontal",
+    side = "after",
+    ratio = 0.5,
+    focus = true,
+    layout = rex.layout.block({
+      flavor = "com.superlogical.terminal.shell",
+      label = "agent",
+      options = {
+        shell = "none",
+        cwd = block_cwd(ctx),
+        command = { "bash", "-lic", 'exec "${REX_AGENT:-claude}"' },
+      },
+    }),
+  })
+  if err ~= nil then
+    error(err, 0)
+  end
+  return true
+end
+rex.bind("ctrl+b>c", agent_split)
+rex.bind("ctrl+b>ctrl+c", agent_split)
+
 -- ctrl+b a: focus the block that most needs attention, switching windows if
 -- needed. Programs such as Claude Code report a status with OSC 7501; blocked
 -- (waiting for input) beats error beats done, and the most recent wins.
