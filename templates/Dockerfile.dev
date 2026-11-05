@@ -1,9 +1,10 @@
-FROM ubuntu:latest
+FROM ubuntu:26.04
 
 # disable interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
 # install dependencies
+# hadolint ignore=DL3008 # a dev image wants current packages, not pinned ones
 RUN : \
         && apt-get update \
         && apt-get install --no-install-recommends -y \

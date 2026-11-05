@@ -12,24 +12,40 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+  group:
+    "${{ github.workflow }} @ ${{ github.event.pull_request.head.label ||
+    github.head_ref || github.ref }}"
   cancel-in-progress: true
 
 jobs:
   test:
-    runs-on: ${{ fromJSON('["ubuntu-latest", "self-hosted"]')[github.repository == 'github/docs-internal'] }}
+    runs-on:
+      ${{ fromJSON('["ubuntu-latest", "self-hosted"]')[github.repository ==
+      'github/docs-internal'] }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        test-group: [content, graphql, meta, rendering, routing, unit, linting, translations]
+        test-group:
+          [
+            content,
+            graphql,
+            meta,
+            rendering,
+            routing,
+            unit,
+            linting,
+            translations,
+          ]
     steps:
       - name: Check out repo
         uses: actions/checkout@v3
         with:
           lfs: ${{ matrix.test-group == 'content' }}
           persist-credentials: "false"
-      - name: Figure out which docs-early-access branch to checkout, if internal repo
+      - name:
+          Figure out which docs-early-access branch to checkout, if internal
+          repo
         if: ${{ github.repository == 'github/docs-internal' }}
         id: check-early-access
         uses: actions/github-script@v6

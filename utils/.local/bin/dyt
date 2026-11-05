@@ -14,4 +14,4 @@ if ! hash mpv >/dev/null 2>&1 ; then
   exit 1
 fi
 
-ddgr --site youtube.com --url-handler mpv $@
+ddgr --site youtube.com --url-handler mpv "$@"

@@ -25,6 +25,7 @@ SCALR_GET_WORKSPACES="scalr get-workspaces | jq -rc '.[] | {name,id,environment}
 SCALR_CACHE_FILE="/tmp/scalr-workspaces.json"
 
 # Fuzzy find workspaces. On 1st run, get workspaces and cache them in /tmp/scalr-workspaces.json. On subsequent runs, load from cache.
+# shellcheck disable=SC2016 # fzf expands these binds when they run
 SCALR_WORKSPACE_JSON="$(fzf \
   --tmux='center,80%' \
   --input-border \

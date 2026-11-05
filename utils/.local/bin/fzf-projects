@@ -3,6 +3,7 @@
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
+# shellcheck disable=SC2016 # fzf expands these binds when they run
 fzf \
   --bind "start:reload:fd . ${HOME}/Projects --type d --max-depth 3" \
   --bind 'ctrl-e:become:tmux select-window -t $(basename {}) || tmux new-window -c {} -- nvim .' \

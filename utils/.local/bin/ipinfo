@@ -4,4 +4,4 @@ set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
 IPADDR="${1:-""}"
-curl ipinfo.io/${IPADDR}
+curl "ipinfo.io/${IPADDR}"

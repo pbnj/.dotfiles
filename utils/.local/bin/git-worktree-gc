@@ -40,7 +40,8 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 VERSION = "1.1.0"
 
@@ -61,7 +62,7 @@ MERGED_MIN_IDLE_SECONDS = 3600
 # --------------------------------------------------------------------------- #
 
 
-def git(where: str, *args: str) -> Tuple[int, str]:
+def git(where: str, *args: str) -> tuple[int, str]:
     """Run git in `where`, returning (exit code, combined output).
 
     Arguments are a list, never a shell string: a branch name is attacker-ish
@@ -74,6 +75,7 @@ def git(where: str, *args: str) -> Tuple[int, str]:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            check=False,
         )
     except OSError as exc:
         return 127, str(exc)
@@ -89,7 +91,7 @@ ORIGIN_PREFIX = "refs/remotes/origin/"
 HEADS_PREFIX = "refs/heads/"
 
 
-def default_branch(repo: str) -> Optional[str]:
+def default_branch(repo: str) -> str | None:
     """The repo's default branch, as the fallback ref to prove pushedness against."""
     code, out = git(repo, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
     ref = out.strip() if code == 0 else ""
@@ -107,7 +109,7 @@ def default_branch(repo: str) -> Optional[str]:
     return None
 
 
-def worktrees(repo: str) -> List[Dict[str, Any]]:
+def worktrees(repo: str) -> list[dict[str, Any]]:
     """Every worktree git knows about, parsed from `worktree list --porcelain`.
 
     Records are separated by blank lines and the FIRST is always the main
@@ -121,8 +123,8 @@ def worktrees(repo: str) -> List[Dict[str, Any]]:
     code, out = git(repo, "worktree", "list", "--porcelain")
     if code != 0:
         return []
-    found: List[Dict[str, Any]] = []
-    current: Dict[str, Any] = {}
+    found: list[dict[str, Any]] = []
+    current: dict[str, Any] = {}
     for line in out.splitlines():
         line = line.rstrip()
         if not line:
@@ -149,9 +151,7 @@ def worktrees(repo: str) -> List[Dict[str, Any]]:
             # and keeps the worktree forever without saying why. Same trap as
             # `default_branch`, one ref namespace over.
             ref = line[len("branch ") :]
-            current["branch"] = (
-                ref[len(HEADS_PREFIX) :] if ref.startswith(HEADS_PREFIX) else ref
-            )
+            current["branch"] = ref.removeprefix(HEADS_PREFIX)
         elif line == "detached":
             current["detached"] = True
         elif line == "bare":
@@ -170,7 +170,7 @@ def worktrees(repo: str) -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 
 
-def last_activity(path: str) -> Optional[float]:
+def last_activity(path: str) -> float | None:
     """When this checkout was last worked in, as a unix timestamp.
 
     The NEWER of HEAD's commit time and the checkout root's own mtime. Neither
@@ -185,7 +185,7 @@ def last_activity(path: str) -> Optional[float]:
     None when the path is not readable as a checkout, which the caller must
     treat as "cannot tell", never as "old".
     """
-    newest: Optional[float] = None
+    newest: float | None = None
     code, out = git(path, "log", "-1", "--format=%ct")
     if code == 0 and out.strip():
         try:
@@ -212,7 +212,7 @@ def is_clean(path: str) -> bool:
     return code == 0 and not out.strip()
 
 
-def is_pushed(path: str, branch: str, default: Optional[str]) -> bool:
+def is_pushed(path: str, branch: str, default: str | None) -> bool:
     """Whether this branch's commits exist somewhere other than this checkout.
 
     NEVER `@{upstream}`. That is what made an earlier version of this check keep
@@ -251,7 +251,7 @@ def is_pushed(path: str, branch: str, default: Optional[str]) -> bool:
     return code == 0 and out.strip() == "0"
 
 
-def merged_into(path: str, branch: str, default: Optional[str]) -> Optional[str]:
+def merged_into(path: str, branch: str, default: str | None) -> str | None:
     """The default branch this branch's work already lives on, or None.
 
     A NAME rather than a bool, because it is the only interesting half of the
@@ -336,14 +336,14 @@ def merged_into(path: str, branch: str, default: Optional[str]) -> Optional[str]
 
 
 def decide(
-    entry: Dict[str, Any],
+    entry: dict[str, Any],
     selected: str,
     max_age_days: int,
     keep: Sequence[str],
     now: float,
-    default: Optional[str],
+    default: str | None,
     collect_merged: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Whether this worktree may be collected, and why -- always with a reason.
 
     A reason rather than a bool, because it is the whole of what the caller
@@ -382,7 +382,7 @@ def decide(
         "error": None,
     }
 
-    def keep_it(reason: str, stale: bool = False) -> Dict[str, Any]:
+    def keep_it(reason: str, stale: bool = False) -> dict[str, Any]:
         out["reason"], out["stale"] = reason, stale
         return out
 
@@ -421,53 +421,51 @@ def decide(
         last = last_activity(entry["path"])
         if last is None:
             return keep_it(
-                "merged into {} but cannot tell when it was last touched".format(base)
+                f"merged into {base} but cannot tell when it was last touched"
             )
         if now - last < MERGED_MIN_IDLE_SECONDS:
             return keep_it(
-                "merged into {} but touched within the hour -- "
-                "probably still in use".format(base)
+                f"merged into {base} but touched within the hour -- "
+                "probably still in use"
             )
         if not is_clean(entry["path"]):
             return keep_it(
-                "merged into {} but has uncommitted changes".format(base), stale=True
+                f"merged into {base} but has uncommitted changes", stale=True
             )
         out["collect"], out["stale"] = True, True
-        out["reason"] = "branch is merged into {}, and clean".format(base)
+        out["reason"] = f"branch is merged into {base}, and clean"
         return out
 
     # Not `if not max_age_days`: a negative is truthy, and would slip past a
     # falsiness check into an age comparison that nothing can fail -- every
     # cold, clean, pushed worktree collected at once, from a typo.
     if max_age_days <= 0:
-        return keep_it("the age sweep is off (--max-age-days {})".format(max_age_days))
+        return keep_it(f"the age sweep is off (--max-age-days {max_age_days})")
 
     last = last_activity(entry["path"])
     if last is None:
         return keep_it("cannot tell when it was last touched")
     age = (now - last) / 86400.0
     if age <= max_age_days:
-        return keep_it("touched {:.0f} day(s) ago".format(age))
+        return keep_it(f"touched {age:.0f} day(s) ago")
 
     if not is_clean(entry["path"]):
         return keep_it(
-            "untouched for {:.0f} days but has uncommitted changes".format(age),
+            f"untouched for {age:.0f} days but has uncommitted changes",
             stale=True,
         )
     if not is_pushed(entry["path"], entry["branch"], default):
         return keep_it(
-            "untouched for {:.0f} days but has commits that are not on origin".format(
-                age
-            ),
+            f"untouched for {age:.0f} days but has commits that are not on origin",
             stale=True,
         )
 
     out["collect"], out["stale"] = True, True
-    out["reason"] = "untouched for {:.0f} days, clean and pushed".format(age)
+    out["reason"] = f"untouched for {age:.0f} days, clean and pushed"
     return out
 
 
-def remove(repo: str, path: str) -> Tuple[bool, str]:
+def remove(repo: str, path: str) -> tuple[bool, str]:
     """Remove a worktree checkout, keeping its branch.
 
     UNFORCED first, then forced -- not because the second is a fallback for the
@@ -519,7 +517,7 @@ def sweep(
     now: float,
     dry_run: bool,
     collect_merged: bool = True,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Decide on every worktree in `repo`, and remove the ones that qualify.
 
     `default_branch` is resolved ONCE for the repo rather than per worktree: it
@@ -548,7 +546,7 @@ def sweep(
     return decisions
 
 
-def report(decisions: Sequence[Dict[str, Any]], dry_run: bool, verbose: bool) -> None:
+def report(decisions: Sequence[dict[str, Any]], dry_run: bool, verbose: bool) -> None:
     """One line per interesting worktree, then a count.
 
     A young worktree is the normal case and printing it every time is how a
@@ -573,7 +571,7 @@ def report(decisions: Sequence[Dict[str, Any]], dry_run: bool, verbose: bool) ->
             "would remove" if dry_run else "removed",
             len(collected) - len(failed),
             len(decisions),
-            "; {} failed".format(len(failed)) if failed else "",
+            f"; {len(failed)} failed" if failed else "",
         )
     )
 
@@ -598,9 +596,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         default=DEFAULT_MAX_AGE_DAYS,
         metavar="N",
         help="collect an unmerged worktree untouched for longer "
-        "than this (default: {}; 0 or less turns the age "
+        f"than this (default: {DEFAULT_MAX_AGE_DAYS}; 0 or less turns the age "
         "sweep off, leaving only merged worktrees -- see "
-        "--no-collect-merged)".format(DEFAULT_MAX_AGE_DAYS),
+        "--no-collect-merged)",
     )
     parser.add_argument(
         "--no-collect-merged",
@@ -639,7 +637,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     # time it is. Not in --help, because it is not an operator's option.
     parser.add_argument("--now", type=float, default=None, help=argparse.SUPPRESS)
     parser.add_argument(
-        "--version", action="version", version="git-worktree-gc {}".format(VERSION)
+        "--version", action="version", version=f"git-worktree-gc {VERSION}"
     )
     return parser.parse_args(list(argv))
 
@@ -665,7 +663,7 @@ def main(argv: Sequence[str]) -> int:
 
     repo = os.path.abspath(os.path.expanduser(args.repo))
     if not os.path.isdir(repo) or not is_git_worktree(repo):
-        print("not a git repository: {}".format(repo), file=sys.stderr)
+        print(f"not a git repository: {repo}", file=sys.stderr)
         return 2
 
     decisions = sweep(

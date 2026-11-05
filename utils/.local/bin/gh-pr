@@ -9,6 +9,7 @@ ALT-M: comment
 EOF
 )"
 
+# shellcheck disable=SC2016 # fzf expands these binds when they run
 fzf \
   --bind='alt-m:execute:gh pr comment {1} --editor' \
   --bind='ctrl-a:execute:gh pr review --approve {1}' \

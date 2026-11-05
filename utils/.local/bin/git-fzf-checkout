@@ -10,6 +10,7 @@ ALT-F: fetch / ALT-D: delete branch / ENTER: checkout
 EOF
 )"
 
+# shellcheck disable=SC2016 # fzf expands these binds when they run
 fzf \
   --bind="alt-f:execute(git fetch)+reload(${GIT_BRANCHES})" \
   --bind="alt-d:execute(git delete-branch {})+reload(${GIT_BRANCHES})" \

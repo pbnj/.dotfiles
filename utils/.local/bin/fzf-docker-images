@@ -32,5 +32,5 @@ DOCKER_TAG="$(fzf \
   --tmux || true)"
 
 if [[ -n "${DOCKER_IMAGE}" ]] && [[ -n "${DOCKER_TAG}" ]]; then
-  docker run --rm -it -v $(pwd):/workdir --workdir /workdir ${DOCKER_IMAGE}:${DOCKER_TAG}
+  docker run --rm -it -v "$(pwd):/workdir" --workdir /workdir "${DOCKER_IMAGE}:${DOCKER_TAG}"
 fi

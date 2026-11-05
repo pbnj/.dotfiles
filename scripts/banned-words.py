@@ -17,10 +17,10 @@ Bypass once with SKIP=banned-words,banned-words-msg git commit ...
 
 import argparse
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 DEFAULT_LIST = Path.home() / ".config/git/banned-words"
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)")
@@ -36,7 +36,7 @@ def load_patterns(path):
         try:
             target.append(re.compile(line.removeprefix("!"), re.IGNORECASE))
         except re.error as error:
-            sys.exit("{}:{}: invalid pattern: {}".format(path, number, error))
+            sys.exit(f"{path}:{number}: invalid pattern: {error}")
     return blocked, exempt
 
 
@@ -67,14 +67,14 @@ def staged_additions():
             match = HUNK.match(line)
             line_number = int(match.group(1)) if match else 0
         elif line.startswith("+") and path:
-            yield "{}:{}".format(path, line_number), line[1:]
+            yield f"{path}:{line_number}", line[1:]
             line_number += 1
 
 
 def message_lines(path):
     for number, line in enumerate(Path(path).read_text().splitlines(), 1):
         if not line.startswith("#"):  # git strips comment lines
-            yield "commit message:{}".format(number), line
+            yield f"commit message:{number}", line
 
 
 def main():
@@ -83,7 +83,7 @@ def main():
     args = parser.parse_args()
     words = Path(os.environ.get("BANNED_WORDS_FILE", DEFAULT_LIST)).expanduser()
     if not words.is_file():
-        print("banned-words: no list at {}; skipping".format(words), file=sys.stderr)
+        print(f"banned-words: no list at {words}; skipping", file=sys.stderr)
         return 0
     blocked, exempt = load_patterns(words)
     lines = message_lines(args.commit_msg) if args.commit_msg else staged_additions()
@@ -97,9 +97,9 @@ def main():
             print("{}: {}".format(location, ", ".join(hits)))
     if found:
         print(
-            "\nbanned-words: {} match(es) from {}.\n"
+            f"\nbanned-words: {found} match(es) from {words}.\n"
             "Rewrite them, add an !exemption, or bypass once with\n"
-            "SKIP=banned-words,banned-words-msg git commit ...".format(found, words)
+            "SKIP=banned-words,banned-words-msg git commit ..."
         )
         return 1
     return 0
