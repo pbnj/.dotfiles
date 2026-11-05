@@ -96,7 +96,7 @@ end
 rex.bind("ctrl+b>u", pick_urls)
 rex.bind("ctrl+b>ctrl+u", pick_urls)
 
--- cmd+shift+enter: a floating scratch shell in the focused block's working
+-- ctrl+b t: a floating scratch shell in the focused block's working
 -- directory. The terminal's pwd is what the shell last reported with OSC 7;
 -- bash doesn't report it by default, so fall back to the foreground process's
 -- cwd. With neither (e.g. a non-terminal block), the shell starts in $HOME.
@@ -135,7 +135,11 @@ local function scratch(ctx)
   })
   return true
 end
-rex.bind("cmd+shift+enter", scratch)
+-- Also in the command palette. ctrl+b ctrl+t works too, for when ctrl is
+-- still held. (It was cmd+shift+enter, which the app already binds.)
+rex.action({ name = "scratch", title = "Scratch Shell", run = scratch })
+rex.bind("ctrl+b>t", "scratch")
+rex.bind("ctrl+b>ctrl+t", "scratch")
 
 -- ctrl+b c: a coding agent (Claude Code, or $REX_AGENT) in a split to the
 -- right of the focused block, in that block's working directory. bash -lic
