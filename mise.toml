@@ -5,13 +5,13 @@ hadolint = "2.15.1"
 # it into the lua install when mise installs lua.
 lua = { version = "5.4.9", postinstall = "luarocks install luacheck 1.2.0" }
 node = "26.13.0"
-"npm:markdownlint-cli2" = "0.23.3"
-"npm:oxfmt" = "0.72.0"
+"npm:markdownlint-cli2" = "0.24.0"
+"npm:oxfmt" = "0.75.0"
 "npm:snyk" = "1.1308.3"
 "npm:vscode-langservers-extracted" = "4.10.0"
-"pipx:commitizen" = "4.19.1"
-prek = "0.5.5"
-ruff = "0.17.0"
+"pipx:commitizen" = "4.19.3"
+prek = "0.5.9"
+ruff = "0.17.3"
 shellcheck = "0.11.0"
 stylua = "2.6.0"
 
