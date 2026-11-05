@@ -177,6 +177,9 @@ rex.bind("ctrl+b>ctrl+c", agent_split)
 --   r  the repo
 --   p  the current branch's PR
 --   c  the current branch's PR checks
+--   i  the current branch's Linear issue: the one its name carries, else the
+--      first issue ID in its PR's title or body (e.g. a CLOSES line) that
+--      Linear knows
 --   f  a fuzzy-picked file, as a permalink (utils/.local/bin/fzf-gh-browse)
 --   l  a fuzzy-picked line, as a permalink
 local function gh_open(script)
@@ -195,6 +198,17 @@ local function gh_open(script)
     return true
   end
 end
+
+local linear_issue = [[
+linear issue view --web --no-input 2>/dev/null && exit
+for id in $(gh pr view --json title,body --jq '.title + "\n" + .body' |
+  grep -oE '\b[A-Z][A-Z0-9]+-[0-9]+\b' | awk '!seen[$0]++'); do
+  linear issue url --no-input "$id" >/dev/null 2>&1 &&
+    exec linear issue view --web --no-input "$id"
+done
+echo "no Linear issue in the branch name or its PR" >&2
+exit 1
+]]
 
 local function gh_pick(mode)
   return function(ctx)
@@ -220,6 +234,7 @@ end
 for _, a in ipairs({
   { "r", "gh_open_repo", "Open Repo on GitHub", gh_open("gh browse") },
   { "p", "gh_open_pr", "Open PR on GitHub", gh_open("gh pr view --web") },
+  { "i", "linear_open_issue", "Open Linear Issue", gh_open(linear_issue) },
   {
     "c",
     "gh_open_checks",
