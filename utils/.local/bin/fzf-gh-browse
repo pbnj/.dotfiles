@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Fuzzy-pick a file, or a line of a file, in the current git repo
+#              and open it on GitHub as a permalink (/blob/SHA/path#Lline).
+#              The SHA is the upstream branch's commit, so the link resolves
+#              even with unpushed commits; without an upstream, the remote's
+#              default branch. Line numbers come from the working tree, so
+#              they can drift from the permalink when the file has local
+#              changes.
+# Dependencies: brew install fzf gh ripgrep bat
+# Usage: fzf-gh-browse [files|lines]
+#        files (the default) lists git ls-files; lines lists every line of the
+#        tracked files (rg respects .gitignore).
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+mode="${1:-files}"
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  echo "fzf-gh-browse: not in a git repo: ${PWD}" >&2
+  read -rsn1 -p "Press any key to close." || true
+  exit 1
+}
+cd "${root}"
+
+sha="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null ||
+  git rev-parse --verify --quiet "$(git config branch."$(git branch --show-current)".remote 2>/dev/null || echo origin)/HEAD" ||
+  git rev-parse HEAD)"
+
+case "${mode}" in
+  files)
+    path="$(git ls-files | fzf --reverse \
+      --prompt "file> " \
+      --preview 'bat --color=always --style=numbers {}')" || exit 0
+    exec gh browse --commit="${sha}" "${path}"
+    ;;
+  lines)
+    # TAB marks several lines. The marked lines of each file open as one
+    # range, from the first to the last (#L10-L20), one tab per file.
+    picks="$(rg --line-number --no-heading --color=always --smart-case '' | fzf --reverse \
+      --multi \
+      --ansi \
+      --prompt "line> " \
+      --delimiter : \
+      --nth 3.. \
+      --preview 'bat --color=always --style=numbers --highlight-line {2} {1}' \
+      --preview-window '+{2}/2')" || exit 0
+    awk -F: '
+      !($1 in lo) { order[++n] = $1; lo[$1] = $2; hi[$1] = $2 }
+      $2 < lo[$1] { lo[$1] = $2 }
+      $2 > hi[$1] { hi[$1] = $2 }
+      END {
+        for (i = 1; i <= n; i++) {
+          f = order[i]
+          print f ":" lo[f] (hi[f] > lo[f] ? "-" hi[f] : "")
+        }
+      }
+    ' <<<"${picks}" | while IFS= read -r target; do
+      gh browse --commit="${sha}" "${target}" </dev/null
+    done
+    ;;
+  *)
+    echo "Usage: fzf-gh-browse [files|lines]" >&2
+    exit 2
+    ;;
+esac

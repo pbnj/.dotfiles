@@ -168,6 +168,68 @@ end
 rex.bind("ctrl+b>c", agent_split)
 rex.bind("ctrl+b>ctrl+c", agent_split)
 
+-- ctrl+b o …: open the focused block's git repo on GitHub, from the block's
+-- working directory. bash -lc loads the profile, so gh is on PATH.
+--   r  the repo
+--   p  the current branch's PR
+--   c  the current branch's PR checks
+--   f  a fuzzy-picked file, as a permalink (utils/.local/bin/fzf-gh-browse)
+--   l  a fuzzy-picked line, as a permalink
+local function gh_open(script)
+  return function(ctx)
+    local cwd = block_cwd(ctx)
+    if not cwd then
+      error("no working directory for the focused block", 0)
+    end
+    local r, err = rex.exec({ "bash", "-lc", script }, { cwd = cwd })
+    if not r then
+      error(err, 0)
+    end
+    if not r.ok then
+      error(r.stderr ~= "" and r.stderr or r.stdout, 0)
+    end
+    return true
+  end
+end
+
+local function gh_pick(mode)
+  return function(ctx)
+    rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "gh-" .. mode,
+        options = {
+          shell = "none",
+          cwd = block_cwd(ctx),
+          command = { "bash", "-lc", 'fzf-gh-browse "$0"', mode },
+        },
+      }),
+    })
+    return true
+  end
+end
+
+-- Each one is an action too, so it's listed in the command palette (with its
+-- keys) as well as bound.
+for _, a in ipairs({
+  { "r", "gh_open_repo", "Open Repo on GitHub", gh_open("gh browse") },
+  { "p", "gh_open_pr", "Open PR on GitHub", gh_open("gh pr view --web") },
+  {
+    "c",
+    "gh_open_checks",
+    "Open PR Checks on GitHub",
+    gh_open("gh pr checks --web"),
+  },
+  { "f", "gh_open_file", "Open File on GitHub (Permalink)", gh_pick("files") },
+  { "l", "gh_open_line", "Open Line on GitHub (Permalink)", gh_pick("lines") },
+}) do
+  local key, name, title, run = a[1], a[2], a[3], a[4]
+  rex.action({ name = name, title = title, run = run })
+  rex.bind("ctrl+b>o>" .. key, name)
+end
+
 -- ctrl+b a: focus the block that most needs attention, switching windows if
 -- needed. Programs such as Claude Code report a status with OSC 7501; blocked
 -- (waiting for input) beats error beats done, and the most recent wins.
