@@ -6,7 +6,8 @@
 #              --) seed the picker, and a unique match launches straight away;
 #              the rest go to the agent. TAB / SHIFT-TAB cycle the agent shown
 #              in the prompt. The agent opens in a new tmux or Rex window named
-#              after the repo (or here, outside both); CTRL-O runs it here
+#              after the repo (or here, outside both), or in a split of the
+#              repo's window when one is already open; CTRL-O runs it here
 #              instead.
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
@@ -79,6 +80,27 @@ __fai_prefill_bg() {
   disown
 }
 
+# __fai_rex_window <dir>: print "<window> <block>" for a window in
+# $REX_SESSION named after <dir> with a block working in <dir> (or below it),
+# that block being the one to split; fail if there is none. The name alone
+# could be another owner's repo of the same name.
+__fai_rex_window() {
+  local dir="${1}" name win block cwd
+  name="$(basename "${dir}")"
+  while read -r win block; do
+    cwd="$(rex block call -b "${block}" process 2>/dev/null |
+      jq -r '.foreground.cwd // .ancestors[0].cwd // empty')"
+    if [[ "${cwd}" == "${dir}" || "${cwd}" == "${dir}"/* ]]; then
+      printf '%s %s\n' "${win}" "${block}"
+      return 0
+    fi
+  done < <(rex window ls -s "${REX_SESSION}" --json --short=false 2>/dev/null |
+    jq -r --arg n "${name}" '.windows[] | select(.label == $n)
+      | "\(.window_id) \(.focused_block_id, (.layers[] | select(.kind == "tiled")
+        | .blocks[].block_id))"')
+  return 1
+}
+
 fai() {
   # Agents offered, in TAB order; the first installed one is the default.
   local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane
@@ -118,7 +140,7 @@ fai() {
   link="$(mktemp)"
   out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
     --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
-    --header='ENTER: new window / CTRL-O: run here / TAB: next agent / CTRL-X: delete' \
+    --header='ENTER: repo window / CTRL-O: run here / TAB: next agent / CTRL-X: delete' \
     --bind="tab:transform:step=1; ${cycle}" \
     --bind="shift-tab:transform:step=-1; ${cycle}" \
     --bind="enter:transform:key=enter; ${accept}" \
@@ -163,8 +185,19 @@ fai() {
     fi
     (cd "${dir}" && "${cmd[@]}" "$@")
   elif [[ -n "${TMUX:-}" ]]; then
-    pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
-      -- "${cmd[@]}" "$@")" || return
+    # A window fai already opened for this repo (marked by @fai_dir) gets a
+    # split instead of a second window.
+    win="$(tmux list-windows -a -F '#{window_id} #{@fai_dir}' |
+      awk -v d="${dir}" 'substr($0, index($0, " ") + 1) == d { print $1; exit }')"
+    if [[ -n "${win}" ]]; then
+      pane="$(tmux split-window -t "${win}" -c "${dir}" -P -F '#{pane_id}' \
+        -- "${cmd[@]}" "$@")" || return
+      tmux select-window -t "${win}"
+    else
+      pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
+        -- "${cmd[@]}" "$@")" || return
+      tmux set-option -w -t "${pane}" @fai_dir "${dir}"
+    fi
     # @url: the window's links its tab to the repo; the pane's is the deep
     # link it was opened with. Both are listed by prefix C-u (fzf-urls).
     if [[ "${dir}" == "${HOME}/Projects/github.com/"*/* ]]; then
@@ -173,10 +206,21 @@ fai() {
     [[ -n "${link}" ]] && tmux set-option -p -t "${pane}" @url "${link}"
     [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
   else
-    out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
-      -- "${cmd[@]}" "$@")" || return
-    win="$(jq -r .window_id <<<"${out}")"
-    [[ -n "${url}" ]] && __fai_prefill_bg rex "$(jq -r '.block_ids[0]' <<<"${out}")" "${url}"
+    local block anchor
+    # A window for this repo (named after it, with a block working in it)
+    # gets a split instead of a second window.
+    if anchor="$(__fai_rex_window "${dir}")"; then
+      read -r win anchor <<<"${anchor}"
+      out="$(rex split -s "${REX_SESSION}" -b "${anchor}" -c "${dir}" --json \
+        -- "${cmd[@]}" "$@")" || return
+      block="$(jq -r '.block_id // .block_ids[0]' <<<"${out}")"
+    else
+      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+        -- "${cmd[@]}" "$@")" || return
+      win="$(jq -r .window_id <<<"${out}")"
+      block="$(jq -r '.block_ids[0]' <<<"${out}")"
+    fi
+    [[ -n "${url}" ]] && __fai_prefill_bg rex "${block}" "${url}"
     # The Rex app keeps its own selected tab, so ask it to show the new one.
     # It only takes this with Remote Control on (Settings > Rex Server).
     # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword

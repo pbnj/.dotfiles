@@ -8,9 +8,10 @@
 rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 
 -- fai: pick a project with fai (utils/.local/bin/fai) in a floating layer,
--- like a tmux popup. fai opens each pick in a new Rex window, and the layer
--- closes once fai exits. bash -li loads the login and interactive profile, so
--- fai and the agents it starts have the usual PATH and environment. An
+-- like a tmux popup. fai opens each pick in its repo's Rex window (a new one,
+-- or a split of one already open), and the layer closes once fai exits.
+-- bash -li loads the login and interactive profile, so fai and the agents it
+-- starts have the usual PATH and environment. An
 -- optional url is passed to fai, which picks a GitHub URL's repo (any other
 -- URL leaves the pick to you) and types the link into the agent's prompt; the
 -- browser hotkey (macos/.local/share/agent-url) runs this with the frontmost
