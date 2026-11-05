@@ -24,7 +24,7 @@ window-show-tab-bar = auto
 font-family = "IoskeleyMonoTerm Nerd Font Mono"
 
 # ghostty +list-themes
-# theme = "light:TokyoNight Day,dark:TokyoNight Moon"
+theme = "light:GitHub Light Default,dark:GitHub Dark Default"
 
 # Keybindings
 # https://ghostty.org/docs/config/keybind/reference
