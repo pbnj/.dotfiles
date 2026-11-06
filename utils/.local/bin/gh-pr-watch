@@ -18,7 +18,9 @@
 #   THREAD <author> <path>:<line>: <first 160 chars> <url>  -- unresolved
 #   REPLY <author> on <path>:<line>: <text> <url>  -- a new answer in one
 #   REVIEW <author> <state> on <sha>[ (not head)]: <text> <url>
-#                               -- CHANGES_REQUESTED, or COMMENTED with a body
+#                               -- APPROVED, CHANGES_REQUESTED, or COMMENTED with a body
+#   APPROVAL: PR #<n> is approved on <sha> <pr url>  -- the review decision; once until lost
+#   APPROVAL lost: PR #<n> is <decision> on <sha> <pr url>  -- e.g. a push dismissed it
 #   CONFLICT: <head> conflicts with <base> on <sha> <pr url>  -- once until resolved
 #   CONFLICT resolved: <head> merges cleanly into <base> on <sha> <pr url>
 # Threads, replies and reviews by the authenticated user are not reported.
@@ -216,7 +218,8 @@ REVIEWS_JQ='def flat: gsub("<!--.*?-->"; "") | gsub("[\\s]+"; " ") | ltrimstr(" 
         | "REPLY \($l.databaseId)\tREPLY \($l.author.login // "ghost") on \($t | at): \($l.body | flat) \($base)#discussion_r\($l.databaseId)")),
     ($p.reviews.nodes[]
      | select(.author.login != $me)
-     | select(.state == "CHANGES_REQUESTED" or (.state == "COMMENTED" and (.body | length) > 0))
+     | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED"
+              or (.state == "COMMENTED" and (.body | length) > 0))
      | ((.commit.oid // "") as $c | "\($c[0:7])\(if $c == $p.headRefOid then "" else " (not head)" end)") as $on
      | "REVIEW \(.databaseId)\tREVIEW \(.author.login // "ghost") \(.state) on \($on): \(.body | flat) \($base)#pullrequestreview-\(.databaseId)")'
 
@@ -489,8 +492,20 @@ while true; do
     # A conflict is reported once, and again only after it was resolved: the
     # base moving can conflict a head that has not changed. UNKNOWN -- GitHub
     # still computing -- changes nothing.
-    IFS=$'\t' read -r mergeable head base <<<"$(jq -r '.data.repository.pullRequest
-      | [.mergeable // "", .headRefName, .baseRefName] | @tsv' <<<"$pr")"
+    IFS=$'\t' read -r mergeable head base decision <<<"$(jq -r '.data.repository.pullRequest
+      | [.mergeable // "", .headRefName, .baseRefName, .reviewDecision // "NONE"] | @tsv' <<<"$pr")"
+    # The review decision is reported like a conflict: once on reaching
+    # APPROVED, and again only after it was lost. A repo that requires no
+    # reviews has no decision (NONE); its approvals show only as REVIEW lines.
+    case "$decision" in
+    APPROVED)
+      emit "APPROVAL" "APPROVAL: PR #$NUMBER is approved on ${sha:0:7} $BASE"
+      ;;
+    *)
+      grep -Fxq APPROVAL "$SEEN" && forget --line "$SEEN" APPROVAL &&
+        echo "APPROVAL lost: PR #$NUMBER is $decision on ${sha:0:7} $BASE"
+      ;;
+    esac
     case "$mergeable" in
     CONFLICTING)
       emit "CONFLICT" "CONFLICT: $head conflicts with $base on ${sha:0:7} $BASE"
