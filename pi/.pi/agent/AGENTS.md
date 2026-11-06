@@ -15,8 +15,6 @@
 
 ## Worktrees
 
-- Create every git worktree under `.worktrees/` at the repo's root (e.g.
-  `~/Projects/github.com/pbnj/.dotfiles/.worktrees/<name>`), and do branch work
-  there rather than in the main checkout. Never put worktrees in a sibling
-  directory, `/tmp` or anywhere else. `.worktrees/` is ignored by my global
-  gitignore.
+- Create every git worktree inside the repo's root, in a directory git ignores,
+  and do branch work there rather than in the main checkout. Never put worktrees
+  in a sibling directory, `/tmp` or anywhere else outside the repo.
