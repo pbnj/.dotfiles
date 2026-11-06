@@ -10,7 +10,8 @@
 #              repo's window when one is already open; CTRL-O runs it here
 #              instead. CTRL-T toggles a ripgrep search through every local
 #              clone; picking a hit opens its repo with its path:line typed
-#              into the agent's prompt.
+#              into the agent's prompt. ESC picks no repo and opens the agent
+#              in $FAI_DIR (default: ~) instead; CTRL-C cancels.
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
 #              (seeded with any link below) unless args already give it.
@@ -29,6 +30,7 @@
 #        FAI_PICK=1 always stops at the picker, even on a unique match.
 #        FAI_AGENTS="claude pi" sets the agents offered, in TAB order; the
 #        first installed one is the default.
+#        FAI_DIR sets the directory ESC opens the agent in (default: ~).
 
 set -uo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
@@ -105,7 +107,7 @@ __fai_rex_window() {
 
 fai() {
   # Agents offered, in TAB order; the first installed one is the default.
-  local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane
+  local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane esc
   local select=(--select-1)
   [[ -n "${FAI_PICK:-}" ]] && select=()
   [[ -n "${FAI_AGENTS:-}" ]] && read -ra all <<<"${FAI_AGENTS}"
@@ -138,28 +140,41 @@ fai() {
   # shellcheck disable=SC2016
   local accept="${find}"'
     printf "print(%s)+print(%s)+accept" "$key" "${a[i]}"'
+  # ESC leaves the picker with no repo, noting the agent in $FAI_ESC first
+  # since print only reaches the output on accept.
+  # shellcheck disable=SC2016
+  local cancel="${find}"'
+    printf "execute-silent(echo %s >\"\$FAI_ESC\")+abort" "${a[i]}"'
 
   link="$(mktemp)"
-  out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
+  esc="$(mktemp)"
+  out="$(FAI_ESC="${esc}" PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
     --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
-    --header='ENTER: repo window / CTRL-O: run here / TAB: next agent / CTRL-T: grep / CTRL-X: delete' \
+    --header='ENTER: repo window / CTRL-O: run here / ESC: no repo / TAB: next agent / CTRL-T: grep / CTRL-X: delete' \
     --bind="tab:transform:step=1; ${cycle}" \
     --bind="shift-tab:transform:step=-1; ${cycle}" \
     --bind="enter:transform:key=enter; ${accept}" \
-    --bind="ctrl-o:transform:key=ctrl-o; ${accept}")"
+    --bind="ctrl-o:transform:key=ctrl-o; ${accept}" \
+    --bind="esc:transform:${cancel}")"
   url="$(<"${link}")"
-  rm -f "${link}"
+  agent="$(<"${esc}")"
+  rm -f "${link}" "${esc}"
   link="${url}" # kept for tmux's @url; the cloud agent clears url below
 
-  # key, agent, dir -- or just dir when --select-1 skipped the picker
+  # key, agent, dir -- or just dir when --select-1 skipped the picker, or
+  # nothing but the agent in $FAI_ESC when ESC picked no repo
   mapfile -t lines <<<"${out}"
-  dir="${lines[-1]}"
-  [[ -d "${dir}" ]] || return 1
-  agent="${agents[0]}"
-  if [[ ${#lines[@]} -ge 3 ]]; then
+  if [[ -n "${agent}" ]]; then
+    dir="${FAI_DIR:-${HOME}}"
+  elif [[ ${#lines[@]} -ge 3 ]]; then
     key="${lines[0]}"
     agent="${lines[1]}"
+    dir="${lines[-1]}"
+  else
+    agent="${agents[0]}"
+    dir="${lines[-1]}"
   fi
+  [[ -d "${dir}" ]] || return 1
   cmd=("${agent}")
   if [[ "${agent}" == cloud ]]; then
     cmd=(claude --cloud)
