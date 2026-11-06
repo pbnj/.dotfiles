@@ -19,9 +19,15 @@
 #              listed first.
 # Dependencies: brew install fzf jq; the linear CLI, logged in (optional:
 #               without it only URLs are listed)
-# Usage: fzf-urls [PANE|BLOCK]
+# Usage: fzf-urls [--linear|--repo|--pr|--checks] [PANE|BLOCK]
 #        A tmux pane (%3) or a Rex block (block:...). Defaults to TMUX_PANE in
 #        tmux, else REX_BLOCK.
+#        A flag narrows the list to one kind, each listed once:
+#        --linear  Linear issues: issue URLs and issue IDs
+#        --repo    GitHub repos, from any GitHub URL or reference
+#        --pr      GitHub PRs, from PR URLs and references (a reference to an
+#                  issue opens the issue: GitHub redirects /pull/N to it)
+#        --checks  the checks tab of those PRs
 #        tmux: bind with run-shell -b, passing '#{pane_id}'; the picker opens
 #        in a tmux popup.
 #        Rex: bind to a floating layer, passing the block that was focused, so
@@ -29,6 +35,14 @@
 
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
+
+only=""
+case "${1:-}" in
+--linear | --repo | --pr | --checks)
+  only="${1#--}"
+  shift
+  ;;
+esac
 
 target="${1:-}"
 if [[ -z "${target}" ]]; then
@@ -121,7 +135,38 @@ if [[ "${2:-}" == "--list" ]]; then
       }
     '
   } |
-    awk -F '\t' '!seen[$1]++'
+    awk -F '\t' -v OFS='\t' -v only="${only}" '
+      only == "" { if (!seen[$1]++) print; next }
+      # Linear: issue URLs only, once per issue: a URL with the title slug and
+      # the one built from the ID are the same issue.
+      only == "linear" {
+        if (match($1, /^https:\/\/linear\.app\/[^\/]+\/issue\/[A-Z][A-Z0-9]*-[0-9]+/) &&
+          !seen[substr($1, 1, RLENGTH)]++) print
+        next
+      }
+      # GitHub: the repo part of the URL, minus pages that are not repos
+      # (github.com/settings/..., github.com/orgs/...).
+      !match($1, /^https:\/\/github\.com\/[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9._-]+/) { next }
+      {
+        repo = substr($1, 1, RLENGTH)
+        rest = substr($1, RLENGTH + 1)
+        sub(/\.git$/, "", repo)
+        split(repo, part, "/")
+        if (part[4] ~ /^(about|apps|codespaces|collections|enterprise|explore|features|issues|login|marketplace|notifications|organizations|orgs|pricing|pulls|search|security|settings|sponsors|topics|trending|users)$/) next
+        # A reference (owner/repo#123) was listed as an issue URL.
+        ref = $2 ~ /#[0-9]+$/
+      }
+      only == "repo" { if (!seen[repo]++) print repo; next }
+      {
+        if (match(rest, /^\/pull\/[0-9]+/)) n = substr(rest, 7, RLENGTH - 6)
+        else if (ref && match(rest, /^\/issues\/[0-9]+/)) n = substr(rest, 9, RLENGTH - 8)
+        else next
+        url = repo "/pull/" n (only == "checks" ? "/checks" : "")
+        if (seen[url]++) next
+        if (ref) print url, $2
+        else print url
+      }
+    '
   exit
 fi
 
@@ -130,12 +175,20 @@ capture >/dev/null
 popup=()
 [[ "${target}" == %* ]] && popup=(--tmux 'center,80%')
 
+case "${only}" in
+linear) prompt='Linear issue(s)> ' ;;
+repo) prompt='Repo(s)> ' ;;
+pr) prompt='PR(s)> ' ;;
+checks) prompt='PR checks> ' ;;
+*) prompt='URL(s)> ' ;;
+esac
+
 fzf \
-  --bind "start:reload:'$0' '${target}' --list" \
+  --bind "start:reload:'$0' ${only:+--${only}} '${target}' --list" \
   --bind "enter:become:open {+1}" \
   --delimiter=$'\t' \
   --multi \
-  --prompt='URL(s)> ' \
+  --prompt="${prompt}" \
   --header='<TAB>: select  <ENTER>: open' \
   --reverse \
   ${popup[@]+"${popup[@]}"} || true

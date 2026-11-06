@@ -72,27 +72,32 @@ rex.bind("ctrl+b>ctrl+g", grep_scrollback)
 -- ctrl+b u: pick URL(s) from the focused block's scrollback with fzf and open
 -- them, in a floating layer (see utils/.local/bin/fzf-urls). The layer's
 -- own block is a new one, so the focused block is passed as an argument.
--- ctrl+b ctrl+u works too, for when ctrl is still held.
-local function pick_urls(ctx)
-  rex.session.new_layer({
-    bounds = { 0.1, 0.1, 0.8, 0.8 },
-    focus = true,
-    layout = rex.layout.block({
-      flavor = "com.superlogical.terminal.shell",
-      label = "urls",
-      options = {
-        shell = "none",
-        command = {
-          "bash",
-          "-lc",
-          'fzf-urls "$0"',
-          ctx.block_id or "",
+-- ctrl+b ctrl+u works too, for when ctrl is still held. An optional flag
+-- narrows the list (e.g. "--linear", for Open Linear Issue below).
+local function url_picker(flag)
+  return function(ctx)
+    rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "urls",
+        options = {
+          shell = "none",
+          command = {
+            "bash",
+            "-lc",
+            'fzf-urls $1 "$0"',
+            ctx.block_id or "",
+            flag or "",
+          },
         },
-      },
-    }),
-  })
-  return true
+      }),
+    })
+    return true
+  end
 end
+local pick_urls = url_picker()
 rex.bind("ctrl+b>u", pick_urls)
 rex.bind("ctrl+b>ctrl+u", pick_urls)
 
@@ -172,43 +177,16 @@ end
 rex.bind("ctrl+b>c", agent_split)
 rex.bind("ctrl+b>ctrl+c", agent_split)
 
--- ctrl+b o …: open the focused block's git repo on GitHub, from the block's
--- working directory. bash -lc loads the profile, so gh is on PATH.
---   r  the repo
---   p  the current branch's PR
---   c  the current branch's PR checks
---   i  the current branch's Linear issue: the one its name carries, else the
---      first issue ID in its PR's title or body (e.g. a CLOSES line) that
---      Linear knows
+-- ctrl+b o …: open something on GitHub or Linear. r, p, c and i fuzzy-pick
+-- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);
+-- f and l pick from the block's git repo.
+--   r  a GitHub repo, from any GitHub URL or reference (fzf-urls --repo)
+--   p  a GitHub PR, from PR URLs and references (fzf-urls --pr)
+--   c  a PR's checks tab (fzf-urls --checks)
+--   i  a Linear issue, from issue URLs and IDs of known team keys
+--      (fzf-urls --linear)
 --   f  a fuzzy-picked file, as a permalink (utils/.local/bin/fzf-gh-browse)
 --   l  a fuzzy-picked line, as a permalink
-local function gh_open(script)
-  return function(ctx)
-    local cwd = block_cwd(ctx)
-    if not cwd then
-      error("no working directory for the focused block", 0)
-    end
-    local r, err = rex.exec({ "bash", "-lc", script }, { cwd = cwd })
-    if not r then
-      error(err, 0)
-    end
-    if not r.ok then
-      error(r.stderr ~= "" and r.stderr or r.stdout, 0)
-    end
-    return true
-  end
-end
-
-local linear_issue = [[
-linear issue view --web --no-input 2>/dev/null && exit
-for id in $(gh pr view --json title,body --jq '.title + "\n" + .body' |
-  grep -oE '\b[A-Z][A-Z0-9]+-[0-9]+\b' | awk '!seen[$0]++'); do
-  linear issue url --no-input "$id" >/dev/null 2>&1 &&
-    exec linear issue view --web --no-input "$id"
-done
-echo "no Linear issue in the branch name or its PR" >&2
-exit 1
-]]
 
 local function gh_pick(mode)
   return function(ctx)
@@ -232,14 +210,14 @@ end
 -- Each one is an action too, so it's listed in the command palette (with its
 -- keys) as well as bound.
 for _, a in ipairs({
-  { "r", "gh_open_repo", "Open Repo on GitHub", gh_open("gh browse") },
-  { "p", "gh_open_pr", "Open PR on GitHub", gh_open("gh pr view --web") },
-  { "i", "linear_open_issue", "Open Linear Issue", gh_open(linear_issue) },
+  { "r", "gh_open_repo", "Open Repo on GitHub", url_picker("--repo") },
+  { "p", "gh_open_pr", "Open PR on GitHub", url_picker("--pr") },
+  { "i", "linear_open_issue", "Open Linear Issue", url_picker("--linear") },
   {
     "c",
     "gh_open_checks",
     "Open PR Checks on GitHub",
-    gh_open("gh pr checks --web"),
+    url_picker("--checks"),
   },
   { "f", "gh_open_file", "Open File on GitHub (Permalink)", gh_pick("files") },
   { "l", "gh_open_line", "Open Line on GitHub (Permalink)", gh_pick("lines") },
