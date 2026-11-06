@@ -14,6 +14,10 @@
 #              Picking a hit prints its repo, and its path:line is written to
 #              PICK_REPO_LINK (after any URL there) for fai to type into the
 #              agent's prompt. CTRL-T again goes back to repo names.
+#              A one-cell Nerd Font icon before the prompt's ">" shows the
+#              list: a folder for local clones, the GitHub logo for a GitHub
+#              search, a magnifier for grep. The prompt keeps its width, so
+#              switching lists never shifts the query.
 #              A pasted URL is taken out of the query and shown in the footer.
 #              A GitHub URL narrows the list to the repo it names; any other
 #              URL (a Linear issue, a blog post) leaves the list to you. Set
@@ -26,6 +30,26 @@
 
 set -uo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
+
+# The list's marker in the prompt, "<base> <marker>> " (see the header)
+PICK_REPO_LOCAL=$'\uf07b'  # nf-fa-folder
+PICK_REPO_GITHUB=$'\uf09b' # nf-fa-github
+PICK_REPO_GREP=$'\uf002'   # nf-fa-search
+
+# __pick_repo_in <marker>: whether FZF_PROMPT shows the list <marker> marks
+__pick_repo_in() {
+  [[ "${FZF_PROMPT:-}" == *" ${1}> " ]]
+}
+
+# __pick_repo_prompt <marker>: print the fzf action that swaps FZF_PROMPT's
+# marker for <marker>
+__pick_repo_prompt() {
+  local base="${FZF_PROMPT%> }" m
+  for m in "${PICK_REPO_LOCAL}" "${PICK_REPO_GITHUB}" "${PICK_REPO_GREP}"; do
+    base="${base% "${m}"}"
+  done
+  printf 'change-prompt:%s %s> ' "${base}" "${1}"
+}
 
 # __pick_repo_spec <text>: print the owner/repo named by a GitHub URL (the
 # repo, or a pull request, issue or file in it), a clone URL or a bare
@@ -128,37 +152,34 @@ __pick_repo_preview() {
 }
 
 # __pick_repo_on_toggle: run by fzf on CTRL-T; prints the actions that switch
-# between grep mode, marked by " (rg)" in the prompt, and repo names. Back
+# between grep mode and repo names. Back
 # from grep, the list is local or GitHub depending on the query, as in
 # __pick_repo_on_query.
 __pick_repo_on_toggle() {
-  local query="${FZF_QUERY}" prompt="${FZF_PROMPT}" base
+  local query="${FZF_QUERY}"
   # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
-  if [[ "${prompt}" == *" (rg)> " ]]; then
-    base="${prompt% (rg)> }"
+  if __pick_repo_in "${PICK_REPO_GREP}"; then
     printf '%s' 'enable-search+change-with-nth(-2..)+'
     if [[ -z "${query//[[:space:]]/}" ]] ||
       fzf --filter="${query}" --delimiter=/ --with-nth=-2.. <"${PICK_REPO_LIST}" | grep -q .; then
-      printf 'reload(cat "$PICK_REPO_LIST")+change-prompt:%s> ' "${base}"
+      printf 'reload(cat "$PICK_REPO_LIST")+%s' "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
     else
-      printf 'reload("$PICK_REPO_SELF" --search {q})+change-prompt:%s (GitHub)> ' "${base}"
+      printf 'reload("$PICK_REPO_SELF" --search {q})+%s' "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
     fi
   else
-    base="${prompt% (GitHub)> }"
-    base="${base%> }"
-    printf 'disable-search+change-with-nth(1..)+reload("$PICK_REPO_SELF" --grep {q})+change-prompt:%s (rg)> ' "${base}"
+    printf 'disable-search+change-with-nth(1..)+reload("$PICK_REPO_SELF" --grep {q})+%s' \
+      "$(__pick_repo_prompt "${PICK_REPO_GREP}")"
   fi
 }
 
 # __pick_repo_on_query: run by fzf on every query edit; prints the fzf actions
 # that rewrite a pasted URL, and pick the list: local while the query matches
 # a local repo (or is empty), otherwise GitHub, re-searched on every edit.
-# GitHub mode is marked by " (GitHub)" in the prompt.
 __pick_repo_on_query() {
-  local query="${FZF_QUERY}" prompt="${FZF_PROMPT}" rewritten
+  local query="${FZF_QUERY}" rewritten
   # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
   local search='reload("$PICK_REPO_SELF" --search {q})'
-  if [[ "${prompt}" == *" (rg)> " ]]; then
+  if __pick_repo_in "${PICK_REPO_GREP}"; then
     # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
     printf '%s' 'reload("$PICK_REPO_SELF" --grep {q})'
     return 0
@@ -173,12 +194,12 @@ __pick_repo_on_query() {
   if [[ -z "${query//[[:space:]]/}" ]] ||
     fzf --filter="${query}" --delimiter=/ --with-nth=-2.. <"${PICK_REPO_LIST}" | grep -q .; then
     # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
-    [[ "${prompt}" == *" (GitHub)> " ]] &&
-      printf 'reload(cat "$PICK_REPO_LIST")+change-prompt:%s' "${prompt% (GitHub)> }> "
-  elif [[ "${prompt}" == *" (GitHub)> " ]]; then
+    __pick_repo_in "${PICK_REPO_GITHUB}" &&
+      printf 'reload(cat "$PICK_REPO_LIST")+%s' "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
+  elif __pick_repo_in "${PICK_REPO_GITHUB}"; then
     printf '%s' "${search}"
   else
-    printf '%s+change-prompt:%s' "${search}" "${prompt%> } (GitHub)> "
+    printf '%s+%s' "${search}" "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
   fi
   return 0
 }
@@ -212,7 +233,7 @@ __pick_repo_delete() {
 # the highlighted local clone. A GitHub search result or a grep hit is left
 # alone.
 __pick_repo_on_delete() {
-  [[ "${FZF_PROMPT}" == *" (GitHub)> " || "${FZF_PROMPT}" == *" (rg)> " ]] && return 0
+  __pick_repo_in "${PICK_REPO_LOCAL}" || return 0
   # shellcheck disable=SC2016 # expanded by the shell fzf runs execute in
   printf '%s' 'execute("$PICK_REPO_SELF" --delete {})+reload(cat "$PICK_REPO_LIST")'
 }
@@ -231,7 +252,9 @@ __pick_repo() {
   fd . "${root}" --type d --min-depth 2 --max-depth 2 | sed 's|/$||' >"${list}"
 
   # Rewrite a URL in the initial query now, so --select-1 can still see it.
+  # A prompt gets the local list's marker before its "> ".
   for arg in "$@"; do
+    [[ "${arg}" == --prompt=*"> " ]] && arg="${arg%> } ${PICK_REPO_LOCAL}> "
     [[ "${arg}" == --query=* ]] &&
       arg="--query=$(PICK_REPO_LINK="${link}" __pick_repo_unurl "${arg#--query=}")"
     args+=("${arg}")
@@ -242,7 +265,7 @@ __pick_repo() {
   out="$(PICK_REPO_LIST="${list}" PICK_REPO_LINK="${link}" \
     PICK_REPO_SELF="${self}" \
     fzf <"${list}" --with-shell='bash -c' --ansi \
-      --delimiter=/ --with-nth=-2.. --prompt='Repo> ' \
+      --delimiter=/ --with-nth=-2.. --prompt="Repo ${PICK_REPO_LOCAL}> " \
       --preview='"$PICK_REPO_SELF" --preview {}' \
       --bind='start,change:transform:"$PICK_REPO_SELF" --on-query' \
       --bind='ctrl-t:transform:"$PICK_REPO_SELF" --on-toggle' \
