@@ -22,7 +22,7 @@ rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 -- arguments, never as shell code.
 rex.action({
   name = "fai",
-  title = "Pick a Project with fai",
+  title = "Open fai",
   category = "Agents",
   keywords = "claude cloud copilot pi repo clone picker",
   args = { url = "string?", text = "string?" },
