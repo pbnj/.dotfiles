@@ -20,6 +20,8 @@ rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 rex.action({
   name = "fai",
   title = "Pick a Project with fai",
+  category = "Agents",
+  keywords = "claude cloud copilot pi repo clone picker",
   args = { url = "string?" },
   run = function(_, args)
     local command = { "bash", "-lic", "fai", "bash" }
@@ -142,7 +144,13 @@ local function scratch(ctx)
 end
 -- Also in the command palette. ctrl+b ctrl+t works too, for when ctrl is
 -- still held. (It was cmd+shift+enter, which the app already binds.)
-rex.action({ name = "scratch", title = "Scratch Shell", run = scratch })
+rex.action({
+  name = "scratch",
+  title = "Scratch Shell",
+  category = "Terminal",
+  keywords = "popup floating layer temporary terminal",
+  run = scratch,
+})
 rex.bind("ctrl+b>t", "scratch")
 rex.bind("ctrl+b>ctrl+t", "scratch")
 
@@ -208,23 +216,66 @@ local function gh_pick(mode)
 end
 
 -- Each one is an action too, so it's listed in the command palette (with its
--- keys) as well as bound.
+-- keys) as well as bound. The palette groups them under their category, and
+-- its search also matches their keywords (e.g. "ci" finds the checks tab).
 for _, a in ipairs({
-  { "r", "gh_open_repo", "Open Repo on GitHub", url_picker("--repo") },
-  { "p", "gh_open_pr", "Open PR on GitHub", url_picker("--pr") },
-  { "i", "linear_open_issue", "Open Linear Issue", url_picker("--linear") },
   {
-    "c",
-    "gh_open_checks",
-    "Open PR Checks on GitHub",
-    url_picker("--checks"),
+    key = "r",
+    name = "gh_open_repo",
+    title = "Open Repo on GitHub",
+    category = "GitHub",
+    keywords = "repository browse",
+    run = url_picker("--repo"),
   },
-  { "f", "gh_open_file", "Open File on GitHub (Permalink)", gh_pick("files") },
-  { "l", "gh_open_line", "Open Line on GitHub (Permalink)", gh_pick("lines") },
+  {
+    key = "p",
+    name = "gh_open_pr",
+    title = "Open PR on GitHub",
+    category = "GitHub",
+    keywords = "pull request review",
+    run = url_picker("--pr"),
+  },
+  {
+    key = "c",
+    name = "gh_open_checks",
+    title = "Open PR Checks on GitHub",
+    category = "GitHub",
+    keywords = "ci actions build status failing",
+    run = url_picker("--checks"),
+  },
+  {
+    key = "f",
+    name = "gh_open_file",
+    title = "Open File on GitHub (Permalink)",
+    category = "GitHub",
+    keywords = "source link share",
+    run = gh_pick("files"),
+  },
+  {
+    key = "l",
+    name = "gh_open_line",
+    title = "Open Line on GitHub (Permalink)",
+    category = "GitHub",
+    keywords = "source link share blame",
+    run = gh_pick("lines"),
+  },
+  {
+    key = "i",
+    name = "linear_open_issue",
+    title = "Open Linear Issue",
+    category = "Linear",
+    keywords = "ticket task bug",
+    run = url_picker("--linear"),
+  },
 }) do
-  local key, name, title, run = a[1], a[2], a[3], a[4]
-  rex.action({ name = name, title = title, run = run })
-  rex.bind("ctrl+b>o>" .. key, name)
+  rex.action({
+    name = a.name,
+    title = a.title,
+    category = a.category,
+    keywords = a.keywords,
+    run = a.run,
+  })
+  rex.bind("ctrl+b>o>" .. a.key, a.name)
 end
 
 -- ctrl+b a: focus the block that most needs attention, switching windows if
@@ -257,6 +308,8 @@ end
 rex.action({
   name = "focus_attention",
   title = "Focus Block Needing Attention",
+  category = "Agents",
+  keywords = "blocked waiting input error done status jump",
   run = function(ctx)
     local blocks = rex.session.list_blocks({ session_id = ctx.session_id })
     local placed = {}
