@@ -2,11 +2,11 @@
 
 # Author: Peter Benjamin
 # Description: Pick a repo from ~/Projects/github.com/<owner>/<repo> with fzf
-#              and print its full path; the list shows owner/repo only.
-#              ~/Projects/github.com itself, and the owner directories named
-#              in PICK_REPO_OWNERS, are listed first (as github.com/ and
-#              <owner>/), for work across many repos; grep and CTRL-X leave
-#              them out.
+#              and print its full path; the list shows it from github.com/
+#              on (github.com/owner/repo).
+#              ~/Projects/github.com itself and each owner directory in it
+#              are listed first, as github.com/ and github.com/<owner>/, for
+#              work across many repos; grep and CTRL-X leave them out.
 #              When the query matches no local repo, the list switches to a
 #              GitHub repo search that re-runs as you type, and switches back
 #              once a local repo matches again. A GitHub pick is cloned into
@@ -31,8 +31,6 @@
 # Dependencies: brew install bat fd fzf gh ripgrep
 # Usage: fai-pick-repo [fzf options...]
 #        p (bash/.functions) cds into the pick; fai runs an agent in it.
-#        PICK_REPO_OWNERS="acme other" lists ~/Projects/github.com/acme and
-#        .../other too; set it somewhere private, such as ~/.work.profile.
 
 set -uo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
@@ -169,12 +167,14 @@ __pick_repo_on_toggle() {
   local query="${FZF_QUERY}"
   # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
   if __pick_repo_in "${PICK_REPO_GREP}"; then
-    printf '%s' 'enable-search+change-with-nth(-2..)+'
+    printf '%s' 'enable-search+'
     if [[ -z "${query//[[:space:]]/}" ]] ||
-      fzf --filter="${query}" --delimiter=/ --with-nth=-2.. <"${PICK_REPO_LIST}" | grep -q .; then
-      printf 'reload(cat "$PICK_REPO_LIST")+%s' "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
+      fzf --filter="${query}" --delimiter=/ --with-nth="${PICK_REPO_NTH}" <"${PICK_REPO_LIST}" | grep -q .; then
+      printf 'change-with-nth(%s)+reload(cat "$PICK_REPO_LIST")+%s' \
+        "${PICK_REPO_NTH}" "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
     else
-      printf 'reload("$PICK_REPO_SELF" --search {q})+%s' "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
+      printf 'change-with-nth(1..)+reload("$PICK_REPO_SELF" --search {q})+%s' \
+        "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
     fi
   else
     printf 'disable-search+change-with-nth(1..)+reload("$PICK_REPO_SELF" --grep {q})+%s' \
@@ -202,14 +202,16 @@ __pick_repo_on_query() {
     return
   fi
   if [[ -z "${query//[[:space:]]/}" ]] ||
-    fzf --filter="${query}" --delimiter=/ --with-nth=-2.. <"${PICK_REPO_LIST}" | grep -q .; then
+    fzf --filter="${query}" --delimiter=/ --with-nth="${PICK_REPO_NTH}" <"${PICK_REPO_LIST}" | grep -q .; then
     # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
     __pick_repo_in "${PICK_REPO_GITHUB}" &&
-      printf 'reload(cat "$PICK_REPO_LIST")+%s' "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
+      printf 'change-with-nth(%s)+reload(cat "$PICK_REPO_LIST")+%s' \
+        "${PICK_REPO_NTH}" "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
   elif __pick_repo_in "${PICK_REPO_GITHUB}"; then
     printf '%s' "${search}"
   else
-    printf '%s+%s' "${search}" "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
+    # GitHub results are bare owner/repo lines, shown whole.
+    printf 'change-with-nth(1..)+%s+%s' "${search}" "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
   fi
   return 0
 }
@@ -260,14 +262,15 @@ __pick_repo() {
     own_link=1
   fi
   list="$(mktemp)"
-  # The parents keep their trailing / so the list shows github.com/ and
-  # <owner>/; it is dropped from the path printed for a pick.
-  local owners=()
-  read -ra owners <<<"${PICK_REPO_OWNERS:-}"
+  # Local paths show from github.com on: the field after the root's slashes.
+  local nth="${root//[!\/]/}"
+  nth="$((${#nth} + 1)).."
+  # Every directory from the root down to the repos: the root and each owner
+  # keep their trailing / (fd's), so the list shows github.com/ and <owner>/;
+  # it is dropped from the path printed for a pick.
   {
-    for dir in "${root}" "${owners[@]/#/${root}/}"; do
-      [[ -d "${dir}" ]] && printf '%s/\n' "${dir}"
-    done
+    [[ -d "${root}" ]] && printf '%s/\n' "${root}"
+    fd . "${root}" --type d --max-depth 1
     fd . "${root}" --type d --min-depth 2 --max-depth 2 | sed 's|/$||'
   } >"${list}"
 
@@ -283,9 +286,9 @@ __pick_repo() {
 
   # shellcheck disable=SC2094,SC2016 # fzf only reads the list; $vars expand in fzf's shell
   out="$(PICK_REPO_LIST="${list}" PICK_REPO_LINK="${link}" \
-    PICK_REPO_SELF="${self}" \
+    PICK_REPO_SELF="${self}" PICK_REPO_NTH="${nth}" \
     fzf <"${list}" --with-shell='bash -c' --ansi \
-      --delimiter=/ --with-nth=-2.. --prompt="Repo ${PICK_REPO_LOCAL}> " \
+      --delimiter=/ --with-nth="${nth}" --prompt="Repo ${PICK_REPO_LOCAL}> " \
       --preview='"$PICK_REPO_SELF" --preview {}' \
       --bind='start,change:transform:"$PICK_REPO_SELF" --on-query' \
       --bind='ctrl-t:transform:"$PICK_REPO_SELF" --on-toggle' \

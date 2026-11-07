@@ -15,9 +15,9 @@
 #              goes to every agent. CTRL-T toggles a ripgrep search through
 #              every local clone; picking a hit opens its repo with its
 #              path:line typed into the agent's prompt. ESC or CTRL-C
-#              cancels, opening nothing. ~/Projects/github.com (and owner
-#              directories in PICK_REPO_OWNERS) are in the list too, to run
-#              an agent across many repos.
+#              cancels, opening nothing. ~/Projects/github.com and its owner
+#              directories are in the list too, to run an agent across many
+#              repos.
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
 #              (seeded with any link below) unless args already give it.
