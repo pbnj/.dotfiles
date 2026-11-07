@@ -75,7 +75,8 @@ rex.bind("ctrl+b>ctrl+g", grep_scrollback)
 -- them, in a floating layer (see utils/.local/bin/fzf-urls). The layer's
 -- own block is a new one, so the focused block is passed as an argument.
 -- ctrl+b ctrl+u works too, for when ctrl is still held. An optional flag
--- narrows the list (e.g. "--linear", for Open Linear Issue below).
+-- narrows the list (e.g. "--linear", for Open Linear Issue in Browser below);
+-- with one, a single match opens without the picker.
 local function url_picker(flag)
   return function(ctx)
     rex.session.new_layer({
@@ -222,31 +223,31 @@ for _, a in ipairs({
   {
     key = "r",
     name = "gh_open_repo",
-    title = "Open Repo on GitHub",
+    title = "Open GitHub Repo in Browser",
     category = "GitHub",
-    keywords = "repository browse",
+    keywords = "github repository browse",
     run = url_picker("--repo"),
   },
   {
     key = "p",
     name = "gh_open_pr",
-    title = "Open PR on GitHub",
+    title = "Open GitHub PR in Browser",
     category = "GitHub",
-    keywords = "pull request review",
+    keywords = "github pull request review",
     run = url_picker("--pr"),
   },
   {
     key = "c",
     name = "gh_open_checks",
-    title = "Open PR Checks on GitHub",
+    title = "Open GitHub PR Checks in Browser",
     category = "GitHub",
-    keywords = "ci actions build status failing",
+    keywords = "github ci actions build status failing",
     run = url_picker("--checks"),
   },
   {
     key = "f",
     name = "gh_open_file",
-    title = "Open File on GitHub (Permalink)",
+    title = "Open GitHub File in Browser (Permalink)",
     category = "GitHub",
     keywords = "source link share",
     run = gh_pick("files"),
@@ -254,7 +255,7 @@ for _, a in ipairs({
   {
     key = "l",
     name = "gh_open_line",
-    title = "Open Line on GitHub (Permalink)",
+    title = "Open GitHub Line in Browser (Permalink)",
     category = "GitHub",
     keywords = "source link share blame",
     run = gh_pick("lines"),
@@ -262,9 +263,9 @@ for _, a in ipairs({
   {
     key = "i",
     name = "linear_open_issue",
-    title = "Open Linear Issue",
+    title = "Open Linear Issue in Browser",
     category = "Linear",
-    keywords = "ticket task bug",
+    keywords = "linear ticket task bug",
     run = url_picker("--linear"),
   },
 }) do

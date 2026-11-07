@@ -31,7 +31,7 @@ sha="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null ||
 
 case "${mode}" in
   files)
-    path="$(git ls-files | fzf --reverse \
+    path="$(git ls-files | fzf --reverse --select-1 \
       --prompt "file> " \
       --preview 'bat --color=always --style=numbers {}')" || exit 0
     exec gh browse --commit="${sha}" "${path}"
@@ -39,7 +39,7 @@ case "${mode}" in
   lines)
     # TAB marks several lines. The marked lines of each file open as one
     # range, from the first to the last (#L10-L20), one tab per file.
-    picks="$(rg --line-number --no-heading --color=always --smart-case '' | fzf --reverse \
+    picks="$(rg --line-number --no-heading --color=always --smart-case '' | fzf --reverse --select-1 \
       --multi \
       --ansi \
       --prompt "line> " \

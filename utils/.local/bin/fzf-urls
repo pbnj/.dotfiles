@@ -22,7 +22,8 @@
 # Usage: fzf-urls [--linear|--repo|--pr|--checks] [PANE|BLOCK]
 #        A tmux pane (%3) or a Rex block (block:...). Defaults to TMUX_PANE in
 #        tmux, else REX_BLOCK.
-#        A flag narrows the list to one kind, each listed once:
+#        A flag narrows the list to one kind, each listed once; when only one
+#        is found, it opens without showing the picker:
 #        --linear  Linear issues: issue URLs and issue IDs
 #        --repo    GitHub repos, from any GitHub URL or reference
 #        --pr      GitHub PRs, from PR URLs and references (a reference to an
@@ -183,9 +184,17 @@ checks) prompt='PR checks> ' ;;
 *) prompt='URL(s)> ' ;;
 esac
 
+# With a flag, a list of one opens it straight away. The list loads after fzf
+# starts (start:reload), which --select-1 doesn't see, so check on load.
+single=()
+# shellcheck disable=SC2016 # fzf expands FZF_TOTAL_COUNT, not this shell
+[[ -n "${only}" ]] &&
+  single=(--bind 'load:transform:[ "$FZF_TOTAL_COUNT" = 1 ] && echo "become:open {+1}" || true')
+
 fzf \
   --bind "start:reload:'$0' ${only:+--${only}} '${target}' --list" \
   --bind "enter:become:open {+1}" \
+  ${single[@]+"${single[@]}"} \
   --delimiter=$'\t' \
   --multi \
   --prompt="${prompt}" \
