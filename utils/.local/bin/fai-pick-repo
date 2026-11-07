@@ -3,6 +3,10 @@
 # Author: Peter Benjamin
 # Description: Pick a repo from ~/Projects/github.com/<owner>/<repo> with fzf
 #              and print its full path; the list shows owner/repo only.
+#              ~/Projects/github.com itself, and the owner directories named
+#              in PICK_REPO_OWNERS, are listed first (as github.com/ and
+#              <owner>/), for work across many repos; grep and CTRL-X leave
+#              them out.
 #              When the query matches no local repo, the list switches to a
 #              GitHub repo search that re-runs as you type, and switches back
 #              once a local repo matches again. A GitHub pick is cloned into
@@ -27,6 +31,8 @@
 # Dependencies: brew install bat fd fzf gh ripgrep
 # Usage: fai-pick-repo [fzf options...]
 #        p (bash/.functions) cds into the pick; fai runs an agent in it.
+#        PICK_REPO_OWNERS="acme other" lists ~/Projects/github.com/acme and
+#        .../other too; set it somewhere private, such as ~/.work.profile.
 
 set -uo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
@@ -131,16 +137,20 @@ __pick_repo_grep() {
   ((${#query} >= 2)) || return 0
   sleep 0.2
   cd "${root}" || return 0
-  mapfile -t dirs < <(sed "s|^${root}/||" "${PICK_REPO_LIST}")
+  # Clones only: the parent directories (ending in /) would search them twice.
+  mapfile -t dirs < <(grep -v '/$' "${PICK_REPO_LIST}" | sed "s|^${root}/||")
   rg --line-number --no-heading --color=always --smart-case \
     --max-columns=300 --max-columns-preview -- "${query}" "${dirs[@]}" 2>/dev/null || true
 }
 
 # __pick_repo_preview <line>: the preview for a list line: a local clone's
-# recent commits, a grep hit's file around its line, or a GitHub repo.
+# recent commits (a parent directory's contents), a grep hit's file around its
+# line, or a GitHub repo.
 __pick_repo_preview() {
   local line="${1:-}" root="${HOME}/Projects/github.com" n
-  if [[ "${line}" == /* ]]; then
+  if [[ "${line}" == */ ]]; then
+    ls -1 "${line}"
+  elif [[ "${line}" == /* ]]; then
     git -C "${line}" log --oneline --color -15
   elif [[ "${line}" =~ ^([^/]+/[^/]+/[^:]+):([0-9]+): ]]; then
     n="${BASH_REMATCH[2]}"
@@ -209,8 +219,9 @@ __pick_repo_on_query() {
 # then delete it and drop it from $PICK_REPO_LIST.
 __pick_repo_delete() {
   local dir="${1:-}" root="${HOME}/Projects/github.com" answer lost
-  # Only ever a <root>/<owner>/<repo> directory
-  [[ "${dir}" == "${root}"/*/* && "${dir#"${root}"/*/}" != */* && -d "${dir}" ]] || return 0
+  # Only ever a <root>/<owner>/<repo> directory, never a listed parent (ending in /)
+  [[ "${dir}" == "${root}"/*/* && "${dir}" != */ && "${dir#"${root}"/*/}" != */* &&
+    -n "${dir#"${root}"/*/}" && -d "${dir}" ]] || return 0
   printf '\nDelete %s?\n' "${dir#"${root}"/}"
   if [[ -d "${dir}/.git" ]]; then
     lost="$(git -C "${dir}" status --short 2>/dev/null)"
@@ -243,13 +254,22 @@ __pick_repo() {
   local root="${HOME}/Projects/github.com" link="${PICK_REPO_LINK:-}" own_link=""
   local self
   self="$(realpath "${BASH_SOURCE[0]}")"
-  local list out rc line spec picked="" args=() arg ref=""
+  local list out rc line spec picked="" args=() arg ref="" dir
   if [[ -z "${link}" ]]; then
     link="$(mktemp)"
     own_link=1
   fi
   list="$(mktemp)"
-  fd . "${root}" --type d --min-depth 2 --max-depth 2 | sed 's|/$||' >"${list}"
+  # The parents keep their trailing / so the list shows github.com/ and
+  # <owner>/; it is dropped from the path printed for a pick.
+  local owners=()
+  read -ra owners <<<"${PICK_REPO_OWNERS:-}"
+  {
+    for dir in "${root}" "${owners[@]/#/${root}/}"; do
+      [[ -d "${dir}" ]] && printf '%s/\n' "${dir}"
+    done
+    fd . "${root}" --type d --min-depth 2 --max-depth 2 | sed 's|/$||'
+  } >"${list}"
 
   # Rewrite a URL in the initial query now, so --select-1 can still see it.
   # A prompt gets the local list's marker before its "> ".
@@ -288,6 +308,7 @@ __pick_repo() {
           gh repo clone "${BASH_REMATCH[0]}" "${line}" >&2 || rc=1
         fi
       fi
+      [[ "${line}" == /?*/ ]] && line="${line%/}"
       [[ "${line}" == /* ]] && picked+="${line,,}"$'\n'
       printf '%s\n' "${line}"
     done <<<"${out}"

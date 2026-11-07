@@ -4,14 +4,20 @@
 # Description: Run an AI agent in a repo picked with fai-pick-repo, without
 #              leaving the current directory. Words up to the first -flag (or
 #              --) seed the picker, and a unique match launches straight away;
-#              the rest go to the agent. TAB / SHIFT-TAB cycle the agent shown
-#              in the prompt. The agent opens in a new tmux or Rex window named
-#              after the repo (or here, outside both), or in a split of the
-#              repo's window when one is already open; CTRL-O runs it here
-#              instead. CTRL-T toggles a ripgrep search through every local
-#              clone; picking a hit opens its repo with its path:line typed
-#              into the agent's prompt. ESC picks no repo and opens the agent
-#              in $FAI_DIR (default: ~) instead; CTRL-C cancels.
+#              the rest go to the agent. ALT-C picks claude (again: the
+#              cloud agent), ALT-G copilot and ALT-P pi; the prompt shows the
+#              agent's icon. TAB / SHIFT-TAB mark several directories, and
+#              each gets its own agent. The agent opens in a new tmux or Rex
+#              window named after the repo (or here, outside both, for one
+#              directory only), or in a split of the repo's window when one
+#              is already open; CTRL-O runs it here instead (the first
+#              directory here, any others in windows). A link or text below
+#              goes to every agent. CTRL-T toggles a ripgrep search through
+#              every local clone; picking a hit opens its repo with its
+#              path:line typed into the agent's prompt. ESC or CTRL-C
+#              cancels, opening nothing. ~/Projects/github.com (and owner
+#              directories in PICK_REPO_OWNERS) are in the list too, to run
+#              an agent across many repos.
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
 #              (seeded with any link below) unless args already give it.
@@ -36,9 +42,8 @@
 #          fai https://github.com/owner/repo/pull/123
 #          fai https://linear.app/team/issue/ENG-123
 #        FAI_PICK=1 always stops at the picker, even on a unique match.
-#        FAI_AGENTS="claude pi" sets the agents offered, in TAB order; the
-#        first installed one is the default.
-#        FAI_DIR sets the directory ESC opens the agent in (default: ~).
+#        FAI_AGENTS="claude pi" sets the agents offered; the first
+#        installed one is the default.
 #        FAI_TEXT='...' fai pastes the text into the agent's prompt.
 
 set -uo pipefail
@@ -156,9 +161,85 @@ __fai_rex_window() {
   return 1
 }
 
+# __fai_launch <dir> <agent> <link> <prefill> <run-here> <cmd...>: start the
+# agent's command in <dir>: here when <run-here> is 1 (or outside tmux and
+# Rex), else in the repo's tmux or Rex window, as fai's header describes.
+# <link> is the picked link (for tmux's @url); <prefill> is typed into the
+# agent's prompt once it starts.
+__fai_launch() {
+  local dir="${1}" agent="${2}" link="${3}" url="${4}" here="${5}" win pane out
+  shift 5
+  # tmux first: a tmux started inside Rex inherits REX_SESSION too
+  if [[ "${here}" == 1 || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then
+    if [[ -n "${url}" ]]; then
+      if [[ -n "${TMUX_PANE:-}" ]]; then
+        __fai_prefill_bg tmux "${TMUX_PANE}" "${url}"
+      elif [[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]]; then
+        # A tmux popup has TMUX but no TMUX_PANE; a REX_BLOCK there is
+        # the block running tmux, not this agent.
+        __fai_prefill_bg rex "${REX_BLOCK}" "${url}"
+      else
+        echo "fai: paste this into ${agent}: ${url}" >&2
+      fi
+    fi
+    if [[ "${agent}" == cloud ]]; then
+      if [[ -n "${TMUX_PANE:-}" ]]; then
+        __fai_open_cloud_bg tmux "${TMUX_PANE}"
+      elif [[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]]; then
+        __fai_open_cloud_bg rex "${REX_BLOCK}"
+      fi
+    fi
+    (cd "${dir}" && "$@")
+  elif [[ -n "${TMUX:-}" ]]; then
+    # A window fai already opened for this repo (marked by @fai_dir) gets a
+    # split instead of a second window.
+    win="$(tmux list-windows -a -F '#{window_id} #{@fai_dir}' |
+      awk -v d="${dir}" 'substr($0, index($0, " ") + 1) == d { print $1; exit }')"
+    if [[ -n "${win}" ]]; then
+      pane="$(tmux split-window -t "${win}" -c "${dir}" -P -F '#{pane_id}' \
+        -- "$@")" || return
+      tmux select-window -t "${win}"
+    else
+      pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
+        -- "$@")" || return
+      tmux set-option -w -t "${pane}" @fai_dir "${dir}"
+    fi
+    # @url: the window's links its tab to the repo; the pane's is the deep
+    # link it was opened with. Both are listed by prefix C-u (fzf-urls).
+    if [[ "${dir}" == "${HOME}/Projects/github.com/"*/* ]]; then
+      tmux set-option -w -t "${pane}" @url "https://github.com/${dir#"${HOME}/Projects/github.com/"}"
+    fi
+    # The link may be a URL, a grep hit's path:line, or a URL then a path:line.
+    [[ "${link}" == http* ]] && tmux set-option -p -t "${pane}" @url "${link%% *}"
+    [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
+    [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
+  else
+    local block anchor
+    # A window for this repo (named after it, with a block working in it)
+    # gets a split instead of a second window.
+    if anchor="$(__fai_rex_window "${dir}")"; then
+      read -r win anchor <<<"${anchor}"
+      out="$(rex split -s "${REX_SESSION}" -b "${anchor}" -c "${dir}" --json \
+        -- "$@")" || return
+      block="$(jq -r '.block_id // .block_ids[0]' <<<"${out}")"
+    else
+      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+        -- "$@")" || return
+      win="$(jq -r .window_id <<<"${out}")"
+      block="$(jq -r '.block_ids[0]' <<<"${out}")"
+    fi
+    [[ -n "${url}" ]] && __fai_prefill_bg rex "${block}" "${url}"
+    [[ "${agent}" == cloud ]] && __fai_open_cloud_bg rex "${block}"
+    # The Rex app keeps its own selected tab, so ask it to show the new one.
+    # It only takes this with Remote Control on (Settings > Rex Server).
+    # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
+    rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
+  fi
+}
+
 fai() {
-  # Agents offered, in TAB order; the first installed one is the default.
-  local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane esc
+  # Agents offered; the first installed one is the default.
+  local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url here
   # Text to paste into the agent's prompt; kept out of the agents' environment.
   local text="${FAI_TEXT:-}" footer=()
   unset FAI_TEXT
@@ -183,22 +264,29 @@ fai() {
   done
   [[ "${1:-}" == -- ]] && shift
 
-  # The prompt starts with the agent's icon; find it in the icons to step to
-  # the next icon, or to print the agent it stands for.
+  # The prompt starts with the agent's icon; find it in the icons to print
+  # the agent it stands for, or to swap it for another agent's.
   # shellcheck disable=SC2016 # expanded by the shell fzf runs transform in
   local find='a=($FAI_AGENTS) ic=($FAI_ICONS) cur=${FZF_PROMPT%%[ >]*} i=0
     while ((i < ${#ic[@]})) && [[ ${ic[i]} != "$cur" ]]; do ((i++)); done'
+  # Switch to the first installed agent in $want; nothing if none is.
   # shellcheck disable=SC2016
-  local cycle="${find}"'
-    printf "change-prompt:%s" "${ic[(i + step + ${#ic[@]}) % ${#ic[@]}]}${FZF_PROMPT#"$cur"}"'
+  local choose='
+    for t in $want; do
+      for ((j = 0; j < ${#a[@]}; j++)); do
+        if [[ ${a[j]} == "$t" ]]; then
+          printf "change-prompt:%s" "${ic[j]}${FZF_PROMPT#"$cur"}"
+          exit 0
+        fi
+      done
+    done'
+  # ALT-C is claude, or the cloud agent when claude is already chosen.
+  # shellcheck disable=SC2016
+  local claude="${find}"'
+    want="claude cloud"; [[ ${a[i]} == claude ]] && want="cloud claude"'"${choose}"
   # shellcheck disable=SC2016
   local accept="${find}"'
     printf "print(%s)+print(%s)+accept" "$key" "${a[i]}"'
-  # ESC leaves the picker with no repo, noting the agent in $FAI_ESC first
-  # since print only reaches the output on accept.
-  # shellcheck disable=SC2016
-  local cancel="${find}"'
-    printf "execute-silent(echo %s >\"\$FAI_ESC\")+abort" "${a[i]}"'
 
   if [[ -n "${text}" ]]; then
     local first="${text%%$'\n'*}"
@@ -207,34 +295,36 @@ fai() {
   fi
 
   link="$(mktemp)"
-  esc="$(mktemp)"
-  out="$(FAI_ESC="${esc}" PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
-    --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
-    --header='ENTER: repo window / CTRL-O: run here / ESC: no repo / TAB: next agent / CTRL-T: grep / CTRL-X: delete' \
-    --bind="tab:transform:step=1; ${cycle}" \
-    --bind="shift-tab:transform:step=-1; ${cycle}" \
+  out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
+    --multi --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
+    --header='ENTER: open / CTRL-O: run here / TAB: mark / ALT-C: claude (again: cloud) / ALT-G: copilot / ALT-P: pi / CTRL-T: grep / CTRL-X: delete' \
+    --bind="alt-c:transform:${claude}" \
+    --bind="alt-g:transform:${find}; want=copilot; ${choose}" \
+    --bind="alt-p:transform:${find}; want=pi; ${choose}" \
     --bind="enter:transform:key=enter; ${accept}" \
     --bind="ctrl-o:transform:key=ctrl-o; ${accept}" \
-    --bind="esc:transform:${cancel}" ${footer[@]+"${footer[@]}"})"
+    ${footer[@]+"${footer[@]}"})"
   url="$(<"${link}")"
-  agent="$(<"${esc}")"
-  rm -f "${link}" "${esc}"
+  rm -f "${link}"
+  # ESC or CTRL-C: nothing picked, nothing opened
+  [[ -n "${out}" ]] || return 0
   link="${url}" # kept for tmux's @url; the cloud agent clears url below
 
-  # key, agent, dir -- or just dir when --select-1 skipped the picker, or
-  # nothing but the agent in $FAI_ESC when ESC picked no repo
+  # key, agent, then the picked dirs -- or just a dir when --select-1 skipped
+  # the picker
+  local dirs=()
   mapfile -t lines <<<"${out}"
-  if [[ -n "${agent}" ]]; then
-    dir="${FAI_DIR:-${HOME}}"
-  elif [[ ${#lines[@]} -ge 3 ]]; then
+  if [[ "${lines[0]}" != /* && ${#lines[@]} -ge 3 ]]; then
     key="${lines[0]}"
     agent="${lines[1]}"
-    dir="${lines[-1]}"
+    dirs=("${lines[@]:2}")
   else
     agent="${agents[0]}"
-    dir="${lines[-1]}"
+    dirs=("${lines[@]}")
   fi
-  [[ -d "${dir}" ]] || return 1
+  for dir in "${dirs[@]}"; do
+    [[ -d "${dir}" ]] || return 1
+  done
   cmd=("${agent}")
   if [[ "${agent}" == cloud ]]; then
     cmd=(claude --cloud)
@@ -251,72 +341,18 @@ fai() {
   # What the agent's prompt starts with: the link, then any text below it
   [[ -n "${text}" ]] && url+="${url:+$'\n\n'}${text}"
 
-  # tmux first: a tmux started inside Rex inherits REX_SESSION too
-  if [[ "${key}" == ctrl-o || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then
-    if [[ -n "${url}" ]]; then
-      if [[ -n "${TMUX_PANE:-}" ]]; then
-        __fai_prefill_bg tmux "${TMUX_PANE}" "${url}"
-      elif [[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]]; then
-        # A tmux popup has TMUX but no TMUX_PANE; a REX_BLOCK there is
-        # the block running tmux, not this agent.
-        __fai_prefill_bg rex "${REX_BLOCK}" "${url}"
-      else
-        echo "fai: paste this into ${agent}: ${url}" >&2
-      fi
-    fi
-    if [[ "${agent}" == cloud ]]; then
-      if [[ -n "${TMUX_PANE:-}" ]]; then
-        __fai_open_cloud_bg tmux "${TMUX_PANE}"
-      elif [[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]]; then
-        __fai_open_cloud_bg rex "${REX_BLOCK}"
-      fi
-    fi
-    (cd "${dir}" && "${cmd[@]}" "$@")
-  elif [[ -n "${TMUX:-}" ]]; then
-    # A window fai already opened for this repo (marked by @fai_dir) gets a
-    # split instead of a second window.
-    win="$(tmux list-windows -a -F '#{window_id} #{@fai_dir}' |
-      awk -v d="${dir}" 'substr($0, index($0, " ") + 1) == d { print $1; exit }')"
-    if [[ -n "${win}" ]]; then
-      pane="$(tmux split-window -t "${win}" -c "${dir}" -P -F '#{pane_id}' \
-        -- "${cmd[@]}" "$@")" || return
-      tmux select-window -t "${win}"
-    else
-      pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
-        -- "${cmd[@]}" "$@")" || return
-      tmux set-option -w -t "${pane}" @fai_dir "${dir}"
-    fi
-    # @url: the window's links its tab to the repo; the pane's is the deep
-    # link it was opened with. Both are listed by prefix C-u (fzf-urls).
-    if [[ "${dir}" == "${HOME}/Projects/github.com/"*/* ]]; then
-      tmux set-option -w -t "${pane}" @url "https://github.com/${dir#"${HOME}/Projects/github.com/"}"
-    fi
-    # The link may be a URL, a grep hit's path:line, or a URL then a path:line.
-    [[ "${link}" == http* ]] && tmux set-option -p -t "${pane}" @url "${link%% *}"
-    [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
-    [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
-  else
-    local block anchor
-    # A window for this repo (named after it, with a block working in it)
-    # gets a split instead of a second window.
-    if anchor="$(__fai_rex_window "${dir}")"; then
-      read -r win anchor <<<"${anchor}"
-      out="$(rex split -s "${REX_SESSION}" -b "${anchor}" -c "${dir}" --json \
-        -- "${cmd[@]}" "$@")" || return
-      block="$(jq -r '.block_id // .block_ids[0]' <<<"${out}")"
-    else
-      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
-        -- "${cmd[@]}" "$@")" || return
-      win="$(jq -r .window_id <<<"${out}")"
-      block="$(jq -r '.block_ids[0]' <<<"${out}")"
-    fi
-    [[ -n "${url}" ]] && __fai_prefill_bg rex "${block}" "${url}"
-    [[ "${agent}" == cloud ]] && __fai_open_cloud_bg rex "${block}"
-    # The Rex app keeps its own selected tab, so ask it to show the new one.
-    # It only takes this with Remote Control on (Settings > Rex Server).
-    # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
-    rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
+  # Outside tmux and Rex there is only here, so only the first dir.
+  if [[ -z "${TMUX:-}" && -z "${REX_SESSION:-}" && ${#dirs[@]} -gt 1 ]]; then
+    echo "fai: outside tmux and Rex, only ${dirs[0]} gets an agent" >&2
+    dirs=("${dirs[0]}")
   fi
+  # CTRL-O runs the first here, last, since it holds this terminal; the
+  # others open in windows first.
+  for dir in "${dirs[@]:1}"; do
+    __fai_launch "${dir}" "${agent}" "${link}" "${url}" 0 "${cmd[@]}" "$@"
+  done
+  [[ "${key}" == ctrl-o ]] && here=1 || here=0
+  __fai_launch "${dirs[0]}" "${agent}" "${link}" "${url}" "${here}" "${cmd[@]}" "$@"
 }
 
 # --prefill is __fai_prefill_bg running this script again, detached.
