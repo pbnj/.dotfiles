@@ -129,14 +129,6 @@ __git_branch() {
   branch=$(git symbolic-ref --short HEAD 2>/dev/null) && echo " ($branch)"
 }
 
-# p [query]: cd into a repo picked with fai-pick-repo (utils/.local/bin), the
-# picker fai runs agents from; a unique match jumps straight there.
-p() {
-	local dir
-	dir="$(fai-pick-repo --query="${*:-}" --select-1)" || return
-	cd "${dir}" || return
-}
-
 # fcd [dir]: cd into any directory below the current one (or below dir)
 fcd() {
 	local dir
