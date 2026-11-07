@@ -1,0 +1,6 @@
+#!/bin/sh
+# Send the frontmost browser tab's URL (Hyper+A in Tinycast) or, with --stdin,
+# selected text (right-click → Send to fai…) to fai in the Rex app; see
+# macos/.local/share/fai-send/README.md.
+# Tinycast's GUI environment does not source interactive shell configuration.
+exec /usr/bin/python3 "$HOME/.local/share/fai-send/launch.py" "$@"

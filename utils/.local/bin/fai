@@ -24,6 +24,11 @@
 #              link, or any other URL, is typed into the agent's prompt once it
 #              starts, ready to be added to and sent. In tmux, the new window's
 #              @url is the repo and its pane's is that link, for prefix C-u.
+#              FAI_TEXT is text to work on (right-click → Send to fai… on a
+#              selection, see macos/.local/share/fai-send): its first line is
+#              shown under the picker, and it is pasted into the agent's
+#              prompt once it starts, unsent, after any link. The cloud
+#              agent's task gets it below what you type.
 # Dependencies: fai-pick-repo (alongside), fzf, jq; tmux or rex for windows
 # Usage: fai [query...] [-- | -flag...] [args...]
 #          fai dotfiles --model opus
@@ -34,6 +39,7 @@
 #        FAI_AGENTS="claude pi" sets the agents offered, in TAB order; the
 #        first installed one is the default.
 #        FAI_DIR sets the directory ESC opens the agent in (default: ~).
+#        FAI_TEXT='...' fai pastes the text into the agent's prompt.
 
 set -uo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
@@ -53,8 +59,9 @@ __fai_icon() {
 
 # __fai_prefill <rex|tmux> <block|pane> <text>: wait for the agent to take over
 # the terminal and settle (the screen unchanged across two samples), then type
-# <text> into its prompt without pressing Enter. Gives up after ~30s, e.g.
-# while a folder-trust dialog waits on an answer.
+# <text> into its prompt without pressing Enter. Text with a newline goes as a
+# bracketed paste, so its newlines don't send the prompt. Gives up after ~30s,
+# e.g. while a folder-trust dialog waits on an answer.
 __fai_prefill() {
   local kind="${1}" target="${2}" text="${3}" prev="" cur cmd i
   for ((i = 0; i < 60; i++)); do
@@ -69,10 +76,18 @@ __fai_prefill() {
     fi
     [[ -z "${cmd}" || "${cmd}" =~ ^-?(bash|zsh|fish|sh)$ ]] && continue
     if [[ -n "${cur//[[:space:]]/}" && "${cur}" == "${prev}" && "${cur,,}" != *trust* ]]; then
-      if [[ "${kind}" == rex ]]; then
-        rex send -b "${target}" "${text}"
+      if [[ "${text}" != *$'\n'* ]]; then
+        if [[ "${kind}" == rex ]]; then
+          rex send -b "${target}" "${text}"
+        else
+          tmux send-keys -t "${target}" -l "${text}"
+        fi
+      elif [[ "${kind}" == rex ]]; then
+        rex send -b "${target}" $'\e[200~'"${text}"$'\e[201~'
       else
-        tmux send-keys -t "${target}" -l "${text}"
+        # -p pastes bracketed when the agent asked for it, as agents do.
+        printf '%s' "${text}" | tmux load-buffer -b fai-prefill - &&
+          tmux paste-buffer -p -d -b fai-prefill -t "${target}"
       fi
       return 0
     fi
@@ -144,6 +159,9 @@ __fai_rex_window() {
 fai() {
   # Agents offered, in TAB order; the first installed one is the default.
   local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url win pane esc
+  # Text to paste into the agent's prompt; kept out of the agents' environment.
+  local text="${FAI_TEXT:-}" footer=()
+  unset FAI_TEXT
   local select=(--select-1)
   [[ -n "${FAI_PICK:-}" ]] && select=()
   [[ -n "${FAI_AGENTS:-}" ]] && read -ra all <<<"${FAI_AGENTS}"
@@ -182,6 +200,12 @@ fai() {
   local cancel="${find}"'
     printf "execute-silent(echo %s >\"\$FAI_ESC\")+abort" "${a[i]}"'
 
+  if [[ -n "${text}" ]]; then
+    local first="${text%%$'\n'*}"
+    [[ "${first}" != "${text}" ]] && first+=" …"
+    footer=(--footer="Text: ${first:0:200}")
+  fi
+
   link="$(mktemp)"
   esc="$(mktemp)"
   out="$(FAI_ESC="${esc}" PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" "${self%/*}/fai-pick-repo" \
@@ -191,7 +215,7 @@ fai() {
     --bind="shift-tab:transform:step=-1; ${cycle}" \
     --bind="enter:transform:key=enter; ${accept}" \
     --bind="ctrl-o:transform:key=ctrl-o; ${accept}" \
-    --bind="esc:transform:${cancel}")"
+    --bind="esc:transform:${cancel}" ${footer[@]+"${footer[@]}"})"
   url="$(<"${link}")"
   agent="$(<"${esc}")"
   rm -f "${link}" "${esc}"
@@ -217,11 +241,15 @@ fai() {
     if [[ $# -eq 0 ]]; then
       local task
       read -rep "Task for claude.ai/code: " -i "${url}" task || return
-      [[ -n "${task//[[:space:]]/}" ]] || return 1
+      [[ -n "${task//[[:space:]]/}${text//[[:space:]]/}" ]] || return 1
+      [[ -n "${text}" ]] && task+="${task:+$'\n\n'}${text}"
       set -- "${task}"
     fi
     url=""
+    text=""
   fi
+  # What the agent's prompt starts with: the link, then any text below it
+  [[ -n "${text}" ]] && url+="${url:+$'\n\n'}${text}"
 
   # tmux first: a tmux started inside Rex inherits REX_SESSION too
   if [[ "${key}" == ctrl-o || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then

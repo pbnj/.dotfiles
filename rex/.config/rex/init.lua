@@ -14,18 +14,24 @@ rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 -- starts have the usual PATH and environment. An
 -- optional url is passed to fai, which picks a GitHub URL's repo (any other
 -- URL leaves the pick to you) and types the link into the agent's prompt; the
--- browser hotkey (macos/.local/share/agent-url) runs this with the frontmost
--- tab's URL. With a url, FAI_PICK keeps the picker open even on a
--- unique match, so TAB can still choose the agent before Enter.
+-- browser hotkey (macos/.local/share/fai-send) runs this with the frontmost
+-- tab's URL. Optional text (right-click → Send to fai… on a selection) goes
+-- to fai as FAI_TEXT, shown under the picker and pasted into the agent's
+-- prompt. Either way FAI_PICK keeps the picker open even on a unique match,
+-- so TAB can still choose the agent before Enter. Both reach bash as
+-- arguments, never as shell code.
 rex.action({
   name = "fai",
   title = "Pick a Project with fai",
   category = "Agents",
   keywords = "claude cloud copilot pi repo clone picker",
-  args = { url = "string?" },
+  args = { url = "string?", text = "string?" },
   run = function(_, args)
     local command = { "bash", "-lic", "fai", "bash" }
-    if args and args.url and args.url ~= "" then
+    if args and args.text and args.text ~= "" then
+      command =
+        { "bash", "-lic", 'FAI_PICK=1 FAI_TEXT="$1" fai', "bash", args.text }
+    elseif args and args.url and args.url ~= "" then
       command = { "bash", "-lic", 'FAI_PICK=1 fai "$@"', "bash", args.url }
     end
     local _, err = rex.session.new_layer({

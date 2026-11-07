@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-"""Open the frontmost browser tab's URL in fai, in a Rex floating layer."""
+"""Send the frontmost browser tab's URL, or text on stdin, to fai in a Rex
+floating layer."""
 
 import argparse
 import fcntl
@@ -14,7 +15,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
-CACHE = Path.home() / "Library/Caches/agent-url"
+CACHE = Path.home() / "Library/Caches/fai-send"
 # GUI-launched commands do not inherit the interactive shell's PATH.
 SEARCH_PATH = os.pathsep.join(
     [
@@ -51,6 +52,27 @@ def validate_url(value):
     ):
         raise ValueError("The browser did not provide an absolute URL.")
     return value
+
+
+# The most selected text sent to fai; the Quick Action cuts it here too.
+MAX_TEXT = 16384
+
+
+def selection_args(text):
+    """The fai action's args for selected text: {"url": ...} when the whole
+    selection is one URL, so a GitHub link still picks its repo, otherwise
+    {"text": ...} to type into the agent's prompt."""
+    text = text.strip()
+    if not text:
+        raise ValueError("No text was selected.")
+    if len(text.encode()) > MAX_TEXT:
+        raise ValueError("The selection is over 16 KiB.")
+    if not any(c.isspace() for c in text):
+        try:
+            return {"url": validate_url(text)}
+        except ValueError:
+            pass
+    return {"text": text}
 
 
 def capture_url():
@@ -112,7 +134,7 @@ def rex_target():
 
 
 def fai_command(rex, session):
-    """argv that runs the fai action; the URL goes on stdin, never in argv."""
+    """argv that runs the fai action; its args go on stdin, never in argv."""
     return [rex, "do", "-s", session, REX_ACTION, "--args", "-"]
 
 
@@ -145,11 +167,12 @@ def activate_rex(timeout=3.0, interval=0.05):
         time.sleep(interval)
 
 
-def open_fai(rex, session, url):
+def open_fai(rex, session, args):
+    """Run the fai action with args, {"url": ...} or {"text": ...}."""
     activate_rex()
     result = subprocess.run(
         fai_command(rex, session),
-        input=json.dumps({"url": url}),
+        input=json.dumps(args),
         capture_output=True,
         text=True,
         timeout=10,
@@ -165,21 +188,29 @@ def main():
         "--url", help="Use an explicit URL instead of capturing the browser"
     )
     parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Send the text on stdin (a selection) instead of a browser URL",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print what would run without opening fai",
     )
     args = parser.parse_args()
-    url = validate_url(args.url) if args.url is not None else capture_url()
+    if args.stdin:
+        fai_args = selection_args(sys.stdin.read())
+    elif args.url is not None:
+        fai_args = {"url": validate_url(args.url)}
+    else:
+        fai_args = {"url": capture_url()}
     rex, session = rex_target()
     if args.dry_run:
         print(
-            json.dumps(
-                {"argv": fai_command(rex, session), "args": {"url": url}}, indent=2
-            )
+            json.dumps({"argv": fai_command(rex, session), "args": fai_args}, indent=2)
         )
         return 0
-    open_fai(rex, session, url)
+    open_fai(rex, session, fai_args)
     return 0
 
 
@@ -187,5 +218,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except (ValueError, OSError, subprocess.SubprocessError) as error:
-        print("Browser URL: " + str(error), file=sys.stderr)
+        print("fai-send: " + str(error), file=sys.stderr)
         sys.exit(1)

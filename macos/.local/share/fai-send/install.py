@@ -1,10 +1,12 @@
 #!/usr/bin/python3
-"""Build URL capture and safely merge the browser-URL → fai hotkey into Tinycast."""
+"""Build URL capture, safely merge the browser-URL → fai hotkey into Tinycast,
+and install the Send to fai… Quick Action."""
 
 import argparse
 import json
 import os
 import plistlib
+import shutil
 import subprocess
 import tempfile
 import time
@@ -20,22 +22,28 @@ SHIFT = 512
 COMMAND_KEY = "fai"
 # Every command this launcher owns is named with this prefix.
 NAME_PREFIX = "Browser URL — "
+# The wrappers Tinycast commands have run: today's, and agent-url, its old name.
+WRAPPERS = ("/.local/bin/fai-send", "/.local/bin/agent-url")
+# The Quick Action behind right-click → Send to fai…, copied into
+# ~/Library/Services: macOS does not reliably follow a symlink there.
+WORKFLOW = "Send to fai.workflow"
 
 
 def command_id(key):
+    # The seed predates the rename from agent-url; changing it would change the ID.
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "local:tinycast-agent-url:" + key))
 
 
 def owned_ids(commands):
     """IDs (lowercase) of our commands: named "Browser URL — …" or running
-    agent-url. A legacy preset's ID is not enough, since a command re-purposed
+    fai-send (or agent-url). A legacy preset's ID is not enough, since a command re-purposed
     in Tinycast Settings keeps its ID."""
     owned = {command_id(COMMAND_KEY)}
     owned |= {
         command["id"].lower()
         for command in commands
         if command.get("name", "").startswith(NAME_PREFIX)
-        or "/.local/bin/agent-url" in command.get("command", "")
+        or any(wrapper in command.get("command", "") for wrapper in WRAPPERS)
     }
     return owned
 
@@ -75,7 +83,7 @@ def configure(preferences, config):
         {
             "id": identifier,
             "name": config["name"],
-            "command": 'exec "$HOME/.local/bin/agent-url"',
+            "command": 'exec "$HOME/.local/bin/fai-send"',
             "isEnabled": True,
             "showsInRootSearch": True,
             "loadsShellEnvironment": False,
@@ -149,6 +157,54 @@ def build_helper():
         temporary.replace(binary)
 
 
+def install_workflow(home):
+    """Copy the Quick Action into home/Library/Services, replacing only an
+    earlier copy of it (one whose menu item is the same), and return its path."""
+    source = ROOT / WORKFLOW
+    target = home / "Library/Services" / WORKFLOW
+    if target.exists() or target.is_symlink():
+        if not is_our_workflow(target):
+            raise ValueError("Refusing to replace existing " + str(target))
+        shutil.rmtree(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, target)
+    return target
+
+
+def is_our_workflow(path):
+    """Whether path is a copy of the Quick Action: a real directory whose
+    service menu item is the same as ours."""
+    if path.is_symlink() or not path.is_dir():
+        return False
+    try:
+        with (path / "Contents/Info.plist").open("rb") as handle:
+            services = plistlib.load(handle)["NSServices"]
+        with (ROOT / WORKFLOW / "Contents/Info.plist").open("rb") as handle:
+            ours = plistlib.load(handle)["NSServices"]
+    except (OSError, KeyError, plistlib.InvalidFileException):
+        return False
+    return [s.get("NSMenuItem") for s in services] == [
+        s.get("NSMenuItem") for s in ours
+    ]
+
+
+def remove_legacy(home):
+    """Remove what agent-url, the old name, left installed: the share link
+    into this repo and the copied wrapper. Anything else there is kept."""
+    link = home / ".local/share/agent-url"
+    if link.is_symlink() and link.resolve() in (ROOT, ROOT.parent / "agent-url"):
+        link.unlink()
+    wrapper = home / ".local/bin/agent-url"
+    try:
+        if (
+            wrapper.is_file()
+            and "/.local/share/agent-url/launch.py" in wrapper.read_text()
+        ):
+            wrapper.unlink()
+    except (OSError, UnicodeDecodeError):
+        pass
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -162,19 +218,27 @@ def main():
         export_preferences(), config
     )  # Preflight before building, quitting, or writing.
     if args.check:
-        print("The shortcut is available (or already owned by agent-url).")
+        print("The shortcut is available (or already owned by fai-send).")
+        target = Path.home() / "Library/Services" / WORKFLOW
+        if (target.exists() or target.is_symlink()) and not is_our_workflow(target):
+            print("A different " + str(target) + " is in the way.")
         return
-    live = Path.home() / ".local/share/agent-url"
+    live = Path.home() / ".local/share/fai-send"
     if (live.exists() or live.is_symlink()) and live.resolve() != ROOT:
         raise ValueError("Refusing to replace existing " + str(live))
-    wrapper = Path.home() / ".local/bin/agent-url"
+    wrapper = Path.home() / ".local/bin/fai-send"
     if not wrapper.exists():
-        raise ValueError("Install utils/.local/bin/agent-url into ~/.local/bin first.")
+        raise ValueError("Install utils/.local/bin/fai-send into ~/.local/bin first.")
     wrapper.chmod(0o755)
     build_helper()
     if not live.exists():
         live.parent.mkdir(parents=True, exist_ok=True)
         live.symlink_to(ROOT, target_is_directory=True)
+    remove_legacy(Path.home())
+    workflow = install_workflow(Path.home())
+    # Refresh the Services menu so the Quick Action shows without logging out.
+    subprocess.run(["/System/Library/CoreServices/pbs", "-update"], check=False)
+    print("Installed the Quick Action: " + str(workflow))
     was_running = is_running()
     if was_running:
         subprocess.run(
@@ -199,7 +263,7 @@ def main():
         if updated == original:
             print("Tinycast commands and hotkeys are already up to date.")
             return
-        backups = Path.home() / ".local/state/agent-url"
+        backups = Path.home() / ".local/state/fai-send"
         backups.mkdir(parents=True, exist_ok=True, mode=0o700)
         backup = backups / (
             "tinycast-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".plist"
