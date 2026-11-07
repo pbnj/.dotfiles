@@ -15,6 +15,9 @@
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
 #              (seeded with any link below) unless args already give it.
+#              Once the session's claude.ai/code URL shows up, fai opens it
+#              in the browser too (not outside tmux and Rex, where it can't
+#              read the screen).
 #              A URL is a link to work on. A GitHub URL picks its repo; any
 #              other URL (a Linear issue, a blog post) is shown under the
 #              picker while you pick the repo. A pull request, issue or file
@@ -81,6 +84,39 @@ __fai_prefill() {
 # the picker's floating layer
 __fai_prefill_bg() {
   nohup "${self}" --prefill "$@" >/dev/null 2>&1 &
+  disown
+}
+
+# __fai_open_cloud <rex|tmux> <block|pane>: wait for `claude --cloud` to print
+# its claude.ai/code session URL, then open it in the browser. URLs already on
+# screen when it starts (a CTRL-O run's scrollback) don't count. Gives up
+# after ~2m.
+__fai_open_cloud() {
+  local kind="${1}" target="${2}" re='https://claude\.ai/code/session_[A-Za-z0-9]+'
+  local seen cur new i
+  __fai_urls() {
+    if [[ "${kind}" == rex ]]; then
+      rex capture -b "${target}" --unwrap 2>/dev/null
+    else
+      tmux capture-pane -p -J -S - -t "${target}" 2>/dev/null
+    fi | grep -oE "${re}" | sort -u
+  }
+  seen="$(__fai_urls)"
+  for ((i = 0; i < 120; i++)); do
+    sleep 1
+    cur="$(__fai_urls)"
+    new="$(comm -13 <(printf '%s\n' "${seen}") <(printf '%s\n' "${cur}") | grep -m1 .)"
+    if [[ -n "${new}" ]]; then
+      open "${new}"
+      return 0
+    fi
+  done
+}
+
+# __fai_open_cloud_bg <args...>: __fai_open_cloud, detached like
+# __fai_prefill_bg
+__fai_open_cloud_bg() {
+  nohup "${self}" --open-cloud "$@" >/dev/null 2>&1 &
   disown
 }
 
@@ -200,6 +236,13 @@ fai() {
         echo "fai: paste this into ${agent}: ${url}" >&2
       fi
     fi
+    if [[ "${agent}" == cloud ]]; then
+      if [[ -n "${TMUX_PANE:-}" ]]; then
+        __fai_open_cloud_bg tmux "${TMUX_PANE}"
+      elif [[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]]; then
+        __fai_open_cloud_bg rex "${REX_BLOCK}"
+      fi
+    fi
     (cd "${dir}" && "${cmd[@]}" "$@")
   elif [[ -n "${TMUX:-}" ]]; then
     # A window fai already opened for this repo (marked by @fai_dir) gets a
@@ -223,6 +266,7 @@ fai() {
     # The link may be a URL, a grep hit's path:line, or a URL then a path:line.
     [[ "${link}" == http* ]] && tmux set-option -p -t "${pane}" @url "${link%% *}"
     [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
+    [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
   else
     local block anchor
     # A window for this repo (named after it, with a block working in it)
@@ -239,6 +283,7 @@ fai() {
       block="$(jq -r '.block_ids[0]' <<<"${out}")"
     fi
     [[ -n "${url}" ]] && __fai_prefill_bg rex "${block}" "${url}"
+    [[ "${agent}" == cloud ]] && __fai_open_cloud_bg rex "${block}"
     # The Rex app keeps its own selected tab, so ask it to show the new one.
     # It only takes this with Remote Control on (Settings > Rex Server).
     # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
@@ -250,6 +295,9 @@ fai() {
 if [[ "${1:-}" == --prefill ]]; then
   shift
   __fai_prefill "$@"
+elif [[ "${1:-}" == --open-cloud ]]; then
+  shift
+  __fai_open_cloud "$@"
 else
   fai "$@"
 fi
