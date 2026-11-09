@@ -188,36 +188,70 @@ rex.action({
 rex.bind("ctrl+b>t", "scratch")
 rex.bind("ctrl+b>ctrl+t", "scratch")
 
--- ctrl+b c: a coding agent (Claude Code, or $REX_AGENT) in a split to the
--- right of the focused block, in that block's working directory. bash -lic
--- loads the profile so the agent has the usual PATH; shell = "none" keeps Rex
--- from loading it a second time. ctrl+b ctrl+c works too, for when ctrl is
--- still held.
-local function agent_split(ctx)
-  local _, err = rex.session.new_split({
-    session_id = ctx.session_id,
-    anchor_id = ctx.block_id,
-    direction = "horizontal",
-    side = "after",
-    ratio = 0.5,
-    focus = true,
-    layout = rex.layout.block({
-      flavor = "com.superlogical.terminal.shell",
-      label = "agent",
-      options = {
-        shell = "none",
-        cwd = block_cwd(ctx),
-        command = { "bash", "-lic", 'exec "${REX_AGENT:-claude}"' },
-      },
-    }),
-  })
-  if err ~= nil then
-    error(err, 0)
+-- A coding agent in a split to the right of the focused block, in that
+-- block's working directory. bash -lic loads the profile so the agent has the
+-- usual PATH; shell = "none" keeps Rex from loading it a second time. The
+-- agent's name reaches bash as an argument, never as shell code.
+local function agent_split(agent)
+  return function(ctx)
+    local _, err = rex.session.new_split({
+      session_id = ctx.session_id,
+      anchor_id = ctx.block_id,
+      direction = "horizontal",
+      side = "after",
+      ratio = 0.5,
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "agent",
+        options = {
+          shell = "none",
+          cwd = block_cwd(ctx),
+          command = {
+            "bash",
+            "-lic",
+            'exec "${1:-${REX_AGENT:-claude}}"',
+            "bash",
+            agent,
+          },
+        },
+      }),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+    return true
   end
-  return true
 end
-rex.bind("ctrl+b>c", agent_split)
-rex.bind("ctrl+b>ctrl+c", agent_split)
+
+-- ctrl+b c: Claude Code, or $REX_AGENT. ctrl+b ctrl+c works too, for when
+-- ctrl is still held.
+local default_agent = agent_split()
+rex.bind("ctrl+b>c", default_agent)
+rex.bind("ctrl+b>ctrl+c", default_agent)
+
+-- Each agent in the command palette, opened the same way.
+for _, a in ipairs({
+  {
+    agent = "claude",
+    title = "Open Claude",
+    keywords = "claude code anthropic",
+  },
+  { agent = "pi", title = "Open Pi", keywords = "pi coding agent" },
+  {
+    agent = "copilot",
+    title = "Open Copilot",
+    keywords = "github copilot cli",
+  },
+}) do
+  rex.action({
+    name = "agent_" .. a.agent,
+    title = a.title .. " in Current Directory",
+    category = "Agents",
+    keywords = a.keywords .. " cwd split here",
+    run = agent_split(a.agent),
+  })
+end
 
 -- ctrl+b o …: open something on GitHub or Linear. r, p, c and i fuzzy-pick
 -- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);
