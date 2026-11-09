@@ -9,8 +9,7 @@
 #              agent's icon. TAB / SHIFT-TAB mark several directories, and
 #              each gets its own agent. The agent opens in a new tmux or Rex
 #              window named after the repo (or here, outside both, for one
-#              directory only), or in a split of the repo's window when one
-#              is already open; CTRL-O runs it here instead (the first
+#              directory only); CTRL-O runs it here instead (the first
 #              directory here, any others in windows). A link or text below
 #              goes to every agent. CTRL-T toggles a ripgrep search through
 #              every local clone; picking a hit opens its repo with its
@@ -446,34 +445,13 @@ __fai_open_cloud_bg() {
   disown
 }
 
-# __fai_rex_window <dir>: print "<window> <block>" for a window in
-# $REX_SESSION named after <dir> with a block working in <dir> (or below it),
-# that block being the one to split; fail if there is none. The name alone
-# could be another owner's repo of the same name.
-__fai_rex_window() {
-  local dir="${1}" name win block cwd
-  name="$(basename "${dir}")"
-  while read -r win block; do
-    cwd="$(rex block call -b "${block}" process 2>/dev/null |
-      jq -r '.foreground.cwd // .ancestors[0].cwd // empty')"
-    if [[ "${cwd}" == "${dir}" || "${cwd}" == "${dir}"/* ]]; then
-      printf '%s %s\n' "${win}" "${block}"
-      return 0
-    fi
-  done < <(rex window ls -s "${REX_SESSION}" --json --short=false 2>/dev/null |
-    jq -r --arg n "${name}" '.windows[] | select(.label == $n)
-      | "\(.window_id) \(.focused_block_id, (.layers[] | select(.kind == "tiled")
-        | .blocks[].block_id))"')
-  return 1
-}
-
 # __fai_launch <dir> <agent> <link> <prefill> <run-here> <cmd...>: start the
 # agent's command in <dir>: here when <run-here> is 1 (or outside tmux and
-# Rex), else in the repo's tmux or Rex window, as fai's header describes.
+# Rex), else in a new tmux or Rex window named after the repo.
 # <link> is the picked link (for tmux's @url); <prefill> is typed into the
 # agent's prompt once it starts.
 __fai_launch() {
-  local dir="${1}" agent="${2}" link="${3}" url="${4}" here="${5}" win pane out
+  local dir="${1}" agent="${2}" link="${3}" url="${4}" here="${5}" win pane out block
   shift 5
   # tmux first: a tmux started inside Rex inherits REX_SESSION too
   if [[ "${here}" == 1 || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then
@@ -497,19 +475,10 @@ __fai_launch() {
     fi
     (cd "${dir}" && "$@")
   elif [[ -n "${TMUX:-}" ]]; then
-    # A window fai already opened for this repo (marked by @fai_dir) gets a
-    # split instead of a second window.
-    win="$(tmux list-windows -a -F '#{window_id} #{@fai_dir}' |
-      awk -v d="${dir}" 'substr($0, index($0, " ") + 1) == d { print $1; exit }')"
-    if [[ -n "${win}" ]]; then
-      pane="$(tmux split-window -t "${win}" -c "${dir}" -P -F '#{pane_id}' \
-        -- "$@")" || return
-      tmux select-window -t "${win}"
-    else
-      pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
-        -- "$@")" || return
-      tmux set-option -w -t "${pane}" @fai_dir "${dir}"
-    fi
+    pane="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
+      -- "$@")" || return
+    # @fai_dir lets fzf-projects-grep find this repo's window.
+    tmux set-option -w -t "${pane}" @fai_dir "${dir}"
     # @url: the window's links its tab to the repo; the pane's is the deep
     # link it was opened with. Both are listed by prefix C-u (fzf-urls).
     if [[ "${dir}" == "${HOME}/Projects/github.com/"*/* ]]; then
@@ -520,20 +489,10 @@ __fai_launch() {
     [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
   else
-    local block anchor
-    # A window for this repo (named after it, with a block working in it)
-    # gets a split instead of a second window.
-    if anchor="$(__fai_rex_window "${dir}")"; then
-      read -r win anchor <<<"${anchor}"
-      out="$(rex split -s "${REX_SESSION}" -b "${anchor}" -c "${dir}" --json \
-        -- "$@")" || return
-      block="$(jq -r '.block_id // .block_ids[0]' <<<"${out}")"
-    else
-      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
-        -- "$@")" || return
-      win="$(jq -r .window_id <<<"${out}")"
-      block="$(jq -r '.block_ids[0]' <<<"${out}")"
-    fi
+    out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+      -- "$@")" || return
+    win="$(jq -r .window_id <<<"${out}")"
+    block="$(jq -r '.block_ids[0]' <<<"${out}")"
     [[ -n "${url}" ]] && __fai_prefill_bg rex "${block}" "${url}"
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg rex "${block}"
     # The Rex app keeps its own selected tab, so ask it to show the new one.

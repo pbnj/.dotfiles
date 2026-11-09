@@ -8,8 +8,8 @@
 rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 
 -- fai: pick a project with fai (utils/.local/bin/fai) in a floating layer,
--- like a tmux popup. fai opens each pick in its repo's Rex window (a new one,
--- or a split of one already open), and the layer closes once fai exits.
+-- like a tmux popup. fai opens each pick in a new Rex window named after its
+-- repo, and the layer closes once fai exits.
 -- bash -li loads the login and interactive profile, so fai and the agents it
 -- starts have the usual PATH and environment. An
 -- optional url is passed to fai, which picks a GitHub URL's repo (any other
@@ -210,7 +210,7 @@ local function agent_split(agent)
           command = {
             "bash",
             "-lic",
-            'exec "${1:-${REX_AGENT:-claude}}"',
+            'exec "$1"',
             "bash",
             agent,
           },
@@ -224,13 +224,7 @@ local function agent_split(agent)
   end
 end
 
--- ctrl+b c: Claude Code, or $REX_AGENT. ctrl+b ctrl+c works too, for when
--- ctrl is still held.
-local default_agent = agent_split()
-rex.bind("ctrl+b>c", default_agent)
-rex.bind("ctrl+b>ctrl+c", default_agent)
-
--- Each agent in the command palette, opened the same way.
+-- Each agent in the command palette.
 for _, a in ipairs({
   {
     agent = "claude",
