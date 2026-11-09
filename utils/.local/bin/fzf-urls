@@ -19,11 +19,13 @@
 #              listed first.
 # Dependencies: brew install fzf jq; the linear CLI, logged in (optional:
 #               without it only URLs are listed)
-# Usage: fzf-urls [--linear|--repo|--pr|--checks] [PANE|BLOCK]
+# Usage: fzf-urls [--url|--linear|--repo|--pr|--checks] [PANE|BLOCK]
 #        A tmux pane (%3) or a Rex block (block:...). Defaults to TMUX_PANE in
 #        tmux, else REX_BLOCK.
 #        A flag narrows the list to one kind, each listed once; when only one
 #        is found, it opens without showing the picker:
+#        --url     any URL found as is (not built from an issue ID or
+#                  reference)
 #        --linear  Linear issues: issue URLs and issue IDs
 #        --repo    GitHub repos, from any GitHub URL or reference
 #        --pr      GitHub PRs, from PR URLs and references (a reference to an
@@ -39,7 +41,7 @@ set -euo pipefail
 
 only=""
 case "${1:-}" in
---linear | --repo | --pr | --checks)
+--url | --linear | --repo | --pr | --checks)
   only="${1#--}"
   shift
   ;;
@@ -138,6 +140,11 @@ if [[ "${2:-}" == "--list" ]]; then
   } |
     awk -F '\t' -v OFS='\t' -v only="${only}" '
       only == "" { if (!seen[$1]++) print; next }
+      # Any URL: as found, or @url; not one built from an ID or reference.
+      only == "url" {
+        if (($2 == "" || $2 == "@url") && !seen[$1]++) print $1
+        next
+      }
       # Linear: issue URLs only, once per issue: a URL with the title slug and
       # the one built from the ID are the same issue.
       only == "linear" {
@@ -177,6 +184,7 @@ popup=()
 [[ "${target}" == %* ]] && popup=(--tmux 'center,80%')
 
 case "${only}" in
+url) prompt='URL(s)> ' ;;
 linear) prompt='Linear issue(s)> ' ;;
 repo) prompt='Repo(s)> ' ;;
 pr) prompt='PR(s)> ' ;;

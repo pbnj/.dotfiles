@@ -248,9 +248,10 @@ for _, a in ipairs({
   })
 end
 
--- ctrl+b o …: open something on GitHub or Linear. r, p, c and i fuzzy-pick
+-- ctrl+b o …: open something in the browser. u, r, p, c and i fuzzy-pick
 -- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);
 -- f and l pick from the block's git repo.
+--   u  any URL, each listed once (fzf-urls --url)
 --   r  a GitHub repo, from any GitHub URL or reference (fzf-urls --repo)
 --   p  a GitHub PR, from PR URLs and references (fzf-urls --pr)
 --   c  a PR's checks tab (fzf-urls --checks)
@@ -282,6 +283,14 @@ end
 -- keys) as well as bound. The palette groups them under their category, and
 -- its search also matches their keywords (e.g. "ci" finds the checks tab).
 for _, a in ipairs({
+  {
+    key = "u",
+    name = "open_url",
+    title = "Open URL in Browser",
+    category = "Browser",
+    keywords = "url link http web",
+    run = url_picker("--url"),
+  },
   {
     key = "r",
     name = "gh_open_repo",
