@@ -58,24 +58,51 @@ rex.action({
 rex.bind("ctrl+b>f", "fai")
 rex.bind("ctrl+b>ctrl+f", "fai")
 
--- ctrl+b g: fuzzy-grep the scrollback of every block in a floating layer,
--- and jump to the chosen line (see utils/.local/bin/fzf-rex-grep). bash -l
--- puts ~/.local/bin on PATH and loads the fzf options. ctrl+b ctrl+g works
--- too, for when ctrl is still held.
+-- ctrl+b g: grep every file under ~/Projects in a floating layer, with CTRL-T
+-- in the picker toggling to a GitHub code search (see
+-- utils/.local/bin/fzf-projects-grep). bash -l puts ~/.local/bin on PATH and
+-- loads the fzf options. ctrl+b ctrl+g works too, for when ctrl is still held.
+rex.action({
+  name = "grep_projects",
+  title = "Grep Projects (Local or GitHub)",
+  category = "Search",
+  keywords = "ripgrep rg code search find text github",
+  run = function()
+    rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "grep",
+        options = {
+          shell = "none",
+          command = { "bash", "-lc", "fzf-projects-grep" },
+        },
+      }),
+    })
+    return true
+  end,
+})
+rex.bind("ctrl+b>g", "grep_projects")
+rex.bind("ctrl+b>ctrl+g", "grep_projects")
+
+-- ctrl+b s: fuzzy-search the scrollback of every block in a floating layer,
+-- and jump to the chosen line (see utils/.local/bin/fzf-rex-grep). ctrl+b
+-- ctrl+s works too, for when ctrl is still held.
 local function grep_scrollback()
   rex.session.new_layer({
     bounds = { 0.1, 0.1, 0.8, 0.8 },
     focus = true,
     layout = rex.layout.block({
       flavor = "com.superlogical.terminal.shell",
-      label = "grep",
+      label = "scrollback",
       options = { shell = "none", command = { "bash", "-lc", "fzf-rex-grep" } },
     }),
   })
   return true
 end
-rex.bind("ctrl+b>g", grep_scrollback)
-rex.bind("ctrl+b>ctrl+g", grep_scrollback)
+rex.bind("ctrl+b>s", grep_scrollback)
+rex.bind("ctrl+b>ctrl+s", grep_scrollback)
 
 -- ctrl+b u: pick URL(s) from the focused block's scrollback with fzf and open
 -- them, in a floating layer (see utils/.local/bin/fzf-urls). The layer's

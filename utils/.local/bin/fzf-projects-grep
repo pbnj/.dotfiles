@@ -1,0 +1,315 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Grep every file under ~/Projects with ripgrep as you type, or
+#              toggle to a GitHub code search with <CTRL-T>; the query carries
+#              over. The prompt's icon shows the source: a folder for local
+#              files, the GitHub logo for GitHub. <CTRL-F> switches to fuzzy
+#              filtering of the hits found so far (the query is kept: edit
+#              it to filter), and back to searching with the edited query.
+#              Local hits are path:line:text, relative to ~/Projects, previewed
+#              around the line; <ENTER> opens the file at the line in $EDITOR
+#              in the project's own Rex (or tmux) window: a split of it when
+#              one is open, on the side its block is longer, else a new
+#              window named after the project. <CTRL-O> opens the hit on
+#              GitHub (its repo's default branch).
+#              GitHub hits are owner/repo/path: the matching line, previewed
+#              from the file at the indexed commit; <ENTER> opens the hit on
+#              github.com at its line. GitHub qualifiers work in the query
+#              (org:my-org language:go path:*.tf); $FZF_PROJECTS_GREP_GH
+#              is added to every GitHub query, e.g. "org:my-org".
+#              <CTRL-Y> copies the hit's path:line (local) or URL (GitHub).
+#              GitHub's code search API allows about 10 searches a minute,
+#              so GitHub searches wait for three characters and a pause in
+#              typing.
+# Dependencies: brew install bat fzf gh jq ripgrep
+# Usage: fzf-projects-grep [query]
+
+set -uo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+ROOT="${HOME}/Projects"
+LOCAL=$'\uf07b'  # nf-fa-folder
+GITHUB=$'\uf09b' # nf-fa-github
+CACHE="${TMPDIR:-/tmp}/fzf-projects-grep"
+
+# in_github: whether fzf's prompt shows the GitHub source
+in_github() {
+  [[ "${FZF_PROMPT:-}" == *"${GITHUB}"* ]]
+}
+
+# grep_local <query>: ripgrep ~/Projects for the query, as path:line:text.
+# One character matches nearly every line, so it waits for two; the sleep
+# debounces, since fzf kills a running reload when the query changes.
+grep_local() {
+  local query="${1:-}"
+  ((${#query} >= 2)) || return 0
+  sleep 0.1
+  cd "${ROOT}" || return 0
+  rg --line-number --no-heading --color=always --smart-case \
+    --max-columns=300 --max-columns-preview -- "${query}" 2>/dev/null || true
+}
+
+# grep_github <query>: GitHub code search, as url TAB matching line TAB
+# owner/repo/path: matching line. The query is split into words so that
+# qualifiers like org:x stay qualifiers. A search error is shown as a hit
+# without a URL.
+grep_github() {
+  local query="${1:-}" words=() out
+  ((${#query} >= 3)) || return 0
+  sleep 0.6
+  read -ra words <<<"${query} ${FZF_PROJECTS_GREP_GH:-}"
+  if ! out="$(gh search code --limit 100 --json repository,path,url,textMatches -- "${words[@]}" 2>&1)"; then
+    printf '\t\t\033[31m%s\033[0m\n' "${out//$'\n'/ }"
+    return 0
+  fi
+  # The matching line is the fragment's line holding the first match.
+  jq -r '
+    .[] | .url as $url | "\(.repository.nameWithOwner)/\(.path)" as $name
+    | (.textMatches[0] // {fragment: "", matches: []}) as $m
+    | ($m.matches[0].indices[0] // 0) as $at
+    | ($m.fragment | split("\n")) as $lines
+    | ($m.fragment[:$at] | split("\n") | length) as $n
+    | ($lines[($n - 1)] // "" | gsub("\t"; " ")) as $line
+    | [$url, $line, "\u001b[35m\($name)\u001b[0m: \($line | sub("^\\s+"; ""))"]
+    | @tsv' <<<"${out}"
+}
+
+# gh_file <url>: print the path of a cached copy of a GitHub search hit's
+# file, fetched at the commit the URL names
+gh_file() {
+  local url="${1}" repo sha path file
+  [[ "${url}" =~ ^https://github\.com/([^/]+/[^/]+)/blob/([^/]+)/(.+)$ ]] || return 1
+  repo="${BASH_REMATCH[1]}" sha="${BASH_REMATCH[2]}" path="${BASH_REMATCH[3]}"
+  file="${CACHE}/${repo}/${sha}/${path}"
+  if [[ ! -s "${file}" ]]; then
+    mkdir -p "$(dirname "${file}")"
+    if ! gh api -H 'Accept: application/vnd.github.raw' \
+      "repos/${repo}/contents/${path}?ref=${sha}" >"${file}.tmp" 2>/dev/null; then
+      rm -f "${file}.tmp"
+      return 1
+    fi
+    mv "${file}.tmp" "${file}"
+  fi
+  printf '%s\n' "${file}"
+}
+
+# gh_line <url> <line>: the number of the file's first line equal to <line>,
+# or 1
+gh_line() {
+  local file n
+  file="$(gh_file "${1}")" || {
+    echo 1
+    return
+  }
+  n="$(awk -v want="${2}" '{ gsub("\t", " ") } $0 == want { print NR; exit }' "${file}")"
+  echo "${n:-1}"
+}
+
+# split <hit>: set url, text (GitHub) or path, line (local) from a list line
+split() {
+  local hit="${1}"
+  url="" text="" path="" line=""
+  if [[ "${hit}" == https://* || "${hit}" == $'\t'* ]]; then
+    IFS=$'\t' read -r url text _ <<<"${hit}"
+  elif [[ "${hit}" =~ ^([^:]+):([0-9]+): ]]; then
+    path="${BASH_REMATCH[1]}" line="${BASH_REMATCH[2]}"
+  fi
+}
+
+preview() {
+  local url text path line n file
+  split "${1:-}"
+  if [[ -n "${url}" ]]; then
+    file="$(gh_file "${url}")" || {
+      echo "Couldn't fetch ${url}"
+      return
+    }
+    n="$(gh_line "${url}" "${text}")"
+    bat --color=always --style=numbers,header --file-name "${url#https://github.com/}" \
+      --highlight-line "${n}" --line-range "$((n > 10 ? n - 10 : 1)):" "${file}"
+  elif [[ -n "${path}" ]]; then
+    bat --color=always --style=numbers,header --highlight-line "${line}" \
+      --line-range "$((line > 10 ? line - 10 : 1)):" "${ROOT}/${path}"
+  fi
+}
+
+# rex_window <dir>: print "<window> <block>" for a window in $REX_SESSION
+# named after <dir> with a block working in <dir> (or below it), that block
+# being the one to split, the focused one first; fail if there is none. The
+# name alone could be another owner's repo of the same name. (As in fai.)
+rex_window() {
+  local dir="${1}" win block cwd
+  while read -r win block; do
+    cwd="$(rex block call -b "${block}" process 2>/dev/null |
+      jq -r '.foreground.cwd // .ancestors[0].cwd // empty')"
+    if [[ "${cwd}" == "${dir}" || "${cwd}" == "${dir}"/* ]]; then
+      printf '%s %s\n' "${win}" "${block}"
+      return 0
+    fi
+  done < <(rex window ls -s "${REX_SESSION}" --json --short=false 2>/dev/null |
+    jq -r --arg n "$(basename "${dir}")" '.windows[] | select(.label == $n)
+      | "\(.window_id) \(.focused_block_id, (.layers[] | select(.kind == "tiled")
+        | .blocks[].block_id))"')
+  return 1
+}
+
+# auto_split <block>: the side to split <block> on: right when it is at least
+# as wide as it is tall (in pixels), else below
+auto_split() {
+  rex block call -b "${1}" size 2>/dev/null | jq -r '
+    if (.columns * .cell_width_px) >= (.rows * .cell_height_px)
+    then "right" else "below" end' || echo right
+}
+
+# open_local <path> <line>: open ~/Projects/<path> at <line> in $EDITOR, in
+# its project's window: the project is the file's git repo (else its
+# directory). In Rex, the project's window gets a split of its block, on the
+# side that block is longer, or a new window named after the project when
+# there is none; in tmux, likewise with a window opened for it before
+# (@fai_dir, shared with fai). Outside both, the editor runs here.
+open_local() {
+  local file="${ROOT}/${1}" line="${2}" dir win anchor out editor
+  editor="${EDITOR:-nvim}"
+  dir="$(git -C "$(dirname "${file}")" rev-parse --show-toplevel 2>/dev/null)" ||
+    dir="$(dirname "${file}")"
+  # tmux first: a tmux started inside Rex inherits REX_SESSION too
+  if [[ -n "${TMUX:-}" ]]; then
+    win="$(tmux list-windows -a -F '#{window_id} #{@fai_dir}' |
+      awk -v d="${dir}" 'substr($0, index($0, " ") + 1) == d { print $1; exit }')"
+    if [[ -n "${win}" ]]; then
+      tmux split-window -t "${win}" -c "${dir}" -- "${editor}" "+${line}" "${file}"
+      tmux select-window -t "${win}"
+    else
+      out="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
+        -- "${editor}" "+${line}" "${file}")" &&
+        tmux set-option -w -t "${out}" @fai_dir "${dir}"
+    fi
+  elif [[ -n "${REX_SESSION:-}" ]]; then
+    if anchor="$(rex_window "${dir}")"; then
+      read -r win anchor <<<"${anchor}"
+      rex split -s "${REX_SESSION}" -b "${anchor}" --split "$(auto_split "${anchor}")" \
+        -c "${dir}" -- "${editor}" "+${line}" "${file}" >/dev/null || return
+    else
+      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+        -- "${editor}" "+${line}" "${file}")" || return
+      win="$(jq -r .window_id <<<"${out}")"
+    fi
+    # The Rex app keeps its own selected tab, so ask it to show the window.
+    # It only takes this with Remote Control on (Settings > Rex Server).
+    # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
+    rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
+  else
+    cd "${dir}" && exec "${editor}" "+${line}" "${file}"
+  fi
+}
+
+# open_hit <hit>: a local hit in its project's window (open_local), a GitHub
+# hit in the browser
+open_hit() {
+  local url text path line
+  split "${1:-}"
+  if [[ -n "${url}" ]]; then
+    open "${url}#L$(gh_line "${url}" "${text}")"
+  elif [[ -n "${path}" ]]; then
+    open_local "${path}" "${line}"
+  fi
+}
+
+# browse <hit>: open a local hit on GitHub, at its line; a GitHub hit as open
+browse() {
+  local url text path line abs top
+  split "${1:-}"
+  if [[ -n "${url}" ]]; then
+    open_hit "${1}"
+  elif [[ -n "${path}" ]]; then
+    abs="$(realpath "${ROOT}/${path}")"
+    top="$(git -C "$(dirname "${abs}")" rev-parse --show-toplevel 2>/dev/null)" || return 0
+    cd "${top}" && gh browse "${abs#"${top}"/}:${line}"
+  fi
+}
+
+copy() {
+  local url text path line
+  split "${1:-}"
+  if [[ -n "${url}" ]]; then
+    printf '%s#L%s' "${url}" "$(gh_line "${url}" "${text}")" | pbcopy
+  elif [[ -n "${path}" ]]; then
+    printf '%s:%s' "${ROOT}/${path}" "${line}" | pbcopy
+  fi
+}
+
+# reload_action: the fzf action that re-runs the current source's search
+reload_action() {
+  # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+  if in_github; then
+    printf '%s' 'reload("$FZF_PROJECTS_GREP_SELF" --github {q})'
+  else
+    printf '%s' 'reload("$FZF_PROJECTS_GREP_SELF" --local {q})'
+  fi
+}
+
+# on_toggle: run by fzf on CTRL-T; switches the source, keeping the query
+on_toggle() {
+  # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+  if in_github; then
+    printf 'disable-search+change-with-nth(1..)+reload("$FZF_PROJECTS_GREP_SELF" --local {q})+change-prompt:Grep %s> ' "${LOCAL}"
+  else
+    printf 'disable-search+change-with-nth(3..)+reload("$FZF_PROJECTS_GREP_SELF" --github {q})+change-prompt:Grep %s> ' "${GITHUB}"
+  fi
+}
+
+# on_fuzzy: run by fzf on CTRL-F; switches between searching with the source
+# (rg or GitHub, as you type) and fuzzy-filtering the hits already listed
+on_fuzzy() {
+  if [[ "${FZF_PROMPT:-}" == Fuzzy* ]]; then
+    printf 'disable-search+%s+change-prompt:%s' "$(reload_action)" "${FZF_PROMPT/Fuzzy/Grep}"
+  else
+    printf 'enable-search+change-prompt:%s' "${FZF_PROMPT/Grep/Fuzzy}"
+  fi
+}
+
+# on_change: run by fzf on every query edit; re-searches unless fuzzy
+on_change() {
+  [[ "${FZF_PROMPT:-}" == Fuzzy* ]] || reload_action
+}
+
+main() {
+  export FZF_PROJECTS_GREP_SELF
+  FZF_PROJECTS_GREP_SELF="$(realpath "${BASH_SOURCE[0]}")"
+  cd "${ROOT}" || exit 1
+  # shellcheck disable=SC2016 # expanded by the shell fzf runs commands in
+  fzf \
+    --ansi \
+    --disabled \
+    --reverse \
+    --query "${*}" \
+    --prompt "Grep ${LOCAL}> " \
+    --delimiter $'\t' \
+    --with-nth 1.. \
+    --header 'ENTER: open / CTRL-T: local ⇄ GitHub / CTRL-F: fuzzy filter / CTRL-O: open on GitHub / CTRL-Y: copy' \
+    --header-border bottom \
+    --input-border \
+    --bind 'start:reload("$FZF_PROJECTS_GREP_SELF" --local {q})' \
+    --bind 'change:transform:"$FZF_PROJECTS_GREP_SELF" --on-change' \
+    --bind 'ctrl-t:transform:"$FZF_PROJECTS_GREP_SELF" --on-toggle' \
+    --bind 'ctrl-f:transform:"$FZF_PROJECTS_GREP_SELF" --on-fuzzy' \
+    --bind 'enter:become("$FZF_PROJECTS_GREP_SELF" --open {})' \
+    --bind 'ctrl-o:execute-silent("$FZF_PROJECTS_GREP_SELF" --browse {})' \
+    --bind 'ctrl-y:execute-silent("$FZF_PROJECTS_GREP_SELF" --copy {})' \
+    --preview '"$FZF_PROJECTS_GREP_SELF" --preview {}' \
+    --preview-window 'down,60%' || true
+}
+
+case "${1:-}" in
+  --local) grep_local "${2:-}" ;;
+  --github) grep_github "${2:-}" ;;
+  --preview) preview "${2:-}" ;;
+  --open) open_hit "${2:-}" ;;
+  --browse) browse "${2:-}" ;;
+  --copy) copy "${2:-}" ;;
+  --on-toggle) on_toggle ;;
+  --on-fuzzy) on_fuzzy ;;
+  --on-change) on_change ;;
+  *) main "$@" ;;
+esac
