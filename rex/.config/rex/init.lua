@@ -428,3 +428,29 @@ rex.action({
 })
 rex.bind("ctrl+b>a", "focus_attention")
 rex.bind("ctrl+b>ctrl+a", "focus_attention")
+
+-- ctrl+b ?: list every binding (rex keymap) in a floating layer, paged with
+-- less; q closes it. Rex has no "?" key name, so it's bound as shift+/.
+-- Bindings to a Lua function show as client.key.forward.
+rex.action({
+  name = "show_keymap",
+  title = "Show Keybindings",
+  category = "Help",
+  keywords = "keys keymap shortcuts bindings cheat sheet which-key",
+  run = function()
+    rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "keymap",
+        options = {
+          shell = "none",
+          command = { "bash", "-lc", "rex keymap --color always | less -R" },
+        },
+      }),
+    })
+    return true
+  end,
+})
+rex.bind("ctrl+b>shift+/", "show_keymap")
