@@ -502,6 +502,24 @@ __fai_launch() {
   fi
 }
 
+# __fai_open <dir> <prefill>: start the default agent (the first installed
+# one in $FAI_AGENTS, else claude, copilot, pi) in a new window for <dir>,
+# with <prefill> typed into its prompt, no picker; fzf-projects-grep runs
+# this for a hit. The cloud agent is skipped, as it needs a task up front.
+__fai_open() {
+  local dir="${1}" prefill="${2:-}" all=(claude copilot pi) agent
+  [[ -n "${FAI_AGENTS:-}" ]] && read -ra all <<<"${FAI_AGENTS}"
+  for agent in "${all[@]}"; do
+    [[ "${agent}" != cloud ]] && command -v "${agent}" >/dev/null 2>&1 && break
+    agent=""
+  done
+  if [[ -z "${agent}" ]]; then
+    echo "fai: none of '${all[*]}' is installed" >&2
+    return 1
+  fi
+  __fai_launch "${dir}" "${agent}" "" "${prefill}" 0 "${agent}"
+}
+
 fai() {
   # Agents offered; the first installed one is the default.
   local all=(claude cloud copilot pi) agents=() icons=() agent cmd query=() out lines key=enter dir link url here
@@ -621,7 +639,8 @@ fai() {
 }
 
 # The --fai-* flags are this script run again: by fzf's bindings in the
-# picker, or detached by __fai_prefill_bg and __fai_open_cloud_bg.
+# picker, detached by __fai_prefill_bg and __fai_open_cloud_bg, or by
+# fzf-projects-grep (--fai-open).
 case "${1:-}" in
 --fai-on-query) __pick_repo_on_query ;;
 --fai-on-delete) __pick_repo_on_delete ;;
@@ -637,6 +656,10 @@ case "${1:-}" in
 --fai-open-cloud)
   shift
   __fai_open_cloud "$@"
+  ;;
+--fai-open)
+  shift
+  __fai_open "$@"
   ;;
 *) fai "$@" ;;
 esac

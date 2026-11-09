@@ -8,11 +8,10 @@
 #              filtering of the hits found so far (the query is kept: edit
 #              it to filter), and back to searching with the edited query.
 #              Local hits are path:line:text, relative to ~/Projects, previewed
-#              around the line; <ENTER> opens the file at the line in $EDITOR
-#              in the project's own Rex (or tmux) window: a split of it when
-#              one is open, on the side its block is longer, else a new
-#              window named after the project. <CTRL-O> opens the hit on
-#              GitHub (its repo's default branch).
+#              around the line; <ENTER> starts fai's default agent in a new
+#              Rex (or tmux) window named after the project, with the hit's
+#              path:line typed into its prompt (see fai --fai-open).
+#              <CTRL-O> opens the hit on GitHub (its repo's default branch).
 #              GitHub hits are owner/repo/path: the matching line, previewed
 #              from the file at the indexed commit; <ENTER> opens the hit on
 #              github.com at its line. GitHub qualifiers work in the query
@@ -22,7 +21,7 @@
 #              GitHub's code search API allows about 10 searches a minute,
 #              so GitHub searches wait for three characters and a pause in
 #              typing.
-# Dependencies: brew install bat fzf gh jq ripgrep
+# Dependencies: brew install bat fzf gh jq ripgrep; fai
 # Usage: fzf-projects-grep [query]
 
 set -uo pipefail
@@ -134,78 +133,18 @@ preview() {
   fi
 }
 
-# rex_window <dir>: print "<window> <block>" for a window in $REX_SESSION
-# named after <dir> with a block working in <dir> (or below it), that block
-# being the one to split, the focused one first; fail if there is none. The
-# name alone could be another owner's repo of the same name. (As in fai.)
-rex_window() {
-  local dir="${1}" win block cwd
-  while read -r win block; do
-    cwd="$(rex block call -b "${block}" process 2>/dev/null |
-      jq -r '.foreground.cwd // .ancestors[0].cwd // empty')"
-    if [[ "${cwd}" == "${dir}" || "${cwd}" == "${dir}"/* ]]; then
-      printf '%s %s\n' "${win}" "${block}"
-      return 0
-    fi
-  done < <(rex window ls -s "${REX_SESSION}" --json --short=false 2>/dev/null |
-    jq -r --arg n "$(basename "${dir}")" '.windows[] | select(.label == $n)
-      | "\(.window_id) \(.focused_block_id, (.layers[] | select(.kind == "tiled")
-        | .blocks[].block_id))"')
-  return 1
-}
-
-# auto_split <block>: the side to split <block> on: right when it is at least
-# as wide as it is tall (in pixels), else below
-auto_split() {
-  rex block call -b "${1}" size 2>/dev/null | jq -r '
-    if (.columns * .cell_width_px) >= (.rows * .cell_height_px)
-    then "right" else "below" end' || echo right
-}
-
-# open_local <path> <line>: open ~/Projects/<path> at <line> in $EDITOR, in
-# its project's window: the project is the file's git repo (else its
-# directory). In Rex, the project's window gets a split of its block, on the
-# side that block is longer, or a new window named after the project when
-# there is none; in tmux, likewise with a window opened for it before
-# (@fai_dir, shared with fai). Outside both, the editor runs here.
+# open_local <path> <line>: start an agent on ~/Projects/<path> at <line>
+# with fai, in a new window for its project: the file's git repo (else its
+# directory), with the path:line relative to it typed into the prompt
 open_local() {
-  local file="${ROOT}/${1}" line="${2}" dir win anchor out editor
-  editor="${EDITOR:-nvim}"
+  local file="${ROOT}/${1}" line="${2}" dir
   dir="$(git -C "$(dirname "${file}")" rev-parse --show-toplevel 2>/dev/null)" ||
     dir="$(dirname "${file}")"
-  # tmux first: a tmux started inside Rex inherits REX_SESSION too
-  if [[ -n "${TMUX:-}" ]]; then
-    win="$(tmux list-windows -a -F '#{window_id} #{@fai_dir}' |
-      awk -v d="${dir}" 'substr($0, index($0, " ") + 1) == d { print $1; exit }')"
-    if [[ -n "${win}" ]]; then
-      tmux split-window -t "${win}" -c "${dir}" -- "${editor}" "+${line}" "${file}"
-      tmux select-window -t "${win}"
-    else
-      out="$(tmux new-window -c "${dir}" -n "$(basename "${dir}")" -P -F '#{pane_id}' \
-        -- "${editor}" "+${line}" "${file}")" &&
-        tmux set-option -w -t "${out}" @fai_dir "${dir}"
-    fi
-  elif [[ -n "${REX_SESSION:-}" ]]; then
-    if anchor="$(rex_window "${dir}")"; then
-      read -r win anchor <<<"${anchor}"
-      rex split -s "${REX_SESSION}" -b "${anchor}" --split "$(auto_split "${anchor}")" \
-        -c "${dir}" -- "${editor}" "+${line}" "${file}" >/dev/null || return
-    else
-      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
-        -- "${editor}" "+${line}" "${file}")" || return
-      win="$(jq -r .window_id <<<"${out}")"
-    fi
-    # The Rex app keeps its own selected tab, so ask it to show the window.
-    # It only takes this with Remote Control on (Settings > Rex Server).
-    # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
-    rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
-  else
-    cd "${dir}" && exec "${editor}" "+${line}" "${file}"
-  fi
+  exec fai --fai-open "${dir}" "${file#"${dir}"/}:${line}"
 }
 
-# open_hit <hit>: a local hit in its project's window (open_local), a GitHub
-# hit in the browser
+# open_hit <hit>: a local hit to an agent (open_local), a GitHub hit in the
+# browser
 open_hit() {
   local url text path line
   split "${1:-}"
@@ -287,7 +226,7 @@ main() {
     --prompt "Grep ${LOCAL}> " \
     --delimiter $'\t' \
     --with-nth 1.. \
-    --header 'ENTER: open / CTRL-T: local ⇄ GitHub / CTRL-F: fuzzy filter / CTRL-O: open on GitHub / CTRL-Y: copy' \
+    --header 'ENTER: agent (local) or browser (GitHub) / CTRL-T: local ⇄ GitHub / CTRL-F: fuzzy filter / CTRL-O: open on GitHub / CTRL-Y: copy' \
     --header-border bottom \
     --input-border \
     --bind 'start:reload("$FZF_PROJECTS_GREP_SELF" --local {q})' \

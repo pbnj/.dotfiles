@@ -60,7 +60,8 @@ rex.bind("ctrl+b>ctrl+f", "fai")
 
 -- ctrl+b g: grep every file under ~/Projects in a floating layer, with CTRL-T
 -- in the picker toggling to a GitHub code search (see
--- utils/.local/bin/fzf-projects-grep). bash -l puts ~/.local/bin on PATH and
+-- utils/.local/bin/fzf-projects-grep). ENTER on a local hit starts an agent
+-- in a new window with the hit's path:line in its prompt. bash -l puts ~/.local/bin on PATH and
 -- loads the fzf options. ctrl+b ctrl+g works too, for when ctrl is still held.
 rex.action({
   name = "grep_projects",
