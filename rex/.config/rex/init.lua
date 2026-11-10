@@ -248,6 +248,54 @@ for _, a in ipairs({
   })
 end
 
+-- The CI of the focused block's branch's PR, in a split to the right, in that
+-- block's working directory: gh pr checks --watch on top, and below it the
+-- Actions runs' steps and then the failed jobs' logs
+-- (utils/.local/bin/gh-pr-logs). Once each finishes (or there's no PR), its
+-- pane waits for a key and closes.
+local function watch_pane(label, script, cwd)
+  return rex.layout.block({
+    flavor = "com.superlogical.terminal.shell",
+    label = label,
+    options = {
+      shell = "none",
+      cwd = cwd,
+      command = {
+        "bash",
+        "-lc",
+        script .. "; read -rsn1 -p 'Press any key to close'",
+      },
+    },
+  })
+end
+
+rex.action({
+  name = "gh_pr_checks_split",
+  title = "Watch GitHub PR Checks and Logs in Split",
+  category = "GitHub",
+  keywords = "github ci actions build status failing pull request watch pane run logs",
+  run = function(ctx)
+    local cwd = block_cwd(ctx)
+    local _, err = rex.session.new_split({
+      session_id = ctx.session_id,
+      anchor_id = ctx.block_id,
+      direction = "horizontal",
+      side = "after",
+      ratio = 0.5,
+      focus = true,
+      layout = rex.layout.vertical(
+        0.4,
+        watch_pane("checks", "gh pr checks --watch", cwd),
+        watch_pane("logs", "gh-pr-logs", cwd)
+      ),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+    return true
+  end,
+})
+
 -- ctrl+b o …: open something in the browser. u, r, p, c and i fuzzy-pick
 -- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);
 -- f and l pick from the block's git repo.

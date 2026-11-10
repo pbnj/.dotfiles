@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# gh-pr-logs -- watch the GitHub Actions runs of a PR's head commit, then print
+# the logs of the jobs that failed.
+#
+# Usage: gh-pr-logs [<number> | <url> | <branch>]
+#
+# With no argument, the PR of the current branch. GitHub serves a job's log
+# only once the job finishes, so each run's steps are watched live with
+# `gh run watch`, and the failed jobs' logs follow when their run is done.
+# Runs that start while others are watched (e.g. a workflow_run workflow) are
+# picked up too. Checks from other CI systems have no runs and aren't shown;
+# `gh pr checks` lists them.
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+sha=$(gh pr view "$@" --json headRefOid --jq .headRefOid)
+echo "Actions runs for ${sha:0:7}"
+
+# Runs can take a few seconds to appear after a push.
+declare -A seen=()
+failed=()
+waited=0
+while :; do
+  new=()
+  while read -r id; do
+    [[ -n "$id" && -z "${seen[$id]:-}" ]] && new+=("$id")
+  done < <(gh run list --commit "$sha" --limit 100 \
+    --json databaseId --jq '.[].databaseId')
+
+  if ((${#new[@]} == 0)); then
+    if ((${#seen[@]} > 0)); then
+      break
+    fi
+    if ((waited >= 30)); then
+      echo "No GitHub Actions runs for ${sha:0:7}"
+      exit 0
+    fi
+    sleep 5
+    waited=$((waited + 5))
+    continue
+  fi
+
+  for id in "${new[@]}"; do
+    seen[$id]=1
+    echo
+    # Not --exit-status: it fails on skipped runs too, which have no logs.
+    gh run watch "$id" --compact || true
+    case $(gh run view "$id" --json conclusion --jq .conclusion) in
+    failure | timed_out | startup_failure) failed+=("$id") ;;
+    esac
+  done
+done
+
+if ((${#failed[@]} == 0)); then
+  echo
+  echo "None of the ${#seen[@]} runs failed"
+  exit 0
+fi
+
+for id in "${failed[@]}"; do
+  echo
+  echo "===== Failed logs: $(gh run view "$id" --json url --jq .url) ====="
+  gh run view "$id" --log-failed
+done
+exit 1
