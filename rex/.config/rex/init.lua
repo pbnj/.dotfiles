@@ -303,6 +303,38 @@ rex.action({
   end,
 })
 
+-- A Linear issue from the focused block's scrollback, shown with linear issue
+-- view in a split to the right (utils/.local/bin/linear-view). Several issues
+-- are picked from with fzf; with none, it's the current branch's issue, so the
+-- split starts in the block's working directory. The split's own block is a
+-- new one, so the focused block is passed to it. (Block IDs are letters,
+-- digits, ":" and "-", safe inside the quotes.)
+rex.action({
+  name = "linear_view_issue",
+  title = "View Linear Issue in Split",
+  category = "Linear",
+  keywords = "linear ticket task bug issue show read pane terminal",
+  run = function(ctx)
+    local _, err = rex.session.new_split({
+      session_id = ctx.session_id,
+      anchor_id = ctx.block_id,
+      direction = "horizontal",
+      side = "after",
+      ratio = 0.5,
+      focus = true,
+      layout = watch_pane(
+        "linear",
+        "linear-view '" .. (ctx.block_id or "") .. "'",
+        block_cwd(ctx)
+      ),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+    return true
+  end,
+})
+
 -- ctrl+b o …: open something in the browser. u, r, p, c and i fuzzy-pick
 -- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);
 -- f and l pick from the block's git repo.
