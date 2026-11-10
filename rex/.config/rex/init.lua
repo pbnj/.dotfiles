@@ -405,18 +405,33 @@ for _, a in ipairs({
   rex.bind("ctrl+b>o>" .. a.key, a.name)
 end
 
--- ctrl+b a: focus the block that most needs attention, switching windows if
--- needed. Programs such as Claude Code report a status with OSC 7501; blocked
--- (waiting for input) beats error beats done, and the most recent wins.
--- Pressing it again from the block it jumped to goes back to where you were,
--- so it toggles between the two. ctrl+b ctrl+a works too, for when ctrl is
--- still held.
-local terminal = "com.superlogical.terminal"
-local attention_rank = { blocked = 1, error = 2, done = 3 }
+-- ctrl+b l: go back to the block focused before this one, switching windows
+-- if needed, like tmux's last-window (prefix+l) but for panes too. Pressing it
+-- again comes back, so it toggles between the two. ctrl+b ctrl+l works too,
+-- for when ctrl is still held.
+--
+-- Config can't handle events, so last-focus.lua records each session's focus
+-- history, from keys, the mouse and the API alike, in a `rex do --all` beside
+-- the server. It's started here unless it's already running; after editing
+-- it, kill it (pkill -f last-focus.lua) and reload the config.
+local last_focus_script = os.getenv("HOME") .. "/.config/rex/last-focus.lua"
+local last_focus_dir = (
+  os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state")
+) .. "/rex/last-focus"
 
--- The last jump, as { from = block, to = block }. Lua state lives until the
--- config is reloaded.
-local attention_jump
+-- rex isn't on the server's PATH (it's inside the app), so the launcher runs
+-- its parent's binary: the server's own rex, which also keeps the watcher's
+-- version in step with the server's. REX_SERVER, set in the server's
+-- environment, points it at this server. The script's path reaches bash as
+-- an argument, so the pgrep pattern in bash's own command line never matches
+-- bash itself.
+rex.exec.start({
+  "bash",
+  "-c",
+  'pgrep -qf "rex do --all $1" || exec "$(ps -o comm= -p "$PPID")" do --all "$1"',
+  "bash",
+  last_focus_script,
+}, { detach = true, stdout = false, stderr = false })
 
 local function focus(ctx, block)
   rex.session.focus_block({
@@ -433,11 +448,16 @@ local function focus(ctx, block)
 end
 
 rex.action({
-  name = "focus_attention",
-  title = "Focus Block Needing Attention",
-  category = "Agents",
-  keywords = "blocked waiting input error done status jump",
+  name = "last_pane",
+  title = "Go to Last Pane/Window",
+  category = "Navigation",
+  keywords = "previous recent back toggle tmux last-window last-pane jump",
   run = function(ctx)
+    local f =
+      io.open(last_focus_dir .. "/" .. ctx.session_id:gsub("[^%w%-]", "_"))
+    if not f then
+      return
+    end
     local blocks = rex.session.list_blocks({ session_id = ctx.session_id })
     local placed = {}
     for _, b in ipairs((blocks and blocks.blocks) or {}) do
@@ -445,48 +465,19 @@ rex.action({
         placed[b.block_id] = b
       end
     end
-
-    local jump = attention_jump
-    attention_jump = nil
-    if jump and jump.to == ctx.block_id and placed[jump.from] then
-      focus(ctx, placed[jump.from])
-      return
-    end
-
-    local best
-    for id, b in pairs(placed) do
-      if b.creator_name == terminal and id ~= ctx.block_id then
-        local status = rex.block.call(
-          terminal,
-          "program_status",
-          { session_id = ctx.session_id, block_id = id }
-        )
-        for _, rec in ipairs((status and status.records) or {}) do
-          local rank = attention_rank[rec.state]
-          if
-            rank
-            and (
-              not best
-              or rank < best.rank
-              or (rank == best.rank and rec.updated_at > best.at)
-            )
-          then
-            best = { block = b, rank = rank, at = rec.updated_at }
-          end
-        end
+    -- The most recent block that isn't this one and is still open.
+    for id in f:lines() do
+      if id ~= ctx.block_id and placed[id] then
+        f:close()
+        focus(ctx, placed[id])
+        return
       end
     end
-    if not best then
-      return
-    end
-    if ctx.block_id then
-      attention_jump = { from = ctx.block_id, to = best.block.block_id }
-    end
-    focus(ctx, best.block)
+    f:close()
   end,
 })
-rex.bind("ctrl+b>a", "focus_attention")
-rex.bind("ctrl+b>ctrl+a", "focus_attention")
+rex.bind("ctrl+b>l", "last_pane")
+rex.bind("ctrl+b>ctrl+l", "last_pane")
 
 -- ctrl+b ?: list every binding (rex keymap) in a floating layer, paged with
 -- less; q closes it. Rex has no "?" key name, so it's bound as shift+/.
