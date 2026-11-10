@@ -13,8 +13,12 @@
 #              path:line typed into its prompt (see fai --fai-open).
 #              <CTRL-O> opens the hit on GitHub (its repo's default branch).
 #              GitHub hits are owner/repo/path: the matching line, previewed
-#              from the file at the indexed commit; <ENTER> opens the hit on
-#              github.com at its line. GitHub qualifiers work in the query
+#              from the file at the indexed commit; <ENTER> clones the repo
+#              into ~/Projects/github.com/<owner>/<repo> (unless it's there
+#              already) and starts an agent on it the same way, and <CTRL-O>
+#              opens the hit on github.com at its line. The local clone may
+#              have moved on from the indexed commit, so the line can be off.
+#              GitHub qualifiers work in the query
 #              (org:my-org language:go path:*.tf); $FZF_PROJECTS_GREP_GH
 #              is added to every GitHub query, e.g. "org:my-org".
 #              <CTRL-Y> copies the hit's path:line (local) or URL (GitHub).
@@ -143,24 +147,44 @@ open_local() {
   exec fai --fai-open "${dir}" "${file#"${dir}"/}:${line}"
 }
 
-# open_hit <hit>: a local hit to an agent (open_local), a GitHub hit in the
-# browser
+# open_github <url> <text>: clone a GitHub hit's repo into
+# ~/Projects/github.com unless it's there, then start an agent on it like
+# open_local, with the hit's path and line (in the indexed file) typed in
+open_github() {
+  local url="${1}" text="${2}" repo path dir n
+  [[ "${url}" =~ ^https://github\.com/([^/]+/[^/]+)/blob/[^/]+/(.+)$ ]] || return 1
+  repo="${BASH_REMATCH[1]}"
+  path="$(perl -pe 's/%([0-9A-Fa-f]{2})/chr hex $1/ge' <<<"${BASH_REMATCH[2]}")"
+  dir="${ROOT}/github.com/${repo}"
+  if [[ ! -d "${dir}/.git" ]]; then
+    if ! gh repo clone "${repo}" "${dir}"; then
+      read -rsn1 -p "Couldn't clone ${repo}. Press any key to close." || true
+      return 1
+    fi
+  fi
+  n="$(gh_line "${url}" "${text}")"
+  exec fai --fai-open "${dir}" "${path}:${n}"
+}
+
+# open_hit <hit>: a local hit (open_local) or a GitHub one (open_github) to
+# an agent
 open_hit() {
   local url text path line
   split "${1:-}"
   if [[ -n "${url}" ]]; then
-    open "${url}#L$(gh_line "${url}" "${text}")"
+    open_github "${url}" "${text}"
   elif [[ -n "${path}" ]]; then
     open_local "${path}" "${line}"
   fi
 }
 
-# browse <hit>: open a local hit on GitHub, at its line; a GitHub hit as open
+# browse <hit>: open a hit on GitHub at its line: a local hit on its repo's
+# default branch, a GitHub hit at the indexed commit
 browse() {
   local url text path line abs top
   split "${1:-}"
   if [[ -n "${url}" ]]; then
-    open_hit "${1}"
+    open "${url}#L$(gh_line "${url}" "${text}")"
   elif [[ -n "${path}" ]]; then
     abs="$(realpath "${ROOT}/${path}")"
     top="$(git -C "$(dirname "${abs}")" rev-parse --show-toplevel 2>/dev/null)" || return 0
@@ -226,7 +250,7 @@ main() {
     --prompt "Grep ${LOCAL}> " \
     --delimiter $'\t' \
     --with-nth 1.. \
-    --header 'ENTER: agent (local) or browser (GitHub) / CTRL-T: local ⇄ GitHub / CTRL-F: fuzzy filter / CTRL-O: open on GitHub / CTRL-Y: copy' \
+    --header 'ENTER: agent / CTRL-T: local ⇄ GitHub / CTRL-F: fuzzy filter / CTRL-O: open on GitHub / CTRL-Y: copy' \
     --header-border bottom \
     --input-border \
     --bind 'start:reload("$FZF_PROJECTS_GREP_SELF" --local {q})' \
