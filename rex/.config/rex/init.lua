@@ -189,11 +189,16 @@ rex.action({
 rex.bind("ctrl+b>t", "scratch")
 rex.bind("ctrl+b>ctrl+t", "scratch")
 
--- A coding agent in a split to the right of the focused block, in that
--- block's working directory. bash -lic loads the profile so the agent has the
--- usual PATH; shell = "none" keeps Rex from loading it a second time. The
--- agent's name reaches bash as an argument, never as shell code.
-local function agent_split(agent)
+-- A program (a coding agent, or nvim) in a split to the right of the focused
+-- block, in that block's working directory. bash -lic loads the profile so the
+-- program has the usual PATH; shell = "none" keeps Rex from loading it a
+-- second time. The program and its arguments reach bash as arguments, never as
+-- shell code.
+local function program_split(label, ...)
+  local command = { "bash", "-lic", 'exec "$@"', "bash" }
+  for _, arg in ipairs({ ... }) do
+    command[#command + 1] = arg
+  end
   return function(ctx)
     local _, err = rex.session.new_split({
       session_id = ctx.session_id,
@@ -204,17 +209,11 @@ local function agent_split(agent)
       focus = true,
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
-        label = "agent",
+        label = label,
         options = {
           shell = "none",
           cwd = block_cwd(ctx),
-          command = {
-            "bash",
-            "-lic",
-            'exec "$1"',
-            "bash",
-            agent,
-          },
+          command = command,
         },
       }),
     })
@@ -244,9 +243,17 @@ for _, a in ipairs({
     title = a.title .. " in Current Directory",
     category = "Agents",
     keywords = a.keywords .. " cwd split here",
-    run = agent_split(a.agent),
+    run = program_split("agent", a.agent),
   })
 end
+
+rex.action({
+  name = "nvim_cwd",
+  title = "Open Neovim in Current Directory",
+  category = "Editor",
+  keywords = "nvim vim editor edit files cwd split here",
+  run = program_split("nvim", "nvim", "."),
+})
 
 -- The CI of the focused block's branch's PR, in a split to the right, in that
 -- block's working directory: gh pr checks --watch on top, and below it the
