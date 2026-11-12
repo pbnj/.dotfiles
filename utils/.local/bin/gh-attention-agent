@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+# gh-attention-agent -- pick the pull requests that need your attention (gh
+# attention) with fzf and send each to fai, which opens the PR's repo and
+# starts an agent there with the PR's URL typed into its prompt.
+#
+# Usage: gh-attention-agent
+#
+# The list is `gh attention --all --reviews`: your PRs that are approved,
+# waiting on review, have feedback or are failing CI, and the PRs where your
+# review is requested, in every repository, most recently updated first. Each
+# shows its repo and number, sections, author, CI state and title. Fetching
+# them takes a while, so they are cached in
+# ${XDG_CACHE_HOME:-~/.cache}/gh-attention-agent/prs.tsv: the cache is shown at
+# once and, when older than GH_ATTENTION_AGENT_TTL seconds (default 300),
+# refreshed while you pick. CTRL-R refreshes it now.
+#
+# ALT-S, ALT-R and ALT-A filter the list by section, repo and author: each
+# opens a picker of the values (with how many PRs the other filters leave for
+# each), TAB marks several, and "any" clears the filter. A PR in several
+# sections matches any of them. The filters in use are shown in the footer.
+# Typing still fuzzy-matches all of each line.
+#
+# TAB marks several PRs. ENTER runs fai once per PR, in turn; fai opens the
+# PR's repo straight away when it is cloned, so each gets its own agent. ESC in
+# fai skips that PR.
+#
+# Dependencies: gh with the gh-attention extension, logged in; fzf; jq; fai
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+self="$(realpath "${BASH_SOURCE[0]}")"
+cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/gh-attention-agent"
+cache="${cache_dir}/prs.tsv"
+ttl="${GH_ATTENTION_AGENT_TTL:-300}"
+# The filters in use: one file per field, a value per line. Set by the
+# picker's own run of this script, and inherited by fzf's bindings.
+state="${GH_ATTENTION_AGENT_STATE:-}"
+
+# The cache is tab-separated: URL, owner/repo#number, sections (comma-
+# separated), repo, author, CI state, title. The filters' columns in it:
+declare -A COLUMN=([section]=3 [repo]=4 [author]=5)
+declare -A LABEL=([section]=Section [repo]=Repo [author]=Author)
+
+# refresh: fetch the PRs into the cache, one line per PR with all its
+# sections. On failure the old cache is kept, and the error saved for the
+# footer.
+refresh() {
+  local tmp
+  mkdir -p "${cache_dir}"
+  tmp="$(mktemp "${cache_dir}/prs.XXXXXX")"
+  if gh attention --all --reviews --json 2>"${state:-/dev/null}${state:+/error}" |
+    jq -r '
+      [to_entries[] | .key as $s | .value[] | . + {section: $s}]
+      | group_by(.url)
+      | map(.[0] + {sections: (map(.section) | unique | join(","))})
+      | sort_by(.updatedAt) | reverse | .[]
+      | [.url, "\(.repo)#\(.number)", .sections, .repo, .author,
+         ((.ciState // "") | ascii_downcase),
+         ((if .draft then "[draft] " else "" end) + .title
+          | gsub("[\t\n\r]"; " "))]
+      | @tsv' >"${tmp}" && [[ -s "${tmp}" ]]; then
+    mv "${tmp}" "${cache}"
+    [[ -z "${state}" ]] || : >"${state}/error"
+  else
+    rm -f "${tmp}"
+    [[ -z "${state}" || -s "${state}/error" ]] ||
+      echo "fetching PRs failed (or none need attention)" >"${state}/error"
+  fi
+}
+
+# filter [except]: print the cached PRs the filters leave, all but the filter
+# on field <except>. A field holding several values (the sections) matches
+# when any of them is wanted.
+filter() {
+  [[ -f "${cache}" ]] || return 0
+  local except="${1:-}" field args=()
+  for field in section repo author; do
+    [[ "${field}" == "${except}" ]] && continue
+    [[ -s "${state}/${field}" ]] || continue
+    args+=("${COLUMN[${field}]}" "${state}/${field}")
+  done
+  awk -F'\t' -v filters="${args[*]}" '
+    BEGIN {
+      n = split(filters, f, " ")
+      for (i = 1; i < n; i += 2) {
+        col[++k] = f[i]
+        while ((getline v < f[i + 1]) > 0) want[k, v] = 1
+      }
+    }
+    {
+      for (i = 1; i <= k; i++) {
+        m = split($col[i], vals, ",")
+        ok = 0
+        for (j = 1; j <= m; j++) if ((i, vals[j]) in want) { ok = 1; break }
+        if (!ok) next
+      }
+      print
+    }' "${cache}"
+}
+
+# list: print the PRs for fzf: URL, then the line shown
+list() {
+  filter | awk -F'\t' -v OFS='\t' '{
+    print $1, sprintf("%-40.40s %-24.24s %-18.18s %-8.8s %s", $2, $3, $5, $6, $7)
+  }'
+}
+
+# footer: print the filters in use, and any error from the last refresh
+footer() {
+  local field values parts=() age=""
+  for field in section repo author; do
+    values="any"
+    if [[ -s "${state}/${field}" ]]; then
+      values="$(paste -sd, "${state}/${field}")"
+      values="${values//,/, }"
+    fi
+    parts+=("${LABEL[${field}]}: ${values}")
+  done
+  if [[ -f "${cache}" ]]; then
+    age="$((($(date +%s) - $(date -r "${cache}" +%s)) / 60))"
+    age=" · fetched ${age}m ago"
+  fi
+  printf '%s · %s · %s%s' "${parts[0]}" "${parts[1]}" "${parts[2]}" "${age}"
+  if [[ -s "${state}/error" ]]; then
+    printf '\nError: %s' "$(head -n1 "${state}/error")"
+  fi
+}
+
+# pick <field>: choose the values to filter <field> by, with fzf
+pick() {
+  local field="${1}" picked
+  picked="$(
+    {
+      printf '%5s\t%s\n' "" any
+      filter "${field}" | cut -f"${COLUMN[${field}]}" | tr ',' '\n' |
+        sort | uniq -c | sort -k1,1nr -k2 |
+        awk '{ n = $1; sub(/^ *[0-9]+ /, ""); printf "%5d\t%s\n", n, $0 }'
+    } | fzf \
+      --multi \
+      --delimiter='\t' \
+      --prompt="${LABEL[${field}]}> " \
+      --header='ENTER: filter / TAB: mark / ESC: keep' \
+      --reverse
+  )" || return 0
+  picked="$(cut -f2 <<<"${picked}")"
+  if grep -qx any <<<"${picked}"; then
+    : >"${state}/${field}"
+  else
+    printf '%s\n' "${picked}" >"${state}/${field}"
+  fi
+}
+
+# stale: whether the cache is missing or older than the TTL
+stale() {
+  [[ ! -f "${cache}" ]] ||
+    (($(date +%s) - $(date -r "${cache}" +%s) > ttl))
+}
+
+main() {
+  local q urls url start=() refresh_list
+  state="$(mktemp -d)"
+  export GH_ATTENTION_AGENT_STATE="${state}"
+  trap 'rm -rf "${state}"' EXIT
+  : >"${state}/error"
+
+  q="$(printf '%q' "${self}")"
+  refresh_list="${q} --refresh; ${q} --list"
+  stale && start=(--bind="start:reload-sync(${refresh_list})+transform-footer(${q} --footer)")
+
+  # shellcheck disable=SC2016 # FZF_PREVIEW_COLUMNS is fzf's, set for the preview
+  urls="$(list | fzf \
+    --multi \
+    --delimiter='\t' \
+    --with-nth=2 \
+    --prompt='PR> ' \
+    --header='ENTER: send to fai / TAB: mark / ALT-S: section / ALT-R: repo / ALT-A: author / CTRL-R: refresh' \
+    --footer="$(footer)" \
+    --reverse \
+    --preview='GH_FORCE_TTY="${FZF_PREVIEW_COLUMNS}" gh pr view {1}' \
+    --preview-window='right,50%,wrap,<120(down,50%,wrap)' \
+    --bind="alt-s:execute(${q} --pick section)+reload-sync(${q} --list)+transform-footer(${q} --footer)" \
+    --bind="alt-r:execute(${q} --pick repo)+reload-sync(${q} --list)+transform-footer(${q} --footer)" \
+    --bind="alt-a:execute(${q} --pick author)+reload-sync(${q} --list)+transform-footer(${q} --footer)" \
+    --bind="ctrl-r:reload-sync(${refresh_list})+transform-footer(${q} --footer)" \
+    ${start[@]+"${start[@]}"} |
+    cut -f1)" || exit 0
+
+  while read -r url; do
+    [[ -n "${url}" ]] || continue
+    # fai reads the terminal, not the list
+    fai "${url}" </dev/tty || true
+  done <<<"${urls}"
+}
+
+case "${1:-}" in
+--refresh) refresh ;;
+--list) list ;;
+--footer) footer ;;
+--pick) pick "${2:?field}" ;;
+"") main ;;
+*)
+  echo "Usage: gh-attention-agent" >&2
+  exit 2
+  ;;
+esac
+
+# vim:sts=2:ts=2:sw=2:et:

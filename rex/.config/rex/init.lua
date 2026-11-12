@@ -335,34 +335,47 @@ rex.action({
   end,
 })
 
--- Open Linear issues, picked with fzf in a floating layer (filtered by team,
--- assignee and status with ALT-T, ALT-A and ALT-S), each sent in turn to fai,
--- which picks a directory and starts an agent there with the issue's URL in
--- its prompt (see utils/.local/bin/linear-agent). bash -li, as for fai, so the
--- agents get the usual PATH and environment.
-rex.action({
-  name = "linear_agent",
-  title = "Send Linear Issue to Agent",
-  category = "Linear",
-  keywords = "linear ticket task bug issue fai claude agent repo team assignee status",
-  run = function()
+-- Send to Agent: pick work items with fzf in a floating layer and send each
+-- in turn to fai, which picks a directory and starts an agent there with the
+-- item's URL in its prompt. bash -li, as for fai, so the agents get the usual
+-- PATH and environment.
+--   linear_agent  open Linear issues, filtered by team, assignee and status
+--                 with ALT-T, ALT-A and ALT-S (utils/.local/bin/linear-agent)
+--   gh_agent      PRs that need your attention (gh attention), filtered by
+--                 section, repo and author with ALT-S, ALT-R and ALT-A
+--                 (utils/.local/bin/gh-attention-agent)
+local function agent_picker(label, script)
+  return function()
     local _, err = rex.session.new_layer({
       bounds = { 0.05, 0.05, 0.9, 0.9 },
       focus = true,
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
-        label = "linear",
-        options = {
-          shell = "none",
-          command = { "bash", "-lic", "linear-agent" },
-        },
+        label = label,
+        options = { shell = "none", command = { "bash", "-lic", script } },
       }),
     })
     if err ~= nil then
       error(err, 0)
     end
     return true
-  end,
+  end
+end
+
+rex.action({
+  name = "linear_agent",
+  title = "Send Linear Issue to Agent",
+  category = "Linear",
+  keywords = "linear ticket task bug issue fai claude agent repo team assignee status",
+  run = agent_picker("linear", "linear-agent"),
+})
+
+rex.action({
+  name = "gh_agent",
+  title = "Send GitHub Attention to Agent",
+  category = "GitHub",
+  keywords = "github pull request pr review failing ci approved feedback attention fai claude agent",
+  run = agent_picker("gh-attention", "gh-attention-agent"),
 })
 
 -- ctrl+b o …: open something in the browser. u, r, p, c and i fuzzy-pick
