@@ -132,10 +132,10 @@ pick() {
   local field="${1}" picked
   picked="$(
     {
-      echo "any"
+      printf '%5s\t%s\n' "" any
       filter "${field}" | cut -f"${COLUMN[${field}]}" |
         sort | uniq -c | sort -k1,1nr -k2 |
-        awk '{ n = $1; sub(/^ *[0-9]+ /, ""); printf "%s\t%5d\n", $0, n }'
+        awk '{ n = $1; sub(/^ *[0-9]+ /, ""); printf "%5d\t%s\n", n, $0 }'
     } | fzf \
       --multi \
       --delimiter='\t' \
@@ -143,10 +143,11 @@ pick() {
       --header='ENTER: filter / TAB: mark / ESC: keep' \
       --reverse
   )" || return 0
+  picked="$(cut -f2 <<<"${picked}")"
   if grep -qx any <<<"${picked}"; then
     : >"${state}/${field}"
   else
-    cut -f1 <<<"${picked}" >"${state}/${field}"
+    printf '%s\n' "${picked}" >"${state}/${field}"
   fi
 }
 
