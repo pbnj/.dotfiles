@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+# linear-agent -- pick open Linear issues with fzf and send each to fai, which
+# picks a directory and starts an agent there with the issue's URL typed into
+# its prompt.
+#
+# Usage: linear-agent
+#
+# The list is every open issue in the workspace (any state but completed or
+# canceled), most recently updated first, as ID, team, status, assignee and
+# title. Fetching them all takes a while, so they are cached in
+# ${XDG_CACHE_HOME:-~/.cache}/linear-agent/issues.tsv: the cache is shown at
+# once and, when older than LINEAR_AGENT_TTL seconds (default 900), refreshed
+# while you pick. CTRL-R refreshes it now.
+#
+# ALT-T, ALT-A and ALT-S filter the list by team, assignee and status: each
+# opens a picker of the values (with how many issues the other filters leave
+# for each), TAB marks several, and "any" clears the filter. The filters in use
+# are shown in the footer. Typing still fuzzy-matches all of each line.
+#
+# TAB marks several issues. ENTER runs fai once per issue, in turn, so each can
+# go to its own directory and agent; ESC in fai skips that issue.
+#
+# Dependencies: the linear CLI, logged in; fzf; jq; bat (for the preview); fai
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+self="$(realpath "${BASH_SOURCE[0]}")"
+cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/linear-agent"
+cache="${cache_dir}/issues.tsv"
+ttl="${LINEAR_AGENT_TTL:-900}"
+# The filters in use: one file per field, a value per line. Set by the
+# picker's own run of this script, and inherited by fzf's bindings.
+state="${LINEAR_AGENT_STATE:-}"
+
+# The cache is tab-separated: URL, ID, team, status, assignee, title. The
+# filters' columns in it:
+declare -A COLUMN=([team]=3 [status]=4 [assignee]=5)
+declare -A LABEL=([team]=Team [status]=Status [assignee]=Assignee)
+
+# refresh: fetch every open issue into the cache. On failure the old cache is
+# kept, and the error saved for the footer.
+refresh() {
+  local tmp
+  mkdir -p "${cache_dir}"
+  tmp="$(mktemp "${cache_dir}/issues.XXXXXX")"
+  # shellcheck disable=SC2016 # GraphQL variables, not shell ones
+  if linear api --paginate '
+    query($after: String) {
+      issues(
+        first: 250
+        after: $after
+        filter: { state: { type: { nin: ["completed", "canceled"] } } }
+      ) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          url identifier title updatedAt
+          team { key }
+          state { name }
+          assignee { displayName }
+        }
+      }
+    }' 2>"${state:-/dev/null}${state:+/error}" |
+    jq -r 'sort_by(.updatedAt) | reverse | .[]
+      | [.url, .identifier, .team.key, .state.name,
+         (.assignee.displayName // "Unassigned"),
+         (.title | gsub("[\t\n\r]"; " "))]
+      | @tsv' >"${tmp}" && [[ -s "${tmp}" ]]; then
+    mv "${tmp}" "${cache}"
+    [[ -z "${state}" ]] || : >"${state}/error"
+  else
+    rm -f "${tmp}"
+    [[ -z "${state}" || -s "${state}/error" ]] ||
+      echo "fetching issues failed" >"${state}/error"
+  fi
+}
+
+# filter [except]: print the cached issues the filters leave, all but the
+# filter on field <except>
+filter() {
+  [[ -f "${cache}" ]] || return 0
+  local except="${1:-}" field args=()
+  for field in team status assignee; do
+    [[ "${field}" == "${except}" ]] && continue
+    [[ -s "${state}/${field}" ]] || continue
+    args+=("${COLUMN[${field}]}" "${state}/${field}")
+  done
+  awk -F'\t' -v filters="${args[*]}" '
+    BEGIN {
+      n = split(filters, f, " ")
+      for (i = 1; i < n; i += 2) {
+        col[++k] = f[i]
+        while ((getline v < f[i + 1]) > 0) want[k, v] = 1
+      }
+    }
+    {
+      for (i = 1; i <= k; i++) if (!((i, $col[i]) in want)) next
+      print
+    }' "${cache}"
+}
+
+# list: print the issues for fzf: URL, ID, then the line shown
+list() {
+  filter | awk -F'\t' -v OFS='\t' '{
+    print $1, $2, sprintf("%-10s %-5s %-14.14s %-18.18s %s", $2, $3, $4, $5, $6)
+  }'
+}
+
+# footer: print the filters in use, and any error from the last refresh
+footer() {
+  local field values parts=() age=""
+  for field in team assignee status; do
+    values="any"
+    if [[ -s "${state}/${field}" ]]; then
+      values="$(paste -sd, "${state}/${field}")"
+      values="${values//,/, }"
+    fi
+    parts+=("${LABEL[${field}]}: ${values}")
+  done
+  if [[ -f "${cache}" ]]; then
+    age="$((($(date +%s) - $(date -r "${cache}" +%s)) / 60))"
+    age=" · fetched ${age}m ago"
+  fi
+  printf '%s · %s · %s%s' "${parts[0]}" "${parts[1]}" "${parts[2]}" "${age}"
+  if [[ -s "${state}/error" ]]; then
+    printf '\nError: %s' "$(head -n1 "${state}/error")"
+  fi
+}
+
+# pick <field>: choose the values to filter <field> by, with fzf
+pick() {
+  local field="${1}" picked
+  picked="$(
+    {
+      echo "any"
+      filter "${field}" | cut -f"${COLUMN[${field}]}" |
+        sort | uniq -c | sort -k1,1nr -k2 |
+        awk '{ n = $1; sub(/^ *[0-9]+ /, ""); printf "%s\t%5d\n", $0, n }'
+    } | fzf \
+      --multi \
+      --delimiter='\t' \
+      --prompt="${LABEL[${field}]}> " \
+      --header='ENTER: filter / TAB: mark / ESC: keep' \
+      --reverse
+  )" || return 0
+  if grep -qx any <<<"${picked}"; then
+    : >"${state}/${field}"
+  else
+    cut -f1 <<<"${picked}" >"${state}/${field}"
+  fi
+}
+
+# stale: whether the cache is missing or older than the TTL
+stale() {
+  [[ ! -f "${cache}" ]] ||
+    (($(date +%s) - $(date -r "${cache}" +%s) > ttl))
+}
+
+main() {
+  local q urls url start=() refresh_list
+  state="$(mktemp -d)"
+  export LINEAR_AGENT_STATE="${state}"
+  trap 'rm -rf "${state}"' EXIT
+  : >"${state}/error"
+
+  q="$(printf '%q' "${self}")"
+  refresh_list="${q} --refresh; ${q} --list"
+  stale && start=(--bind="start:reload-sync(${refresh_list})+transform-footer(${q} --footer)")
+
+  urls="$(list | fzf \
+    --multi \
+    --delimiter='\t' \
+    --with-nth=3 \
+    --prompt='Linear issue> ' \
+    --header='ENTER: send to fai / TAB: mark / ALT-T: team / ALT-A: assignee / ALT-S: status / CTRL-R: refresh' \
+    --footer="$(footer)" \
+    --reverse \
+    --preview='linear issue view --no-pager --no-comments {2} | bat -pl md --color=always' \
+    --preview-window='right,50%,wrap,<120(down,50%,wrap)' \
+    --bind="alt-t:execute(${q} --pick team)+reload-sync(${q} --list)+transform-footer(${q} --footer)" \
+    --bind="alt-a:execute(${q} --pick assignee)+reload-sync(${q} --list)+transform-footer(${q} --footer)" \
+    --bind="alt-s:execute(${q} --pick status)+reload-sync(${q} --list)+transform-footer(${q} --footer)" \
+    --bind="ctrl-r:reload-sync(${refresh_list})+transform-footer(${q} --footer)" \
+    ${start[@]+"${start[@]}"} |
+    cut -f1)" || exit 0
+
+  while read -r url; do
+    [[ -n "${url}" ]] || continue
+    # fai reads the terminal, not the list
+    fai "${url}" </dev/tty || true
+  done <<<"${urls}"
+}
+
+case "${1:-}" in
+--refresh) refresh ;;
+--list) list ;;
+--footer) footer ;;
+--pick) pick "${2:?field}" ;;
+"") main ;;
+*)
+  echo "Usage: linear-agent" >&2
+  exit 2
+  ;;
+esac
+
+# vim:sts=2:ts=2:sw=2:et:

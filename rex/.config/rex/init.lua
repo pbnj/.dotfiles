@@ -335,6 +335,36 @@ rex.action({
   end,
 })
 
+-- Open Linear issues, picked with fzf in a floating layer (filtered by team,
+-- assignee and status with ALT-T, ALT-A and ALT-S), each sent in turn to fai,
+-- which picks a directory and starts an agent there with the issue's URL in
+-- its prompt (see utils/.local/bin/linear-agent). bash -li, as for fai, so the
+-- agents get the usual PATH and environment.
+rex.action({
+  name = "linear_agent",
+  title = "Send Linear Issue to Agent",
+  category = "Linear",
+  keywords = "linear ticket task bug issue fai claude agent repo team assignee status",
+  run = function()
+    local _, err = rex.session.new_layer({
+      bounds = { 0.05, 0.05, 0.9, 0.9 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "linear",
+        options = {
+          shell = "none",
+          command = { "bash", "-lic", "linear-agent" },
+        },
+      }),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+    return true
+  end,
+})
+
 -- ctrl+b o …: open something in the browser. u, r, p, c and i fuzzy-pick
 -- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);
 -- f and l pick from the block's git repo.
