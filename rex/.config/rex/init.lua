@@ -194,34 +194,54 @@ rex.action({
 rex.bind("ctrl+b>t", "scratch")
 rex.bind("ctrl+b>ctrl+t", "scratch")
 
--- A program (a coding agent, or nvim) in a split to the right of the focused
--- block, in that block's working directory. bash -lic loads the profile so the
--- program has the usual PATH; shell = "none" keeps Rex from loading it a
--- second time. The program and its arguments reach bash as arguments, never as
--- shell code.
-local function program_split(label, ...)
+-- A program (a coding agent, or nvim) in the focused block's working
+-- directory, opened where `where` says:
+--   split   a split to the right of the focused block
+--   window  a new window (tab), labelled `label`
+--   float   a floating layer, like a tmux popup
+-- bash -lic loads the profile so the program has the usual PATH; shell =
+-- "none" keeps Rex from loading it a second time. The program and its
+-- arguments reach bash as arguments, never as shell code.
+local function program_open(where, label, ...)
   local command = { BASH, "-lic", 'exec "$@"', "bash" }
   for _, arg in ipairs({ ... }) do
     command[#command + 1] = arg
   end
   return function(ctx)
-    local _, err = rex.session.new_split({
-      session_id = ctx.session_id,
-      anchor_id = ctx.block_id,
-      direction = "horizontal",
-      side = "after",
-      ratio = 0.5,
-      focus = true,
-      layout = rex.layout.block({
-        flavor = "com.superlogical.terminal.shell",
-        label = label,
-        options = {
-          shell = "none",
-          cwd = block_cwd(ctx),
-          command = command,
-        },
-      }),
+    local layout = rex.layout.block({
+      flavor = "com.superlogical.terminal.shell",
+      label = label,
+      options = {
+        shell = "none",
+        cwd = block_cwd(ctx),
+        command = command,
+      },
     })
+    local _, err
+    if where == "window" then
+      _, err = rex.session.new_window({
+        session_id = ctx.session_id,
+        window_label = label,
+        focus = true,
+        layout = layout,
+      })
+    elseif where == "float" then
+      _, err = rex.session.new_layer({
+        bounds = { 0.1, 0.1, 0.8, 0.8 },
+        focus = true,
+        layout = layout,
+      })
+    else
+      _, err = rex.session.new_split({
+        session_id = ctx.session_id,
+        anchor_id = ctx.block_id,
+        direction = "horizontal",
+        side = "after",
+        ratio = 0.5,
+        focus = true,
+        layout = layout,
+      })
+    end
     if err ~= nil then
       error(err, 0)
     end
@@ -229,35 +249,53 @@ local function program_split(label, ...)
   end
 end
 
--- Each agent in the command palette.
+-- A coding agent in the focused block's working directory, picked with fzf
+-- in the new window, split or floating layer. Esc closes it without starting
+-- one. ctrl+b a opens it in a split (ctrl+b ctrl+a for when ctrl is still
+-- held), and Hyper+Enter in a floating window: Rex has no hyper modifier, so
+-- it's written as Tinycast's Hyper, ctrl+alt+cmd.
+local AGENT_PICKER = [[agent=$(printf '%s\n' claude pi copilot |
+  fzf --reverse --no-multi --prompt='agent> ') || exit 0
+exec "$agent"]]
 for _, a in ipairs({
   {
-    agent = "claude",
-    title = "Open Claude",
-    keywords = "claude code anthropic",
+    where = "window",
+    name = "agent_window",
+    title = "New Window",
+    keywords = "tab",
   },
-  { agent = "pi", title = "Open Pi", keywords = "pi coding agent" },
   {
-    agent = "copilot",
-    title = "Open Copilot",
-    keywords = "github copilot cli",
+    where = "split",
+    name = "agent_split",
+    title = "Split Window",
+    keywords = "split pane",
+  },
+  {
+    where = "float",
+    name = "agent_float",
+    title = "Floating Window",
+    keywords = "floating layer popup",
   },
 }) do
   rex.action({
-    name = "agent_" .. a.agent,
-    title = a.title .. " in Current Directory",
+    name = a.name,
+    title = "Open Agent in " .. a.title,
     category = "Agents",
-    keywords = a.keywords .. " cwd split here",
-    run = program_split("agent", a.agent),
+    keywords = "claude code anthropic pi copilot github cli coding agent picker fzf cwd here "
+      .. a.keywords,
+    run = program_open(a.where, "agent", "bash", "-c", AGENT_PICKER),
   })
 end
+rex.bind("ctrl+b>a", "agent_split")
+rex.bind("ctrl+b>ctrl+a", "agent_split")
+rex.bind("ctrl+alt+cmd+enter", "agent_float")
 
 rex.action({
   name = "nvim_cwd",
   title = "Open Neovim in Current Directory",
   category = "Editor",
   keywords = "nvim vim editor edit files cwd split here",
-  run = program_split("nvim", "nvim", "."),
+  run = program_open("split", "nvim", "nvim", "."),
 })
 
 -- The CI of the focused block's branch's PR, in a split to the right, in that
