@@ -316,7 +316,7 @@ __pick_repo() {
     PICK_REPO_SELF="${self}" PICK_REPO_NTH="${nth}" \
     fzf <"${list}" --with-shell='bash -c' --ansi \
       --delimiter=/ --with-nth="${nth}" --prompt="Repo ${PICK_REPO_LOCAL}> " \
-      --preview='"$PICK_REPO_SELF" --fai-preview {}' \
+      --preview='"$PICK_REPO_SELF" --fai-preview {}' --preview-window=down,50% \
       --bind='start,change:transform:"$PICK_REPO_SELF" --fai-on-query' \
       --bind='ctrl-t:transform:"$PICK_REPO_SELF" --fai-on-toggle' \
       --bind='ctrl-x:transform:"$PICK_REPO_SELF" --fai-on-delete' \
@@ -580,7 +580,7 @@ fai() {
   link="$(mktemp)"
   out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" __pick_repo \
     --multi --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
-    --header='ENTER: open / CTRL-O: run here / TAB: mark / ALT-C: claude (again: cloud) / ALT-G: copilot / ALT-P: pi / CTRL-T: grep / CTRL-X: delete' \
+    --header=$'ENTER: open / CTRL-O: run here / TAB: mark / CTRL-T: grep / CTRL-X: delete\nALT-C: claude (again: cloud) / ALT-G: copilot / ALT-P: pi' \
     --bind="alt-c:transform:${claude}" \
     --bind="alt-g:transform:${find}; want=copilot; ${choose}" \
     --bind="alt-p:transform:${find}; want=pi; ${choose}" \
