@@ -7,6 +7,11 @@
 -- inside Rex.
 rex.bind("ctrl+b>ctrl+b", "pane.send_key", { key = "ctrl+b" })
 
+-- The bash for commands that load the profile. Rex's server PATH lacks
+-- /opt/homebrew/bin, so a bare "bash" is macOS's bash 3.2, which rejects
+-- bash 4+ syntax in the profile (e.g. `complete -o nosort`).
+local BASH = "/opt/homebrew/bin/bash"
+
 -- fai: pick a project with fai (utils/.local/bin/fai) in a floating layer,
 -- like a tmux popup. fai opens each pick in a new Rex window named after its
 -- repo, and the layer closes once fai exits.
@@ -27,12 +32,12 @@ rex.action({
   keywords = "claude cloud copilot pi repo clone picker",
   args = { url = "string?", text = "string?" },
   run = function(_, args)
-    local command = { "bash", "-lic", "fai", "bash" }
+    local command = { BASH, "-lic", "fai", "bash" }
     if args and args.text and args.text ~= "" then
       command =
-        { "bash", "-lic", 'FAI_PICK=1 FAI_TEXT="$1" fai', "bash", args.text }
+        { BASH, "-lic", 'FAI_PICK=1 FAI_TEXT="$1" fai', "bash", args.text }
     elseif args and args.url and args.url ~= "" then
-      command = { "bash", "-lic", 'FAI_PICK=1 fai "$@"', "bash", args.url }
+      command = { BASH, "-lic", 'FAI_PICK=1 fai "$@"', "bash", args.url }
     end
     local _, err = rex.session.new_layer({
       bounds = { 0.1, 0.1, 0.8, 0.8 },
@@ -77,7 +82,7 @@ rex.action({
         label = "grep",
         options = {
           shell = "none",
-          command = { "bash", "-lc", "fzf-projects-grep" },
+          command = { BASH, "-lc", "fzf-projects-grep" },
         },
       }),
     })
@@ -97,7 +102,7 @@ local function grep_scrollback()
     layout = rex.layout.block({
       flavor = "com.superlogical.terminal.shell",
       label = "scrollback",
-      options = { shell = "none", command = { "bash", "-lc", "fzf-rex-grep" } },
+      options = { shell = "none", command = { BASH, "-lc", "fzf-rex-grep" } },
     }),
   })
   return true
@@ -122,7 +127,7 @@ local function url_picker(flag)
         options = {
           shell = "none",
           command = {
-            "bash",
+            BASH,
             "-lc",
             'fzf-urls $1 "$0"',
             ctx.block_id or "",
@@ -195,7 +200,7 @@ rex.bind("ctrl+b>ctrl+t", "scratch")
 -- second time. The program and its arguments reach bash as arguments, never as
 -- shell code.
 local function program_split(label, ...)
-  local command = { "bash", "-lic", 'exec "$@"', "bash" }
+  local command = { BASH, "-lic", 'exec "$@"', "bash" }
   for _, arg in ipairs({ ... }) do
     command[#command + 1] = arg
   end
@@ -268,7 +273,7 @@ local function watch_pane(label, script, cwd)
       shell = "none",
       cwd = cwd,
       command = {
-        "bash",
+        BASH,
         "-lc",
         script .. "; read -rsn1 -p 'Press any key to close'",
       },
@@ -352,7 +357,7 @@ local function agent_picker(label, script)
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
         label = label,
-        options = { shell = "none", command = { "bash", "-lic", script } },
+        options = { shell = "none", command = { BASH, "-lic", script } },
       }),
     })
     if err ~= nil then
@@ -401,7 +406,7 @@ local function gh_pick(mode)
         options = {
           shell = "none",
           cwd = block_cwd(ctx),
-          command = { "bash", "-lc", 'fzf-gh-browse "$0"', mode },
+          command = { BASH, "-lc", 'fzf-gh-browse "$0"', mode },
         },
       }),
     })
@@ -571,7 +576,7 @@ rex.action({
         label = "keymap",
         options = {
           shell = "none",
-          command = { "bash", "-lc", "rex keymap --color always | less -R" },
+          command = { BASH, "-lc", "rex keymap --color always | less -R" },
         },
       }),
     })
