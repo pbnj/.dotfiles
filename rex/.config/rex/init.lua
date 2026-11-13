@@ -347,23 +347,19 @@ rex.action({
 })
 
 -- A Linear issue from the focused block's scrollback, shown with linear issue
--- view in a split to the right (utils/.local/bin/linear-view). Several issues
--- are picked from with fzf; with none, it's the current branch's issue, so the
--- split starts in the block's working directory. The split's own block is a
+-- view in a floating layer (utils/.local/bin/linear-view). Several issues are
+-- picked from with fzf; with none, it's the current branch's issue, so the
+-- layer starts in the block's working directory. The layer's own block is a
 -- new one, so the focused block is passed to it. (Block IDs are letters,
 -- digits, ":" and "-", safe inside the quotes.)
 rex.action({
   name = "linear_view_issue",
-  title = "View Linear Issue in Split",
+  title = "View Linear Issue in Floating Window",
   category = "Linear",
-  keywords = "linear ticket task bug issue show read pane terminal",
+  keywords = "linear ticket task bug issue show read comments floating layer popup terminal",
   run = function(ctx)
-    local _, err = rex.session.new_split({
-      session_id = ctx.session_id,
-      anchor_id = ctx.block_id,
-      direction = "horizontal",
-      side = "after",
-      ratio = 0.5,
+    local _, err = rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
       focus = true,
       layout = watch_pane(
         "linear",

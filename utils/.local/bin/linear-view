@@ -31,7 +31,7 @@ id="$(printf '%s\n' "${ids[@]}" |
     --prompt='Linear issue> ' \
     --header='<ENTER>: view' \
     --reverse \
-    --preview='linear issue view --no-pager --no-comments {} | bat -pl md --color=always' \
+    --preview='linear issue view --no-pager {} | bat -pl md --color=always' \
     --preview-window='right,60%,wrap')" || exit 0
 exec linear issue view "${id}"
 
