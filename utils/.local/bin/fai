@@ -489,6 +489,19 @@ __fai_launch() {
     [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
   else
+    # A plain pick (no link to type in, not the cloud agent) switches to the
+    # repo's window when there's one already: the first window labelled
+    # after the repo, as below.
+    if [[ -z "${url}" && "${agent}" != cloud ]]; then
+      win="$(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
+        jq -r --arg l "$(basename "${dir}")" \
+          'first(.windows[] | select(.label == $l) | .window_id) // empty')"
+      if [[ -n "${win}" ]]; then
+        # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
+        rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
+        return
+      fi
+    fi
     out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
       -- "$@")" || return
     win="$(jq -r .window_id <<<"${out}")"
