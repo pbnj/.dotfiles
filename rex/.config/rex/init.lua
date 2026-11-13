@@ -251,9 +251,9 @@ end
 
 -- A coding agent in the focused block's working directory, picked with fzf
 -- in the new window, split or floating layer. Esc closes it without starting
--- one. ctrl+b a opens it in a split (ctrl+b ctrl+a for when ctrl is still
--- held), and Hyper+Enter in a floating window: Rex has no hyper modifier, so
--- it's written as Tinycast's Hyper, ctrl+alt+cmd.
+-- one. ctrl+b a or Hyper+Enter opens it in a split (ctrl+b ctrl+a for when
+-- ctrl is still held). Rex has no hyper modifier, so Hyper is written as
+-- Tinycast's, ctrl+alt+cmd.
 local AGENT_PICKER = [[agent=$(printf '%s\n' claude pi copilot |
   fzf --reverse --no-multi --prompt='agent> ') || exit 0
 exec "$agent"]]
@@ -288,7 +288,7 @@ for _, a in ipairs({
 end
 rex.bind("ctrl+b>a", "agent_split")
 rex.bind("ctrl+b>ctrl+a", "agent_split")
-rex.bind("ctrl+alt+cmd+enter", "agent_float")
+rex.bind("ctrl+alt+cmd+enter", "agent_split")
 
 rex.action({
   name = "nvim_cwd",
@@ -364,6 +364,33 @@ rex.action({
       layout = watch_pane(
         "linear",
         "linear-view '" .. (ctx.block_id or "") .. "'",
+        block_cwd(ctx)
+      ),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+    return true
+  end,
+})
+
+-- A GitHub PR from the focused block's scrollback, with its comments and
+-- reviews, in a floating layer (utils/.local/bin/gh-pr-view). Several PRs are
+-- picked from with fzf; with none, it's the current branch's PR, so the layer
+-- starts in the block's working directory. As for the Linear issue above, the
+-- focused block is passed to it.
+rex.action({
+  name = "gh_view_pr",
+  title = "View GitHub PR in Floating Window",
+  category = "GitHub",
+  keywords = "github pull request review show read comments floating layer popup terminal",
+  run = function(ctx)
+    local _, err = rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      focus = true,
+      layout = watch_pane(
+        "gh-pr",
+        "gh-pr-view '" .. (ctx.block_id or "") .. "'",
         block_cwd(ctx)
       ),
     })
