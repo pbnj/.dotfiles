@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# gh-pr-view -- show a GitHub PR from a Rex block's or tmux pane's scrollback
+# in the terminal, with its comments and reviews (`gh pr view --comments`).
+#
+# Usage: gh-pr-view [PANE|BLOCK]
+#
+# The PRs are the ones fzf-urls --pr finds (PR URLs and references), newest
+# first. With one, it's shown straight away; with several, fzf picks one,
+# previewing each. With none, the current branch's PR is shown.
+#
+# Dependencies: gh, logged in; fzf
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+prs=()
+while read -r pr; do
+  prs+=("${pr}")
+done < <(fzf-urls --pr "${1:-}" --list | awk '!seen[$0]++')
+
+case ${#prs[@]} in
+0) exec gh pr view --comments ;;
+1) exec gh pr view --comments "${prs[0]}" ;;
+esac
+
+# shellcheck disable=SC2016 # expanded by the shell fzf runs the preview in
+# GH_FORCE_TTY renders the preview as in a terminal, at the preview's width.
+pr="$(printf '%s\n' "${prs[@]}" |
+  fzf \
+    --prompt='GitHub PR> ' \
+    --header='<ENTER>: view' \
+    --reverse \
+    --preview='GH_FORCE_TTY=$FZF_PREVIEW_COLUMNS GH_PAGER=cat gh pr view --comments {}' \
+    --preview-window='right,60%,wrap')" || exit 0
+exec gh pr view --comments "${pr}"
+
+# vim:sts=2:ts=2:sw=2:et:
