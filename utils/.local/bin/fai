@@ -35,10 +35,10 @@
 #              prompt once it starts, unsent, after any link. The cloud
 #              agent's task gets it below what you type.
 #              The picker lists ~/Projects/github.com/<owner>/<repo>, shown
-#              from github.com/ on. When the query matches no local repo, the
-#              list switches to a GitHub repo search that re-runs as you
-#              type, and switches back once a local repo matches again; a
-#              GitHub pick is cloned into ~/Projects/github.com first. CTRL-X
+#              from github.com/ on. CTRL-G toggles a GitHub repo search that
+#              re-runs as you type (it never switches on its own, even when
+#              nothing local matches); a GitHub pick is cloned into
+#              ~/Projects/github.com first. CTRL-X
 #              deletes the highlighted local clone or owner directory (never
 #              github.com/ itself), after showing what would
 #              be lost and asking. In grep mode (CTRL-T) each hit is shown as
@@ -187,36 +187,43 @@ __pick_repo_preview() {
   fi
 }
 
-# __pick_repo_on_toggle: run by fzf on CTRL-T; prints the actions that switch
-# between grep mode and repo names. Back
-# from grep, the list is local or GitHub depending on the query, as in
-# __pick_repo_on_query.
-__pick_repo_on_toggle() {
-  local query="${FZF_QUERY}"
+# __pick_repo_local: print the fzf actions that show the local list
+__pick_repo_local() {
   # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+  printf 'enable-search+change-with-nth(%s)+reload(cat "$PICK_REPO_LIST")+%s' \
+    "${PICK_REPO_NTH}" "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
+}
+
+# __pick_repo_on_toggle: run by fzf on CTRL-T; prints the actions that switch
+# between grep mode and the local list.
+__pick_repo_on_toggle() {
   if __pick_repo_in "${PICK_REPO_GREP}"; then
-    printf '%s' 'enable-search+'
-    if [[ -z "${query//[[:space:]]/}" ]] ||
-      fzf --filter="${query}" --delimiter=/ --with-nth="${PICK_REPO_NTH}" <"${PICK_REPO_LIST}" | grep -q .; then
-      printf 'change-with-nth(%s)+reload(cat "$PICK_REPO_LIST")+%s' \
-        "${PICK_REPO_NTH}" "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
-    else
-      printf 'change-with-nth(1..)+reload("$PICK_REPO_SELF" --fai-search {q})+%s' \
-        "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
-    fi
+    __pick_repo_local
   else
+    # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
     printf 'disable-search+change-with-nth(1..)+reload("$PICK_REPO_SELF" --fai-grep {q})+%s' \
       "$(__pick_repo_prompt "${PICK_REPO_GREP}")"
   fi
 }
 
+# __pick_repo_on_github: run by fzf on CTRL-G; prints the actions that switch
+# between a GitHub repo search and the local list. GitHub results are bare
+# owner/repo lines, shown whole.
+__pick_repo_on_github() {
+  if __pick_repo_in "${PICK_REPO_GITHUB}"; then
+    __pick_repo_local
+  else
+    # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
+    printf 'enable-search+change-with-nth(1..)+reload("$PICK_REPO_SELF" --fai-search {q})+%s' \
+      "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
+  fi
+}
+
 # __pick_repo_on_query: run by fzf on every query edit; prints the fzf actions
-# that rewrite a pasted URL, and pick the list: local while the query matches
-# a local repo (or is empty), otherwise GitHub, re-searched on every edit.
+# that rewrite a pasted URL, and re-run a grep or GitHub search. The list
+# itself only changes on CTRL-T or CTRL-G.
 __pick_repo_on_query() {
   local query="${FZF_QUERY}" rewritten
-  # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
-  local search='reload("$PICK_REPO_SELF" --fai-search {q})'
   if __pick_repo_in "${PICK_REPO_GREP}"; then
     # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
     printf '%s' 'reload("$PICK_REPO_SELF" --fai-grep {q})'
@@ -229,17 +236,9 @@ __pick_repo_on_query() {
     [[ -s "${PICK_REPO_LINK}" ]] && printf '+change-footer:Link: %s' "$(<"${PICK_REPO_LINK}")"
     return
   fi
-  if [[ -z "${query//[[:space:]]/}" ]] ||
-    fzf --filter="${query}" --delimiter=/ --with-nth="${PICK_REPO_NTH}" <"${PICK_REPO_LIST}" | grep -q .; then
+  if __pick_repo_in "${PICK_REPO_GITHUB}"; then
     # shellcheck disable=SC2016 # expanded by the shell fzf runs reload in
-    __pick_repo_in "${PICK_REPO_GITHUB}" &&
-      printf 'change-with-nth(%s)+reload(cat "$PICK_REPO_LIST")+%s' \
-        "${PICK_REPO_NTH}" "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
-  elif __pick_repo_in "${PICK_REPO_GITHUB}"; then
-    printf '%s' "${search}"
-  else
-    # GitHub results are bare owner/repo lines, shown whole.
-    printf 'change-with-nth(1..)+%s+%s' "${search}" "$(__pick_repo_prompt "${PICK_REPO_GITHUB}")"
+    printf '%s' 'reload("$PICK_REPO_SELF" --fai-search {q})'
   fi
   return 0
 }
@@ -336,6 +335,7 @@ __pick_repo() {
       --preview='"$PICK_REPO_SELF" --fai-preview {}' --preview-window=down,50% \
       --bind='start,change:transform:"$PICK_REPO_SELF" --fai-on-query' \
       --bind='ctrl-t:transform:"$PICK_REPO_SELF" --fai-on-toggle' \
+      --bind='ctrl-g:transform:"$PICK_REPO_SELF" --fai-on-github' \
       --bind='ctrl-x:transform:"$PICK_REPO_SELF" --fai-on-delete' \
       ${args[@]+"${args[@]}"})"
   rc=$?
@@ -610,7 +610,7 @@ fai() {
   link="$(mktemp)"
   out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" __pick_repo \
     --multi --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
-    --header=$'ENTER: open / CTRL-O: run here / TAB: mark / CTRL-T: grep / CTRL-X: delete\nALT-C: claude (again: cloud) / ALT-G: copilot / ALT-P: pi' \
+    --header=$'ENTER: open / CTRL-O: run here / TAB: mark / CTRL-T: grep / CTRL-G: GitHub / CTRL-X: delete\nALT-C: claude (again: cloud) / ALT-G: copilot / ALT-P: pi' \
     --bind="alt-c:transform:${claude}" \
     --bind="alt-g:transform:${find}; want=copilot; ${choose}" \
     --bind="alt-p:transform:${find}; want=pi; ${choose}" \
@@ -675,6 +675,7 @@ case "${1:-}" in
 --fai-on-query) __pick_repo_on_query ;;
 --fai-on-delete) __pick_repo_on_delete ;;
 --fai-on-toggle) __pick_repo_on_toggle ;;
+--fai-on-github) __pick_repo_on_github ;;
 --fai-grep) __pick_repo_grep "${2:-}" ;;
 --fai-preview) __pick_repo_preview "${2:-}" ;;
 --fai-search) __pick_repo_search "${2:-}" ;;
