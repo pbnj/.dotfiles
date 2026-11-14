@@ -39,7 +39,8 @@
 #              list switches to a GitHub repo search that re-runs as you
 #              type, and switches back once a local repo matches again; a
 #              GitHub pick is cloned into ~/Projects/github.com first. CTRL-X
-#              deletes the highlighted local clone, after showing what would
+#              deletes the highlighted local clone or owner directory (never
+#              github.com/ itself), after showing what would
 #              be lost and asking. In grep mode (CTRL-T) each hit is shown as
 #              owner/repo/path:line:text and previewed around its line. A
 #              one-cell Nerd Font icon before the prompt's ">" shows the list:
@@ -244,33 +245,49 @@ __pick_repo_on_query() {
 }
 
 # __pick_repo_delete <dir>: run by fzf on CTRL-X. Show what deleting a local
-# clone would lose (uncommitted changes, commits on no remote, stashes), ask,
-# then delete it and drop it from $PICK_REPO_LIST.
+# directory would lose (each clone's uncommitted changes, commits on no
+# remote and stashes), ask, then delete it and drop it and everything under
+# it from $PICK_REPO_LIST. Any directory under the root goes: a clone, or an
+# owner with all its clones. The root itself is never deleted.
 __pick_repo_delete() {
-  local dir="${1:-}" root="${HOME}/Projects/github.com" answer lost
-  # Only ever a <root>/<owner>/<repo> directory, never a listed parent (ending in /)
-  [[ "${dir}" == "${root}"/*/* && "${dir}" != */ && "${dir#"${root}"/*/}" != */* &&
-    -n "${dir#"${root}"/*/}" && -d "${dir}" ]] || return 0
+  local dir="${1%/}" root="${HOME}/Projects/github.com" answer lost repo repos=() owner
+  [[ "${dir}" == "${root}"/* && -d "${dir}" && ! -L "${dir}" ]] || return 0
+  # no ".." components to climb back out of the root
+  [[ "/${dir}/" != */../* ]] || return 0
   printf '\nDelete %s?\n' "${dir#"${root}"/}"
   if [[ -d "${dir}/.git" ]]; then
-    lost="$(git -C "${dir}" status --short 2>/dev/null)"
-    [[ -n "${lost}" ]] && printf '\nUncommitted changes:\n%s\n' "${lost}"
-    lost="$(git -C "${dir}" log --branches --not --remotes --oneline 2>/dev/null)"
-    [[ -n "${lost}" ]] && printf '\nCommits on no remote:\n%s\n' "${lost}"
-    lost="$(git -C "${dir}" stash list 2>/dev/null)"
-    [[ -n "${lost}" ]] && printf '\nStashes:\n%s\n' "${lost}"
+    repos=("${dir}")
+  else
+    for repo in "${dir}"/*/; do
+      [[ -d "${repo}.git" ]] && repos+=("${repo%/}")
+    done
   fi
+  for repo in ${repos[@]+"${repos[@]}"}; do
+    # under an owner, name each clone
+    [[ "${repo}" != "${dir}" ]] && printf '\n%s:\n' "${repo#"${root}"/}"
+    lost="$(git -C "${repo}" status --short 2>/dev/null)"
+    [[ -n "${lost}" ]] && printf '\nUncommitted changes:\n%s\n' "${lost}"
+    lost="$(git -C "${repo}" log --branches --not --remotes --oneline 2>/dev/null)"
+    [[ -n "${lost}" ]] && printf '\nCommits on no remote:\n%s\n' "${lost}"
+    lost="$(git -C "${repo}" stash list 2>/dev/null)"
+    [[ -n "${lost}" ]] && printf '\nStashes:\n%s\n' "${lost}"
+  done
   read -r -p $'\nType y to delete: ' answer </dev/tty
   [[ "${answer}" == [yY] ]] || return 0
   rm -rf -- "${dir}"
   # drop the owner directory too once its last repo is gone
-  rmdir -- "$(dirname "${dir}")" 2>/dev/null || true
-  { grep -vxF -- "${dir}" "${PICK_REPO_LIST}" || true; } >"${PICK_REPO_LIST}.new"
+  owner="$(dirname "${dir}")"
+  [[ "${owner}" != "${root}" ]] && rmdir -- "${owner}" 2>/dev/null
+  # the directory, everything under it, and its owner if that went too
+  [[ -d "${owner}" ]] && owner=""
+  awk -v d="${dir}" -v o="${owner:+${owner}/}" \
+    '$0 != d && $0 != d "/" && index($0, d "/") != 1 && $0 != o' \
+    "${PICK_REPO_LIST}" >"${PICK_REPO_LIST}.new"
   mv -- "${PICK_REPO_LIST}.new" "${PICK_REPO_LIST}"
 }
 
 # __pick_repo_on_delete: run by fzf on CTRL-X; prints the actions that delete
-# the highlighted local clone. A GitHub search result or a grep hit is left
+# the highlighted local directory. A GitHub search result or a grep hit is left
 # alone.
 __pick_repo_on_delete() {
   __pick_repo_in "${PICK_REPO_LOCAL}" || return 0
