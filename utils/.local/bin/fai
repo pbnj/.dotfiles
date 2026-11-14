@@ -38,7 +38,9 @@
 #              from github.com/ on. CTRL-G toggles a GitHub repo search that
 #              re-runs as you type (it never switches on its own, even when
 #              nothing local matches); a GitHub pick is cloned into
-#              ~/Projects/github.com first. CTRL-X
+#              ~/Projects/github.com first. CTRL-B opens the highlighted
+#              repo (an owner directory: the owner; a grep hit: its file at
+#              its line) on github.com. CTRL-X
 #              deletes the highlighted local clone or owner directory (never
 #              github.com/ itself), after showing what would
 #              be lost and asking. In grep mode (CTRL-T) each hit is shown as
@@ -194,6 +196,26 @@ __pick_repo_local() {
     "${PICK_REPO_NTH}" "$(__pick_repo_prompt "${PICK_REPO_LOCAL}")"
 }
 
+# __pick_repo_browse <line>: run by fzf on CTRL-B; open a list line on
+# github.com: a clone or GitHub search result as its repo, an owner
+# directory as its owner, a grep hit as its file at its line.
+__pick_repo_browse() {
+  local line="${1:-}" root="${HOME}/Projects/github.com" url
+  line="${line%/}"
+  if [[ "${line}" == "${root}" ]]; then
+    url="https://github.com"
+  elif [[ "${line}" == "${root}"/* ]]; then
+    url="https://github.com/${line#"${root}"/}"
+  elif [[ "${line}" =~ ^([^/]+/[^/]+)/([^:]+):([0-9]+): ]]; then
+    url="https://github.com/${BASH_REMATCH[1]}/blob/HEAD/${BASH_REMATCH[2]}#L${BASH_REMATCH[3]}"
+  elif [[ "${line}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+    url="https://github.com/${line}"
+  else
+    return 0
+  fi
+  open "${url}"
+}
+
 # __pick_repo_on_toggle: run by fzf on CTRL-T; prints the actions that switch
 # between grep mode and the local list.
 __pick_repo_on_toggle() {
@@ -336,6 +358,7 @@ __pick_repo() {
       --bind='start,change:transform:"$PICK_REPO_SELF" --fai-on-query' \
       --bind='ctrl-t:transform:"$PICK_REPO_SELF" --fai-on-toggle' \
       --bind='ctrl-g:transform:"$PICK_REPO_SELF" --fai-on-github' \
+      --bind='ctrl-b:execute-silent:"$PICK_REPO_SELF" --fai-browse {}' \
       --bind='ctrl-x:transform:"$PICK_REPO_SELF" --fai-on-delete' \
       ${args[@]+"${args[@]}"})"
   rc=$?
@@ -610,7 +633,7 @@ fai() {
   link="$(mktemp)"
   out="$(PICK_REPO_LINK="${link}" FAI_AGENTS="${agents[*]}" FAI_ICONS="${icons[*]}" __pick_repo \
     --multi --prompt="${icons[0]}> " --query="${query[*]}" ${select[@]+"${select[@]}"} \
-    --header=$'ENTER: open / CTRL-O: run here / TAB: mark / CTRL-T: grep / CTRL-G: GitHub / CTRL-X: delete\nALT-C: claude (again: cloud) / ALT-G: copilot / ALT-P: pi' \
+    --header=$'ENTER: open / CTRL-O: run here / TAB: mark / CTRL-T: grep / CTRL-G: GitHub / CTRL-B: browser / CTRL-X: delete\nALT-C: claude (again: cloud) / ALT-G: copilot / ALT-P: pi' \
     --bind="alt-c:transform:${claude}" \
     --bind="alt-g:transform:${find}; want=copilot; ${choose}" \
     --bind="alt-p:transform:${find}; want=pi; ${choose}" \
@@ -676,6 +699,7 @@ case "${1:-}" in
 --fai-on-delete) __pick_repo_on_delete ;;
 --fai-on-toggle) __pick_repo_on_toggle ;;
 --fai-on-github) __pick_repo_on_github ;;
+--fai-browse) __pick_repo_browse "${2:-}" ;;
 --fai-grep) __pick_repo_grep "${2:-}" ;;
 --fai-preview) __pick_repo_preview "${2:-}" ;;
 --fai-search) __pick_repo_search "${2:-}" ;;
