@@ -529,14 +529,35 @@ __fai_launch() {
     [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
   else
-    # A plain pick (no link to type in, not the cloud agent) switches to the
-    # repo's window when there's one already: the first window labelled
-    # after the repo, as below.
-    if [[ -z "${url}" && "${agent}" != cloud ]]; then
+    # A pick other than the cloud agent switches to the repo's window when
+    # there's one already: the first window labelled after the repo, as
+    # below. A link to type in goes to an agent already running there (the
+    # focused block first); with no agent running, a new window opens.
+    if [[ "${agent}" != cloud ]]; then
+      local blocks=() b cmd
       win="$(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
-        jq -r --arg l "$(basename "${dir}")" \
-          'first(.windows[] | select(.label == $l) | .window_id) // empty')"
+        jq -c --arg l "$(basename "${dir}")" \
+          'first(.windows[] | select(.label == $l)) // empty')"
+      if [[ -n "${win}" && -n "${url}" ]]; then
+        mapfile -t blocks < <(jq -r '.focused_block_id // empty,
+          (.layers[].blocks[].block_id)' <<<"${win}" | awk 'NF && !seen[$0]++')
+        block=""
+        for b in ${blocks[@]+"${blocks[@]}"}; do
+          cmd="$(rex block call -b "${b}" process 2>/dev/null |
+            jq -r '.foreground.argv0 // .foreground.name // empty')"
+          if [[ -n "${cmd}" && ! "${cmd}" =~ ^-?(bash|zsh|fish|sh)$ ]]; then
+            block="${b}"
+            break
+          fi
+        done
+        if [[ -n "${block}" ]]; then
+          __fai_prefill_bg rex "${block}" "${url}"
+        else
+          win=""
+        fi
+      fi
       if [[ -n "${win}" ]]; then
+        win="$(jq -r .window_id <<<"${win}")"
         # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
         rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
         return
