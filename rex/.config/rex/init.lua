@@ -114,7 +114,7 @@ rex.bind("ctrl+b>ctrl+s", grep_scrollback)
 -- them, in a floating layer (see utils/.local/bin/fzf-urls). The layer's
 -- own block is a new one, so the focused block is passed as an argument.
 -- ctrl+b ctrl+u works too, for when ctrl is still held. An optional flag
--- narrows the list (e.g. "--linear", for Open Linear Issue in Browser below);
+-- narrows the list (e.g. "--pr", for Open GitHub PR in Browser below);
 -- with one, a single match opens without the picker.
 local function url_picker(flag)
   return function(ctx)
@@ -352,9 +352,10 @@ rex.bind("ctrl+b>ctrl+w", "gh_pr_watch_split")
 
 -- A Linear issue from the focused block's scrollback, shown with linear issue
 -- view in a floating layer (utils/.local/bin/linear-view). Several issues are
--- picked from with fzf; with none, it's the current branch's issue, so the
--- layer starts in the block's working directory. The layer's own block is a
--- new one, so the focused block is passed to it. (Block IDs are letters,
+-- picked from with fzf, where CTRL-B opens one in the browser; with none,
+-- it's the current branch's issue, so the layer starts in the block's working
+-- directory. The layer's own block is a new one, so the focused block is
+-- passed to it. (Block IDs are letters,
 -- digits, ":" and "-", safe inside the quotes.)
 rex.action({
   name = "linear_view_issue",
@@ -448,15 +449,13 @@ rex.action({
   run = agent_picker("gh-attention", "gh-attention-agent"),
 })
 
--- ctrl+b o …: open something in the browser. u, r, p, c and i fuzzy-pick
+-- ctrl+b o …: open something in the browser. u, r, p and c fuzzy-pick
 -- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);
 -- f and l pick from the block's git repo.
 --   u  any URL, each listed once (fzf-urls --url)
 --   r  a GitHub repo, from any GitHub URL or reference (fzf-urls --repo)
 --   p  a GitHub PR, from PR URLs and references (fzf-urls --pr)
 --   c  a PR's checks tab (fzf-urls --checks)
---   i  a Linear issue, from issue URLs and IDs of known team keys
---      (fzf-urls --linear)
 --   f  a fuzzy-picked file, as a permalink (utils/.local/bin/fzf-gh-browse)
 --   l  a fuzzy-picked line, as a permalink
 
@@ -530,14 +529,6 @@ for _, a in ipairs({
     category = "GitHub",
     keywords = "source link share blame",
     run = gh_pick("lines"),
-  },
-  {
-    key = "i",
-    name = "linear_open_issue",
-    title = "Open Linear Issue in Browser",
-    category = "Linear",
-    keywords = "linear ticket task bug",
-    run = url_picker("--linear"),
   },
 }) do
   rex.action({

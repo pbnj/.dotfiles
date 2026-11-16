@@ -8,11 +8,19 @@
 # known team keys), newest first. With one, it's shown straight away; with
 # several, fzf picks one, previewing each. With none, the current branch's
 # issue is shown, as `linear issue view` finds it from the branch name.
+# In the picker, CTRL-B opens the highlighted issue in the browser.
+#
+# In a Rex block (REX_BLOCK set, outside tmux, which inherits it) the issue is
+# printed without the CLI's pager, as the block scrolls it; elsewhere the
+# pager is kept.
 #
 # Dependencies: the linear CLI, logged in; fzf; bat (for the preview)
 
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
+
+view=(linear issue view)
+[[ -n "${REX_BLOCK:-}" && -z "${TMUX:-}" ]] && view+=(--no-pager)
 
 ids=()
 while read -r id; do
@@ -22,17 +30,18 @@ done < <(fzf-urls --linear "${1:-}" --list |
   awk '!seen[$0]++')
 
 case ${#ids[@]} in
-0) exec linear issue view ;;
-1) exec linear issue view "${ids[0]}" ;;
+0) exec "${view[@]}" ;;
+1) exec "${view[@]}" "${ids[0]}" ;;
 esac
 
 id="$(printf '%s\n' "${ids[@]}" |
   fzf \
     --prompt='Linear issue> ' \
-    --header='<ENTER>: view' \
+    --header='<ENTER>: view  <CTRL-B>: browser' \
     --reverse \
+    --bind='ctrl-b:execute-silent(linear issue view --web {})' \
     --preview='linear issue view --no-pager {} | bat -pl md --color=always' \
     --preview-window='right,60%,wrap')" || exit 0
-exec linear issue view "${id}"
+exec "${view[@]}" "${id}"
 
 # vim:sts=2:ts=2:sw=2:et:
