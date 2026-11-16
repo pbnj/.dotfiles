@@ -298,11 +298,9 @@ rex.action({
   run = program_open("split", "nvim", "nvim", "."),
 })
 
--- The CI of the focused block's branch's PR, in a split to the right, in that
--- block's working directory: gh pr checks --watch on top, and below it the
--- Actions runs' steps and then the failed jobs' logs
--- (utils/.local/bin/gh-pr-logs). Once each finishes (or there's no PR), its
--- pane waits for a key and closes.
+-- A pane that runs script (bash -lc) in cwd, then waits for a key and
+-- closes, so its output stays readable once it finishes (or fails, e.g.
+-- when there's no PR).
 local function watch_pane(label, script, cwd)
   return rex.layout.block({
     flavor = "com.superlogical.terminal.shell",
@@ -319,11 +317,15 @@ local function watch_pane(label, script, cwd)
   })
 end
 
+-- The focused block's branch's PR, watched in a split to the right, in that
+-- block's working directory: its CI checks (gh pr checks --watch) on top, and
+-- below them its comments, reviews and inline review comments, redrawn as
+-- they change (utils/.local/bin/gh-pr-comments-watch).
 rex.action({
-  name = "gh_pr_checks_split",
-  title = "Watch GitHub PR Checks and Logs in Split",
+  name = "gh_pr_watch_split",
+  title = "Watch GitHub PR in Split Pane",
   category = "GitHub",
-  keywords = "github ci actions build status failing pull request watch pane run logs",
+  keywords = "github pull request ci checks actions comments reviews feedback watch pane worktree",
   run = function(ctx)
     local cwd = block_cwd(ctx)
     local _, err = rex.session.new_split({
@@ -332,11 +334,11 @@ rex.action({
       direction = "horizontal",
       side = "after",
       ratio = 0.5,
-      focus = true,
+      focus = false,
       layout = rex.layout.vertical(
-        0.4,
+        0.35,
         watch_pane("checks", "gh pr checks --watch", cwd),
-        watch_pane("logs", "gh-pr-logs", cwd)
+        watch_pane("comments", "gh-pr-comments-watch", cwd)
       ),
     })
     if err ~= nil then
@@ -345,6 +347,8 @@ rex.action({
     return true
   end,
 })
+rex.bind("ctrl+b>w", "gh_pr_watch_split")
+rex.bind("ctrl+b>ctrl+w", "gh_pr_watch_split")
 
 -- A Linear issue from the focused block's scrollback, shown with linear issue
 -- view in a floating layer (utils/.local/bin/linear-view). Several issues are

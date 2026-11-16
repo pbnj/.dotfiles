@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# gh-pr-comments-watch -- keep a PR's conversation on screen, redrawn whenever
+# it changes: the PR with its comments and reviews (`gh pr view --comments`),
+# then its inline review comments, grouped by file and line.
+#
+# Usage: gh-pr-comments-watch [-i SECONDS] [<number> | <url> | <branch>]
+#
+# With no PR, the current branch's PR. Polls every SECONDS (default 30) and
+# stops once the PR is merged or closed, leaving the last view on screen.
+# The screen is only cleared when something changed, so scrollback stays
+# readable between updates.
+#
+# Dependencies: gh, logged in; jq
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+interval=30
+if [[ "${1:-}" == "-i" ]]; then
+  interval="${2:?-i needs a number of seconds}"
+  shift 2
+fi
+
+# The PR's URL pins the repo and number, whatever form the PR was given in,
+# so later calls don't depend on the branch still being checked out.
+url=$(gh pr view "$@" --json url --jq .url)
+path=${url#https://github.com/}
+repo=${path%/pull/*}
+number=${url##*/}
+
+# Inline review comments, oldest first, one block per comment. Replies are
+# indented under the comment they answer.
+# shellcheck disable=SC2016 # jq, not shell, variables
+inline_jq='
+  def when: .created_at | sub("T"; " ") | sub(":[0-9]+Z$"; "");
+  (map(select(.in_reply_to_id == null))) as $roots
+  | (map(select(.in_reply_to_id != null)) | group_by(.in_reply_to_id)
+     | map({key: (.[0].in_reply_to_id | tostring), value: .}) | from_entries) as $replies
+  | if ($roots | length) == 0 then "No inline review comments"
+    else
+      $roots[]
+      | "\u001b[1m\(.path):\(.line // .original_line // "?")\u001b[0m  \(.user.login)  \u001b[2m\(when)\u001b[0m\n"
+        + (.body | gsub("\r"; "") | split("\n") | map("  " + .) | join("\n"))
+        + ([($replies[(.id | tostring)] // [])[]
+            | "\n    \u001b[1m↳ \(.user.login)\u001b[0m  \u001b[2m\(when)\u001b[0m\n"
+              + (.body | gsub("\r"; "") | split("\n") | map("    " + .) | join("\n"))]
+           | join(""))
+        + "\n"
+    end'
+
+render() {
+  # GH_FORCE_TTY keeps gh's colours and wraps to the pane's width.
+  GH_FORCE_TTY="$(tput cols)" GH_PAGER=cat gh pr view --comments "$url"
+  printf '\n\033[1;4mInline review comments\033[0m\n\n'
+  gh api --paginate "repos/${repo}/pulls/${number}/comments" |
+    jq -rs "add // [] | ${inline_jq}"
+}
+
+last=""
+while :; do
+  if out=$(render 2>&1); then
+    if [[ "$out" != "$last" ]]; then
+      # Clear the screen and its scrollback, then draw the new view.
+      printf '\033[H\033[2J\033[3J%s\n' "$out"
+      last="$out"
+    fi
+    printf '\r\033[2K\033[2mUpdated %s · every %ss · Ctrl-C to stop\033[0m' \
+      "$(date +%H:%M:%S)" "$interval"
+  else
+    printf '\r\033[2K\033[31mRefresh failed at %s; retrying in %ss\033[0m' \
+      "$(date +%H:%M:%S)" "$interval"
+  fi
+
+  state=$(gh pr view "$url" --json state --jq .state 2>/dev/null || echo OPEN)
+  if [[ "$state" != "OPEN" ]]; then
+    printf '\r\033[2K\nPR #%s is %s -- stopped watching\n' "$number" "$state"
+    exit 0
+  fi
+  sleep "$interval"
+done
+
+# vim:sts=2:ts=2:sw=2:et:
