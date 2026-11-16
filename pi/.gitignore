@@ -6,6 +6,3 @@
 .pi/agent/tmp/
 .pi/agent/bin/
 .pi/agent/install/
-
-# Auto-installed by Orca when its integrations are enabled
-.pi/agent/extensions/orca-*.ts
