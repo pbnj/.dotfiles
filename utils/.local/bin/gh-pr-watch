@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# gh-pr-watch -- keep a GitHub PR on screen, redrawn whenever it changes: its
+# CI checks, then the PR with its comments and reviews (`gh pr view
+# --comments`), then its inline review comments, grouped by file and line.
+#
+# Usage: gh-pr-watch [-i SECONDS] [RETURN_BLOCK]
+#
+# The PR is the current branch's. Without one, fzf picks from the repo's open
+# PRs; in Rex, this block takes focus for the pick, and gives it back to
+# RETURN_BLOCK afterwards, if given.
+#
+# Polls every SECONDS (default 15), so checks for new commits show up as
+# they're pushed, and stops once the PR is merged or closed, or Esc is
+# pressed, leaving the last view on screen. Esc exits 130, as an interrupt
+# does, so a caller can tell that the user is done and close at once.
+# The screen is only cleared when something changed, so scrollback stays
+# readable between updates.
+#
+# Dependencies: gh, logged in; jq; fzf; rex, to move focus in a Rex block
+
+set -euo pipefail
+[[ "${DEBUG:-}" == "true" ]] && set -x
+
+interval=15
+if [[ "${1:-}" == "-i" ]]; then
+  interval="${2:?-i needs a number of seconds}"
+  shift 2
+fi
+return_block="${1:-}"
+
+# The PR's URL pins the repo and number, whichever way the PR was found, so
+# later calls don't depend on the branch still being checked out.
+if ! url=$(gh pr view --json url --jq .url 2>/dev/null); then
+  branch=$(git branch --show-current 2>/dev/null || true)
+  prs=$(gh pr list --limit 200 \
+    --json number,title,headRefName,author \
+    --template '{{range .}}{{printf "#%v\t%s\t%s\t%s\n" .number .title .headRefName .author.login}}{{end}}')
+  if [[ -z "${prs}" ]]; then
+    echo "No PR for branch ${branch:-(none)}, and no open PRs in this repo."
+    exit 1
+  fi
+  if [[ -n "${REX_BLOCK:-}" ]]; then
+    rex focus "${REX_BLOCK}" >/dev/null 2>&1 || true
+  fi
+  # shellcheck disable=SC2016 # expanded by the shell fzf runs the preview in
+  # GH_FORCE_TTY renders the preview as in a terminal, at the preview's width.
+  pick=$(printf '%s' "${prs}" |
+    fzf \
+      --prompt='Watch PR> ' \
+      --header="No PR for branch ${branch:-(none)}. <ENTER>: watch" \
+      --delimiter='\t' \
+      --with-nth='1,2,3,4' \
+      --reverse \
+      --no-multi \
+      --preview='GH_FORCE_TTY=$FZF_PREVIEW_COLUMNS GH_PAGER=cat gh pr view {1}' \
+      --preview-window='down,60%,wrap') || exit 0
+  url=$(gh pr view "${pick%%$'\t'*}" --json url --jq .url)
+  if [[ -n "${return_block}" ]]; then
+    rex focus "${return_block}" >/dev/null 2>&1 || true
+  fi
+fi
+path=${url#https://github.com/}
+repo=${path%/pull/*}
+number=${url##*/}
+
+# CI checks of the PR's latest commit: a summary, then every check but the
+# skipped ones, failures first. Each name links to its run. Only finished
+# checks show how long they took, so a running one doesn't redraw the screen
+# on every poll.
+# shellcheck disable=SC2016 # jq, not shell, variables
+checks_jq='
+  def order: {fail: 0, cancel: 1, pending: 2, pass: 3, skipping: 4}[.bucket] // 5;
+  def mark: {fail: "\u001b[31mX\u001b[0m", cancel: "\u001b[33m-\u001b[0m",
+             pending: "\u001b[33m*\u001b[0m", pass: "\u001b[32m✓\u001b[0m"}[.bucket] // " ";
+  def took:
+    # Status contexts (e.g. Snyk) have no real times: 0001-01-01, which
+    # fromdate rejects.
+    (try ((.completedAt | fromdate) - (.startedAt | fromdate)) catch null) as $s
+    | if .bucket == "pending" or $s == null then ""
+      elif $s < 0 then "" elif $s < 60 then "  \u001b[2m\($s)s\u001b[0m"
+      else "  \u001b[2m\($s / 60 | floor)m\($s % 60)s\u001b[0m" end;
+  def name: [.workflow, .name] | map(select(. != null and . != "")) | join(" / ");
+  if length == 0 then "No checks reported"
+  else
+    (group_by(.bucket) | map({key: .[0].bucket, value: length}) | from_entries) as $n
+    | "\($n.fail // 0) failing, \($n.pending // 0) pending, \($n.pass // 0) passing, \($n.cancel // 0) cancelled, \($n.skipping // 0) skipped\n",
+      (map(select(.bucket != "skipping")) | sort_by(order, name)[]
+       | "\(mark)  \u001b]8;;\(.link // "")\u001b\\\(name)\u001b]8;;\u001b\\\(took)")
+  end'
+
+# Inline review comments, oldest first, one block per comment. Replies are
+# indented under the comment they answer.
+# shellcheck disable=SC2016 # jq, not shell, variables
+inline_jq='
+  def when: .created_at | sub("T"; " ") | sub(":[0-9]+Z$"; "");
+  (map(select(.in_reply_to_id == null))) as $roots
+  | (map(select(.in_reply_to_id != null)) | group_by(.in_reply_to_id)
+     | map({key: (.[0].in_reply_to_id | tostring), value: .}) | from_entries) as $replies
+  | if ($roots | length) == 0 then "No inline review comments"
+    else
+      $roots[]
+      | "\u001b[1m\(.path):\(.line // .original_line // "?")\u001b[0m  \(.user.login)  \u001b[2m\(when)\u001b[0m\n"
+        + (.body | gsub("\r"; "") | split("\n") | map("  " + .) | join("\n"))
+        + ([($replies[(.id | tostring)] // [])[]
+            | "\n    \u001b[1m↳ \(.user.login)\u001b[0m  \u001b[2m\(when)\u001b[0m\n"
+              + (.body | gsub("\r"; "") | split("\n") | map("    " + .) | join("\n"))]
+           | join(""))
+        + "\n"
+    end'
+
+render() {
+  local checks
+  printf '\033[1;4mChecks\033[0m\n\n'
+  # gh exits non-zero with checks pending (8) and with none reported (1), so
+  # its output, not its status, says what there is.
+  checks=$(gh pr checks "$url" --json bucket,name,workflow,link,startedAt,completedAt 2>/dev/null) || true
+  jq -r "${checks_jq}" <<<"${checks:-[]}"
+  printf '\n'
+  # GH_FORCE_TTY keeps gh's colours and wraps to the pane's width.
+  GH_FORCE_TTY="$(tput cols)" GH_PAGER=cat gh pr view --comments "$url"
+  printf '\n\033[1;4mInline review comments\033[0m\n\n'
+  gh api --paginate "repos/${repo}/pulls/${number}/comments" |
+    jq -rs "add // [] | ${inline_jq}"
+}
+
+# Wait out the interval, returning early, to stop, when Esc is pressed. Keys
+# that send escape sequences (arrows, function keys) start with Esc too, so
+# an Esc followed at once by more bytes is one of those, and ignored.
+wait_or_esc() {
+  local end=$((SECONDS + interval)) key rest
+  if [[ ! -t 0 ]]; then
+    sleep "$interval"
+    return
+  fi
+  while ((SECONDS < end)); do
+    if IFS= read -rsn1 -t "$((end - SECONDS))" key && [[ "$key" == $'\e' ]]; then
+      rest=""
+      IFS= read -rsn8 -t 0.05 rest || true
+      if [[ -z "$rest" ]]; then
+        printf '\r\033[2K\nStopped watching PR #%s\n' "$number"
+        exit 130
+      fi
+    fi
+  done
+}
+
+# Keys pressed during a refresh wait in the input until wait_or_esc reads
+# them; don't echo them meanwhile.
+if [[ -t 0 ]]; then
+  stty -echo
+  trap 'stty echo' EXIT
+fi
+
+last=""
+while :; do
+  if out=$(render 2>&1); then
+    if [[ "$out" != "$last" ]]; then
+      # Clear the screen and its scrollback, then draw the new view.
+      printf '\033[H\033[2J\033[3J%s\n' "$out"
+      last="$out"
+    fi
+    printf '\r\033[2K\033[2mUpdated %s · every %ss · Esc to stop\033[0m' \
+      "$(date +%H:%M:%S)" "$interval"
+  else
+    printf '\r\033[2K\033[31mRefresh failed at %s; retrying in %ss\033[0m' \
+      "$(date +%H:%M:%S)" "$interval"
+  fi
+
+  state=$(gh pr view "$url" --json state --jq .state 2>/dev/null || echo OPEN)
+  if [[ "$state" != "OPEN" ]]; then
+    printf '\r\033[2K\nPR #%s is %s -- stopped watching\n' "$number" "$state"
+    exit 0
+  fi
+  wait_or_esc
+done
+
+# vim:sts=2:ts=2:sw=2:et:

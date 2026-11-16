@@ -300,7 +300,8 @@ rex.action({
 
 -- A pane that runs script (bash -lc) in cwd, then waits for a key and
 -- closes, so its output stays readable once it finishes (or fails, e.g.
--- when there's no PR).
+-- when there's no PR). A script that exits 130, stopped by the user (Esc),
+-- closes it at once.
 local function watch_pane(label, script, cwd)
   return rex.layout.block({
     flavor = "com.superlogical.terminal.shell",
@@ -311,34 +312,35 @@ local function watch_pane(label, script, cwd)
       command = {
         BASH,
         "-lc",
-        script .. "; read -rsn1 -p 'Press any key to close'",
+        script .. "; (($? == 130)) || read -rsn1 -p 'Press any key to close'",
       },
     },
   })
 end
 
 -- The focused block's branch's PR, watched in a split to the right, in that
--- block's working directory: its CI checks (gh pr checks --watch) on top, and
--- below them its comments, reviews and inline review comments, redrawn as
--- they change (utils/.local/bin/gh-pr-comments-watch).
+-- block's working directory: its CI checks, then its comments, reviews and
+-- inline review comments, redrawn as they change
+-- (utils/.local/bin/gh-pr-watch). Without a PR on the branch,
+-- the split takes focus to pick one of the repo's open PRs with fzf, then
+-- hands focus back to the focused block, which is passed to it.
 rex.action({
   name = "gh_pr_watch_split",
   title = "Watch GitHub PR in Split Pane",
   category = "GitHub",
   keywords = "github pull request ci checks actions comments reviews feedback watch pane worktree",
   run = function(ctx)
-    local cwd = block_cwd(ctx)
     local _, err = rex.session.new_split({
       session_id = ctx.session_id,
       anchor_id = ctx.block_id,
       direction = "horizontal",
       side = "after",
-      ratio = 0.5,
+      ratio = 0.67, -- the anchor keeps 67%; the watch split gets 33%
       focus = false,
-      layout = rex.layout.vertical(
-        0.35,
-        watch_pane("checks", "gh pr checks --watch", cwd),
-        watch_pane("comments", "gh-pr-comments-watch", cwd)
+      layout = watch_pane(
+        "gh-pr",
+        "gh-pr-watch '" .. (ctx.block_id or "") .. "'",
+        block_cwd(ctx)
       ),
     })
     if err ~= nil then
@@ -369,33 +371,6 @@ rex.action({
       layout = watch_pane(
         "linear",
         "linear-view '" .. (ctx.block_id or "") .. "'",
-        block_cwd(ctx)
-      ),
-    })
-    if err ~= nil then
-      error(err, 0)
-    end
-    return true
-  end,
-})
-
--- A GitHub PR from the focused block's scrollback, with its comments and
--- reviews, in a floating layer (utils/.local/bin/gh-pr-view). Several PRs are
--- picked from with fzf; with none, it's the current branch's PR, so the layer
--- starts in the block's working directory. As for the Linear issue above, the
--- focused block is passed to it.
-rex.action({
-  name = "gh_view_pr",
-  title = "View GitHub PR in Floating Window",
-  category = "GitHub",
-  keywords = "github pull request review show read comments floating layer popup terminal",
-  run = function(ctx)
-    local _, err = rex.session.new_layer({
-      bounds = { 0.1, 0.1, 0.8, 0.8 },
-      focus = true,
-      layout = watch_pane(
-        "gh-pr",
-        "gh-pr-view '" .. (ctx.block_id or "") .. "'",
         block_cwd(ctx)
       ),
     })
