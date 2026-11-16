@@ -182,3 +182,15 @@ fwt() {
 fdot() {
 	(cd "${HOME}/.dotfiles" && fe "$@")
 }
+
+# cc [prompt words...]: Claude Opus; unquoted words become one prompt
+# (`cc ask foo about bar`), and flags pass through (`cc -c`).
+unalias cc 2>/dev/null # a shell that still has the old alias would mis-parse cc()
+cc() {
+	local -a base=(claude --model opus --effort medium --dangerously-skip-permissions)
+	if [[ $# -eq 0 || $1 == -* ]]; then
+		"${base[@]}" "$@"
+	else
+		"${base[@]}" "$*"
+	fi
+}
