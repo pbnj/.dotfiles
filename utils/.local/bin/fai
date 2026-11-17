@@ -8,7 +8,8 @@
 #              cloud agent), ALT-G copilot and ALT-P pi; the prompt shows the
 #              agent's icon. TAB / SHIFT-TAB mark several directories, and
 #              each gets its own agent. The agent opens in a new tmux or Rex
-#              window named after the repo (or here, outside both, for one
+#              window named after the repo (in Rex, a split in the repo's
+#              window when it has one already; or here, outside both, for one
 #              directory only); CTRL-O runs it here instead (the first
 #              directory here, any others in windows). A link or text below
 #              goes to every agent. CTRL-T toggles a ripgrep search through
@@ -487,7 +488,8 @@ __fai_open_cloud_bg() {
 
 # __fai_launch <dir> <agent> <link> <prefill> <run-here> <cmd...>: start the
 # agent's command in <dir>: here when <run-here> is 1 (or outside tmux and
-# Rex), else in a new tmux or Rex window named after the repo.
+# Rex), else in a new tmux or Rex window named after the repo (in Rex, a new
+# split in the repo's window when there is one).
 # <link> is the picked link (for tmux's @url); <prefill> is typed into the
 # agent's prompt once it starts.
 __fai_launch() {
@@ -529,43 +531,20 @@ __fai_launch() {
     [[ -n "${url}" ]] && __fai_prefill_bg tmux "${pane}" "${url}"
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
   else
-    # A pick other than the cloud agent switches to the repo's window when
-    # there's one already: the first window labelled after the repo, as
-    # below. A link to type in goes to an agent already running there (the
-    # focused block first); with no agent running, a new window opens.
-    if [[ "${agent}" != cloud ]]; then
-      local blocks=() b cmd
-      win="$(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
-        jq -c --arg l "$(basename "${dir}")" \
-          'first(.windows[] | select(.label == $l)) // empty')"
-      if [[ -n "${win}" && -n "${url}" ]]; then
-        mapfile -t blocks < <(jq -r '.focused_block_id // empty,
-          (.layers[].blocks[].block_id)' <<<"${win}" | awk 'NF && !seen[$0]++')
-        block=""
-        for b in ${blocks[@]+"${blocks[@]}"}; do
-          cmd="$(rex block call -b "${b}" process 2>/dev/null |
-            jq -r '.foreground.argv0 // .foreground.name // empty')"
-          if [[ -n "${cmd}" && ! "${cmd}" =~ ^-?(bash|zsh|fish|sh)$ ]]; then
-            block="${b}"
-            break
-          fi
-        done
-        if [[ -n "${block}" ]]; then
-          __fai_prefill_bg rex "${block}" "${url}"
-        else
-          win=""
-        fi
-      fi
-      if [[ -n "${win}" ]]; then
-        win="$(jq -r .window_id <<<"${win}")"
-        # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
-        rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
-        return
-      fi
+    # A repo with a window already (the first window labelled after the repo,
+    # as below) gets the agent in a new split beside that window's focused
+    # block; any other repo gets a new window.
+    win="$(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
+      jq -r --arg l "$(basename "${dir}")" \
+        'first(.windows[] | select(.label == $l) | .window_id) // empty')"
+    if [[ -n "${win}" ]]; then
+      out="$(rex split -s "${REX_SESSION}" -w "${win}" -c "${dir}" --json \
+        -- "$@")" || return
+    else
+      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+        -- "$@")" || return
+      win="$(jq -r .window_id <<<"${out}")"
     fi
-    out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
-      -- "$@")" || return
-    win="$(jq -r .window_id <<<"${out}")"
     block="$(jq -r '.block_ids[0]' <<<"${out}")"
     [[ -n "${url}" ]] && __fai_prefill_bg rex "${block}" "${url}"
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg rex "${block}"

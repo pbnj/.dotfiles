@@ -14,7 +14,8 @@ local BASH = "/opt/homebrew/bin/bash"
 
 -- fai: pick a project with fai (utils/.local/bin/fai) in a floating layer,
 -- like a tmux popup. fai opens each pick in a new Rex window named after its
--- repo, and the layer closes once fai exits.
+-- repo (a new split in that window when it's already open), and the layer
+-- closes once fai exits.
 -- bash -li loads the login and interactive profile, so fai and the agents it
 -- starts have the usual PATH and environment. An
 -- optional url is passed to fai, which picks a GitHub URL's repo (any other
