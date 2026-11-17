@@ -23,6 +23,7 @@ alias luna='pi --model gpt-6-luna --thinking max'
 alias sol='pi --model gpt-6.1-sol --thinking high'
 alias opus='claude --model opus --effort medium --dangerously-skip-permissions'
 alias haiku='claude --model haiku --effort max --dangerously-skip-permissions'
+alias cr='claude --resume'
 
 # kubernetes
 alias kx=kubectx

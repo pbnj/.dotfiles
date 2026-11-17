@@ -319,8 +319,9 @@ local function watch_pane(label, script, cwd)
 end
 
 -- The focused block's branch's PR, watched in a split to the right, in that
--- block's working directory: its CI checks, then its comments, reviews and
--- inline review comments, redrawn as they change
+-- block's working directory: its comments, reviews and inline review
+-- comments, then its CI checks and Scalr plans (or, once merged, applies) at
+-- the bottom, redrawn as they change
 -- (utils/.local/bin/gh-pr-watch). Without a PR on the branch,
 -- the split takes focus to pick one of the repo's open PRs with fzf, then
 -- hands focus back to the focused block, which is passed to it.

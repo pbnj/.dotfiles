@@ -1,40 +1,113 @@
 #!/usr/bin/env bash
-# gh-pr-watch -- keep a GitHub PR on screen, redrawn whenever it changes: its
-# CI checks, then the PR with its comments and reviews (`gh pr view
-# --comments`), then its inline review comments, grouped by file and line.
+# gh-pr-watch -- watch a GitHub PR, on screen for a person or as a stream of
+# events for an agent.
 #
-# Usage: gh-pr-watch [-i SECONDS] [RETURN_BLOCK]
+# Usage: gh-pr-watch [-i SECONDS] [-p PR] [--stream [--fresh]] [RETURN_BLOCK]
 #
-# The PR is the current branch's. Without one, fzf picks from the repo's open
-# PRs; in Rex, this block takes focus for the pick, and gives it back to
-# RETURN_BLOCK afterwards, if given.
+#   -p PR       the PR: a number, URL or branch. Without it, the current
+#               branch's PR; without one, fzf picks from the repo's open PRs
+#               (view mode only). In Rex, this block takes focus for the pick,
+#               and gives it back to RETURN_BLOCK afterwards, if given.
+#   -i SECONDS  how often to poll (default 60)
+#   --stream    print events instead of drawing the PR (see below)
+#   --fresh     with --stream, forget what earlier runs printed
 #
-# Polls every SECONDS (default 15), so checks for new commits show up as
-# they're pushed, and stops once the PR is merged or closed, or Esc is
-# pressed, leaving the last view on screen. Esc exits 130, as an interrupt
-# does, so a caller can tell that the user is done and close at once.
-# The screen is only cleared when something changed, so scrollback stays
-# readable between updates.
+# View mode (the default) keeps the PR on screen, redrawn whenever it changes:
+# the PR with its comments and reviews (`gh pr view --comments`), then its
+# inline review comments, grouped by file and line, then its CI checks and
+# its Scalr plans or applies at the bottom. It stops once the PR is closed, or merged and any Scalr
+# applies of it have finished, or Esc is pressed, leaving the last view on
+# screen. Esc exits 130, as an interrupt does, so a caller can tell that the
+# user is done and close at once. The screen is only cleared when something
+# changed, so scrollback stays readable between updates. In a Rex block
+# labelled "gh-pr" (the ctrl+b w split, rex/.config/rex/init.lua), the label
+# becomes "gh-pr OWNER/REPO#N" once the PR is known.
 #
-# Dependencies: gh, logged in; jq; fzf; rex, to move focus in a Rex block
+# Stream mode is for Claude Code's Monitor tool, where every stdout line is a
+# notification. In Rex, it first opens the viewer for the same PR in a split
+# to the right of REX_BLOCK, leaving focus where it is, unless the session
+# already has a block labelled "gh-pr OWNER/REPO#N". Then it prints one line
+# per event until the PR closes, or merges and its Scalr applies finish. Each
+# event is printed once: what was printed is kept per PR under
+# ${XDG_STATE_HOME:-~/.local/state}/gh-pr-watch, so re-arming the watch after
+# the Monitor's 30-minute expiry reports only what is new.
+#
+# Lines (the first word is the kind):
+#   CI fail|cancel: <workflow> / <check> <job url>  -- again if a re-run fails
+#   CI pass: <workflow> / <check> (was failing) <job url>
+#   CI green: all <n> checks passed on <sha>
+#   THREAD <author> <path>:<line>: <first 160 chars> <url>  -- unresolved
+#   REPLY <author> on <path>:<line>: <text> <url>  -- a new answer in one
+#   REVIEW <author> <state> on <sha>[ (not head)]: <text> <url>
+#                               -- APPROVED, CHANGES_REQUESTED, or COMMENTED with a body
+#   APPROVAL: PR #<n> is approved on <sha> <pr url>  -- the review decision; once until lost
+#   APPROVAL lost: PR #<n> is <decision> on <sha> <pr url>  -- e.g. a push dismissed it
+#   CONFLICT: <head> conflicts with <base> on <sha> <pr url>  -- once until resolved
+#   CONFLICT resolved: <head> merges cleanly into <base> on <sha> <pr url>
+#   WATCH gh|scalr failing ...             -- 3 polls in a row failed
+#   VIEWER failed: ...                     -- the Rex split could not be opened
+#   PR #<n> is MERGED|CLOSED -- stopping   -- then exit 0
+# Threads, replies and reviews by the authenticated user are not reported.
+# Scalr, while the PR is open:
+#   SCALR plan: <env>/<workspace>: <plan summary> <run url>  -- once per plan run
+# Scalr, after the merge (when the PR had Scalr plans):
+#   PR #<n> is MERGED -- watching the Scalr apply of <sha>
+#   SCALR approval: <env>/<workspace> waits for confirmation <run url>
+#   SCALR policy: <env>/<workspace> needs a policy override <run url>
+#   SCALR applied|post_apply_finished|planned_and_finished|errored|discarded|canceled|force_canceled: <env>/<workspace> <run url>
+#   SCALR no run: <env>/<workspace> has no apply run for <sha> 10m after the merge
+#   SCALR cannot watch: ... -- scalr missing, or SCALR_TOKEN or SCALR_HOSTNAME unset; exit 1
+#   SCALR finished on <sha> -- stopping  -- every workspace done; exit 0
+#
+# Scalr: a PR that Scalr plans (a scalr/<env>/<workspace> check) is followed
+# past the merge, through the apply run Scalr queues for the merge commit on
+# each workspace, until every one has finished. That needs the scalr CLI with
+# SCALR_TOKEN and SCALR_HOSTNAME set; a PR without Scalr checks needs none of
+# it.
+#
+# Dependencies: gh, logged in; jq; fzf, to pick a PR; rex, in Rex; scalr, to
+# follow Scalr applies
 
-set -euo pipefail
+set -uo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
 
-interval=15
-if [[ "${1:-}" == "-i" ]]; then
-  interval="${2:?-i needs a number of seconds}"
-  shift 2
-fi
-return_block="${1:-}"
+usage() {
+  sed -n '5,13s/^# \{0,1\}//p' "$0" >&2
+  exit 2
+}
+
+interval=60 pr="" stream=0 fresh=0 return_block=""
+while (($#)); do
+  case "$1" in
+  -i | -p)
+    (($# >= 2)) || usage
+    if [[ "$1" == -i ]]; then interval=$2; else pr=$2; fi
+    shift 2
+    ;;
+  --stream) stream=1 && shift ;;
+  --fresh) fresh=1 && shift ;;
+  -h | --help) usage ;;
+  -*) usage ;;
+  *) return_block=$1 && shift ;;
+  esac
+done
+[[ "$interval" =~ ^[1-9][0-9]*$ ]] || usage
+
+self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 # The PR's URL pins the repo and number, whichever way the PR was found, so
 # later calls don't depend on the branch still being checked out.
-if ! url=$(gh pr view --json url --jq .url 2>/dev/null); then
+if [[ -n "$pr" ]]; then
+  url=$(gh pr view "$pr" --json url --jq .url) || exit 1
+elif ! url=$(gh pr view --json url --jq .url 2>/dev/null); then
   branch=$(git branch --show-current 2>/dev/null || true)
+  if ((stream)); then
+    echo "No PR for branch ${branch:-(none)}; name one with -p" >&2
+    exit 1
+  fi
   prs=$(gh pr list --limit 200 \
     --json number,title,headRefName,author \
-    --template '{{range .}}{{printf "#%v\t%s\t%s\t%s\n" .number .title .headRefName .author.login}}{{end}}')
+    --template '{{range .}}{{printf "#%v\t%s\t%s\t%s\n" .number .title .headRefName .author.login}}{{end}}') || exit 1
   if [[ -z "${prs}" ]]; then
     echo "No PR for branch ${branch:-(none)}, and no open PRs in this repo."
     exit 1
@@ -54,7 +127,7 @@ if ! url=$(gh pr view --json url --jq .url 2>/dev/null); then
       --no-multi \
       --preview='GH_FORCE_TTY=$FZF_PREVIEW_COLUMNS GH_PAGER=cat gh pr view {1}' \
       --preview-window='down,60%,wrap') || exit 0
-  url=$(gh pr view "${pick%%$'\t'*}" --json url --jq .url)
+  url=$(gh pr view "${pick%%$'\t'*}" --json url --jq .url) || exit 1
   if [[ -n "${return_block}" ]]; then
     rex focus "${return_block}" >/dev/null 2>&1 || true
   fi
@@ -62,6 +135,381 @@ fi
 path=${url#https://github.com/}
 repo=${path%/pull/*}
 number=${url##*/}
+# Names the viewer's Rex block, so a stream can tell the PR is already shown.
+label="gh-pr ${repo}#${number}"
+
+# ---------------------------------------------------------------------------
+# Shared by both modes
+
+# fetch_checks: print the PR's checks as a JSON array, or fail when they
+# can't be read. gh exits non-zero with checks pending (8) and with none
+# reported (1), so its output, not its status, says what there is: valid JSON
+# is a read, and "no checks reported" is an empty list.
+fetch_checks() {
+  local out
+  out=$(gh pr checks "$url" \
+    --json bucket,name,workflow,link,description,startedAt,completedAt 2>"$ERR.checks")
+  if jq -e 'type == "array"' <<<"$out" >/dev/null 2>&1; then
+    printf '%s\n' "$out"
+  elif grep -q 'no checks reported' "$ERR.checks" 2>/dev/null; then
+    echo '[]'
+  else
+    return 1
+  fi
+}
+
+# One "WORKSPACE<tab>ENV/NAME<tab>BUCKET<tab>LINK<tab>DESCRIPTION" per Scalr
+# plan check. Scalr names it scalr/<env>/<workspace> and links the run; the
+# scalr/<org>/plan/<branch> roll-up has no workspace in its link and drops
+# out. The description, which may be empty, comes last: read splits on runs
+# of tabs, so an empty field anywhere else would shift the ones after it.
+# shellcheck disable=SC2016 # jq, not shell, variables
+SCALR_JQ='[.[] | select(.name | startswith("scalr/"))
+  | (.link // "" | [match("/workspaces/(ws-[a-z0-9]+)/").captures[0].string]) as $ws
+  | select($ws | length > 0)
+  | [$ws[0], (.name | ltrimstr("scalr/")), .bucket, .link,
+     (.description // "" | gsub("[\\s]+"; " "))]]
+  | unique_by(.[0])[] | @tsv'
+
+# scalr_workspaces CHECKS: one "WORKSPACE<tab>ENV/NAME" per workspace CHECKS
+# plans in.
+scalr_workspaces() {
+  jq -r "$SCALR_JQ" <<<"$1" 2>/dev/null | cut -f1,2
+}
+
+scalr_ready() {
+  command -v scalr >/dev/null && [[ -n "${SCALR_TOKEN:-}" && -n "${SCALR_HOSTNAME:-}" ]]
+}
+
+# scalr_apply_rows WORKSPACES SHA DEADLINE: for each "WORKSPACE<tab>ENV/NAME"
+# line of WORKSPACES, its apply run for the merge commit SHA, as
+# "WORKSPACE<tab>ENV/NAME<tab>STATUS<tab>RUN<tab>HAS_CHANGES<tab>URL<tab>ERROR".
+# STATUS is the run's, or lookup_failed, or no_run -- no_run_late once the
+# epoch time DEADLINE has passed. Lookup errors are appended to $ERR.
+scalr_apply_rows() {
+  local sha=$2 deadline=$3 ws name runs row id status changes env err
+  while IFS=$'\t' read -r ws name; do
+    [[ -n "$ws" ]] || continue
+    # scalr reads a JSON payload from stdin when it is not a terminal: give it
+    # nothing, or it swallows the rest of this loop's input.
+    if ! runs=$(scalr get-runs -filter-workspace="$ws" -filter-vcs-revision="$sha" \
+      -filter-is-dry=false </dev/null 2>>"$ERR"); then
+      printf '%s\t%s\tlookup_failed\n' "$ws" "$name"
+      continue
+    fi
+    row=$(jq -r 'first(.[]) | [.id, .status, (."has-changes" | tostring),
+      .environment.id,
+      (."error-message" // "" | gsub("[\\s]+"; " ") | .[0:160])] | @tsv' <<<"$runs" 2>/dev/null)
+    if [[ -z "$row" ]]; then
+      status=no_run
+      (($(date +%s) > deadline)) && status=no_run_late
+      printf '%s\t%s\t%s\n' "$ws" "$name" "$status"
+      continue
+    fi
+    IFS=$'\t' read -r id status changes env err <<<"$row"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ws" "$name" "$status" "$id" "$changes" \
+      "https://${SCALR_HOSTNAME}/v2/e/$env/workspaces/$ws/runs/$id" "$err"
+  done <<<"$1"
+}
+
+# scalr_finished STATUS: whether a run in STATUS is done. errored counts:
+# nothing more will happen to it. post_apply_finished: post-apply run tasks
+# done, so the apply ran.
+scalr_finished() {
+  case "$1" in
+  applied | post_apply_finished | planned_and_finished | errored | discarded | canceled | force_canceled) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
+# apply_deadline MERGED_AT: the epoch time 10 minutes after the merge, after
+# which a workspace without an apply run is reported.
+apply_deadline() {
+  jq -rn --arg at "$1" '$at | fromdateiso8601 + 600'
+}
+
+# ---------------------------------------------------------------------------
+# Stream mode
+
+# open_viewer: show the PR in a Rex split beside the agent's block, unless
+# the session shows it already.
+open_viewer() {
+  local session=() blocks
+  [[ -n "${REX_BLOCK:-}" ]] && command -v rex >/dev/null || return 0
+  [[ -n "${REX_SESSION:-}" ]] && session=(-s "$REX_SESSION")
+  blocks=$(rex block ls "${session[@]}" --json 2>/dev/null) || blocks=""
+  if jq -e --arg l "$label" 'any(.blocks[]?; .label == $l)' <<<"$blocks" >/dev/null 2>&1; then
+    return 0
+  fi
+  # As watch_pane in rex/.config/rex/init.lua: wait for a key once it stops,
+  # unless Esc stopped it.
+  if ! rex split "${session[@]}" -b "$REX_BLOCK" --split right --ratio 33 \
+    --focus=false --label "$label" --shell none -- \
+    bash -lc "'$self' -i $interval -p '$url'; ((\$? == 130)) || read -rsn1 -p 'Press any key to close'" \
+    >/dev/null 2>"$ERR"; then
+    echo "VIEWER failed: could not open a Rex split: $(head -n 1 "$ERR")"
+  fi
+}
+
+# emit KEY LINE: print LINE unless KEY has been emitted before.
+# Returns 1 when KEY was already emitted. An empty LINE records KEY silently.
+emit() {
+  grep -Fxq -- "$1" "$SEEN" && return 1
+  printf '%s\n' "$1" >>"$SEEN"
+  [[ -z "$2" ]] || printf '%s\n' "$2"
+}
+
+# forget FILE PREFIX: drop every line of FILE that starts with PREFIX, or is
+# exactly LINE with --line.
+forget() {
+  if [[ "$1" == --line ]]; then
+    awk -v l="$3" '$0 != l' "$2" >"$2.tmp" && mv "$2.tmp" "$2"
+  else
+    awk -v p="$2" 'index($0, p) != 1' "$1" >"$1.tmp" && mv "$1.tmp" "$1"
+  fi
+}
+
+# shellcheck disable=SC2016 # GraphQL and jq variables, not shell ones
+QUERY='query($owner: String!, $name: String!, $number: Int!) {
+  viewer { login }
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      state reviewDecision mergeable headRefName baseRefName headRefOid
+      mergedAt
+      mergeCommit { oid }
+      reviewThreads(first: 100) {
+        nodes {
+          isResolved isOutdated path line originalLine
+          root: comments(first: 1) { nodes { databaseId author { login } body } }
+          last: comments(last: 1) { nodes { databaseId author { login } body } }
+        }
+      }
+      reviews(last: 50) {
+        nodes { databaseId state author { login } body commit { oid } }
+      }
+    }
+  }
+}'
+
+# One "KEY<tab>LINE" per open review item. Keys are the comment and review ids,
+# so an item is reported once however often it is polled.
+# shellcheck disable=SC2016
+REVIEWS_JQ='def flat: gsub("<!--.*?-->"; "") | gsub("[\\s]+"; " ") | ltrimstr(" ") | .[0:160];
+  def at: "\(.path):\(.line // .originalLine // "?")\(if .isOutdated then " (outdated)" else "" end)";
+  .data.viewer.login as $me
+  | .data.repository.pullRequest as $p
+  | ($p.reviewThreads.nodes[] | select(.isResolved | not)
+     | . as $t | .root.nodes[0] as $r | .last.nodes[0] as $l
+     | (select($r.author.login != $me)
+        | "THREAD \($r.databaseId)\tTHREAD \($r.author.login // "ghost") \($t | at): \($r.body | flat) \($base)#discussion_r\($r.databaseId)"),
+       (select($l.databaseId != $r.databaseId and $l.author.login != $me)
+        | "REPLY \($l.databaseId)\tREPLY \($l.author.login // "ghost") on \($t | at): \($l.body | flat) \($base)#discussion_r\($l.databaseId)")),
+    ($p.reviews.nodes[]
+     | select(.author.login != $me)
+     | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED"
+              or (.state == "COMMENTED" and (.body | length) > 0))
+     | ((.commit.oid // "") as $c | "\($c[0:7])\(if $c == $p.headRefOid then "" else " (not head)" end)") as $on
+     | "REVIEW \(.databaseId)\tREVIEW \(.author.login // "ghost") \(.state) on \($on): \(.body | flat) \($base)#pullrequestreview-\(.databaseId)")'
+
+# One "KIND<tab>CHECK<tab>LINK" per check; KIND is fail, cancel or pass.
+# shellcheck disable=SC2016
+CHECKS_JQ='.[] | select(.bucket == "fail" or .bucket == "cancel" or .bucket == "pass")
+  | "\(.bucket)\t\(.workflow // "" | if . == "" then "" else . + " / " end)\(.name)\t\(.link)"'
+
+# remember_scalr CHECKS: record the workspaces CHECKS plans in $STATE/scalr.
+# Replaced, not merged: a workspace a later push stopped touching gets no
+# apply run. Kept on disk, so the merge poll still knows them when it cannot
+# read the checks.
+remember_scalr() {
+  scalr_workspaces "$1" >"$STATE/scalr.tmp" && mv "$STATE/scalr.tmp" "$STATE/scalr"
+}
+
+# stream_scalr SHA MERGED_AT: report each Scalr workspace's apply run for the
+# merge commit SHA until every one has finished, then exit.
+stream_scalr() {
+  local sha=$1 deadline fails=0 failed open ws name status id changes link err
+  emit "MERGED $sha" "PR #$number is MERGED -- watching the Scalr apply of ${sha:0:7}"
+  if ! scalr_ready; then
+    echo "SCALR cannot watch: needs the scalr CLI, SCALR_TOKEN and SCALR_HOSTNAME -- workspaces: $(cut -f2 "$STATE/scalr" | paste -sd, -)"
+    exit 1
+  fi
+  deadline=$(apply_deadline "$2")
+  while :; do
+    open=0 failed=0
+    : >"$ERR" # appended per lookup, so a later success keeps an earlier cause
+    while IFS=$'\t' read -r ws name status id changes link err; do
+      [[ -n "$ws" ]] || continue
+      case "$status" in
+      lookup_failed) open=1 failed=1 ;;
+      no_run) open=1 ;;
+      no_run_late)
+        open=1
+        emit "SCALR none $ws" "SCALR no run: $name has no apply run for ${sha:0:7} 10m after the merge"
+        ;;
+      errored)
+        emit "SCALR $id $status" "SCALR errored: $name${err:+: $err} $link"
+        ;;
+      planned | planned_and_saved | post_plan_finished | cost_estimated | policy_checked)
+        # Each of these is also a stage a run passes through on its way to the
+        # next. A run still in one a poll later is parked on a confirmation --
+        # with auto-apply on too, which a cost or policy gate can still hold.
+        open=1
+        if [[ "$changes" == true ]]; then
+          emit "SCALR $id at $status" "" ||
+            emit "SCALR $id approval" "SCALR approval: $name waits for confirmation $link"
+        fi
+        ;;
+      policy_override)
+        open=1
+        emit "SCALR $id policy" "SCALR policy: $name needs a policy override $link"
+        ;;
+      *)
+        if scalr_finished "$status"; then
+          emit "SCALR $id $status" "SCALR $status: $name $link"
+        else
+          open=1 # queued, planning or applying
+        fi
+        ;;
+      esac
+    done <<<"$(scalr_apply_rows "$(cat "$STATE/scalr")" "$sha" "$deadline")"
+    # A poll fails when any workspace's lookup did; count polls, not lookups.
+    if ((failed)); then
+      fails=$((fails + 1))
+      ((fails == 3)) &&
+        echo "WATCH scalr failing 3 polls running, still retrying: $(head -n 1 "$ERR")"
+    else
+      fails=0
+    fi
+    if ((!open)); then
+      echo "SCALR finished on ${sha:0:7} -- stopping"
+      exit 0
+    fi
+    sleep "$interval"
+  done
+}
+
+stream_main() {
+  local owner=${repo%%/*} name=${repo#*/} base="https://github.com/${repo}/pull/${number}"
+  local failures=0 merge_failures=0 pr state sha checks mergeable head base_ref decision
+  local key line kind check link desc ws_name T=$'\t'
+  STATE="${XDG_STATE_HOME:-$HOME/.local/state}/gh-pr-watch/${repo//\//-}-${number}"
+  ((fresh)) && rm -rf "$STATE"
+  mkdir -p "$STATE" || exit 1
+  SEEN="$STATE/seen"       # keys already emitted
+  FAILING="$STATE/failing" # checks last reported red, to announce them going green
+  ERR="$STATE/stderr"
+  touch "$SEEN" "$FAILING" "$STATE/scalr"
+
+  open_viewer
+
+  while :; do
+    if pr=$(gh api graphql -f owner="$owner" -f name="$name" -F number="$number" \
+      -f query="$QUERY" 2>"$ERR"); then
+      failures=0
+      state=$(jq -r '.data.repository.pullRequest.state' <<<"$pr")
+      case "$state" in MERGED | CLOSED)
+        if [[ "$state" == MERGED ]]; then
+          # Only a readable checks list may conclude there are no Scalr plans:
+          # anything else is retried, or an apply goes unwatched.
+          if ! checks=$(fetch_checks); then
+            merge_failures=$((merge_failures + 1))
+            ((merge_failures == 3)) &&
+              echo "WATCH gh failing 3 polls running, still retrying: $(head -n 1 "$ERR.checks")"
+            sleep "$interval"
+            continue
+          fi
+          remember_scalr "$checks"
+          if [[ -s "$STATE/scalr" ]]; then
+            stream_scalr "$(jq -r '.data.repository.pullRequest.mergeCommit.oid' <<<"$pr")" \
+              "$(jq -r '.data.repository.pullRequest.mergedAt' <<<"$pr")"
+          fi
+        fi
+        echo "PR #$number is $state -- stopping"
+        exit 0
+        ;;
+      esac
+      sha=$(jq -r '.data.repository.pullRequest.headRefOid' <<<"$pr")
+      while IFS=$'\t' read -r key line; do
+        [[ -n "$key" ]] && emit "$key" "$line"
+      done <<<"$(jq -r --arg base "$base" "$REVIEWS_JQ" <<<"$pr" 2>/dev/null || true)"
+      IFS=$'\t' read -r mergeable head base_ref decision <<<"$(jq -r '.data.repository.pullRequest
+        | [.mergeable // "", .headRefName, .baseRefName, .reviewDecision // "NONE"] | @tsv' <<<"$pr")"
+      # The review decision is reported once on reaching APPROVED, and again
+      # only after it was lost. A repo that requires no reviews has no
+      # decision (NONE); its approvals show only as REVIEW lines.
+      case "$decision" in
+      APPROVED)
+        emit "APPROVAL" "APPROVAL: PR #$number is approved on ${sha:0:7} $base"
+        ;;
+      *)
+        grep -Fxq APPROVAL "$SEEN" && forget --line "$SEEN" APPROVAL &&
+          echo "APPROVAL lost: PR #$number is $decision on ${sha:0:7} $base"
+        ;;
+      esac
+      # A conflict is reported the same way: the base moving can conflict a
+      # head that has not changed. UNKNOWN -- GitHub still computing --
+      # changes nothing.
+      case "$mergeable" in
+      CONFLICTING)
+        emit "CONFLICT" "CONFLICT: $head conflicts with $base_ref on ${sha:0:7} $base"
+        ;;
+      MERGEABLE)
+        grep -Fxq CONFLICT "$SEEN" && forget --line "$SEEN" CONFLICT &&
+          echo "CONFLICT resolved: $head merges cleanly into $base_ref on ${sha:0:7} $base"
+        ;;
+      esac
+    else
+      sha=""
+      failures=$((failures + 1))
+      ((failures == 3)) &&
+        echo "WATCH gh failing 3 polls running, still retrying: $(head -n 1 "$ERR")"
+    fi
+
+    if checks=$(fetch_checks); then
+      while IFS=$'\t' read -r kind check link; do
+        case "$kind" in
+        fail | cancel)
+          grep -Fxq -- "$check" "$FAILING" || printf '%s\n' "$check" >>"$FAILING"
+          emit "CI$T$kind$T$check$T$link" "CI $kind: $check $link"
+          ;;
+        pass)
+          grep -Fxq -- "$check" "$FAILING" || continue
+          # Forget its failures too, so failing again on the same link reports.
+          forget --line "$FAILING" "$check" && forget "$SEEN" "CI${T}fail$T$check$T" &&
+            forget "$SEEN" "CI${T}cancel$T$check$T"
+          echo "CI pass: $check (was failing) $link"
+          ;;
+        esac
+      done <<<"$(jq -r "$CHECKS_JQ" <<<"$checks")"
+      remember_scalr "$checks"
+      while IFS=$'\t' read -r _ ws_name _ link desc; do
+        [[ -n "$link" && -n "$desc" ]] && emit "SCALR plan $link" "SCALR plan: $ws_name: $desc $link"
+      done <<<"$(jq -r "$SCALR_JQ" <<<"$checks" 2>/dev/null)"
+      if [[ -n "$sha" ]] && jq -e 'length > 0 and
+          all(.[]; .bucket == "pass" or .bucket == "skipping")' <<<"$checks" >/dev/null; then
+        emit "GREEN $sha" "CI green: all $(jq length <<<"$checks") checks passed on ${sha:0:7}"
+      fi
+    fi
+
+    sleep "$interval"
+  done
+}
+
+if ((stream)); then
+  stream_main
+fi
+
+# ---------------------------------------------------------------------------
+# View mode
+
+ERR=$(mktemp "${TMPDIR:-/tmp}/gh-pr-watch.XXXXXX") || exit 1
+
+# In the ctrl+b w split, name the block after the PR now that it's known.
+if [[ -n "${REX_BLOCK:-}" ]] && command -v rex >/dev/null; then
+  if [[ "$(rex block inspect "$REX_BLOCK" --json 2>/dev/null | jq -r '.block.label // empty')" == gh-pr ]]; then
+    rex block rename "$REX_BLOCK" "$label" >/dev/null 2>&1 || true
+  fi
+fi
 
 # CI checks of the PR's latest commit: a summary, then every check but the
 # skipped ones, failures first. Each name links to its run. Only finished
@@ -108,19 +556,62 @@ inline_jq='
         + "\n"
     end'
 
+# scalr_line MARK NAME LINK TEXT: one workspace row, its name linking to its run.
+scalr_line() {
+  printf '%s  \033]8;;%s\033\\%s\033]8;;\033\\  \033[2m%s\033[0m\n' "$1" "$3" "$2" "$4"
+}
+
+# The Scalr section: each workspace's plan while the PR is open, its apply
+# run for the merge commit once merged ($scalr_rows, from scalr_apply_rows).
+render_scalr() {
+  local ok=$'\033[32m✓\033[0m' bad=$'\033[31mX\033[0m' wait=$'\033[33m*\033[0m' off=$'\033[33m-\033[0m'
+  local ws name bucket link desc status id changes err mark text
+  printf '\n\033[1;4mScalr\033[0m\n\n'
+  if [[ "$state" != MERGED ]]; then
+    while IFS=$'\t' read -r ws name bucket link desc; do
+      [[ -n "$ws" ]] || continue
+      case "$bucket" in
+      pass) mark=$ok ;; fail) mark=$bad ;; cancel) mark=$off ;; *) mark=$wait ;;
+      esac
+      scalr_line "$mark" "$name" "$link" "${desc:-$bucket}"
+    done <<<"$(jq -r "$SCALR_JQ" <<<"$checks" 2>/dev/null)"
+    return 0
+  fi
+  if ! scalr_ready; then
+    echo "Can't follow the applies: needs the scalr CLI, SCALR_TOKEN and SCALR_HOSTNAME"
+    return 0
+  fi
+  while IFS=$'\t' read -r ws name status id changes link err; do
+    [[ -n "$ws" ]] || continue
+    case "$status" in
+    applied | post_apply_finished) mark=$ok text=applied ;;
+    planned_and_finished) mark=$ok text="finished, nothing to apply" ;;
+    errored) mark=$bad text="errored${err:+: $err}" ;;
+    discarded | canceled | force_canceled) mark=$off text=$status ;;
+    policy_override) mark=$wait text="needs a policy override" ;;
+    no_run) mark=$wait text="no apply run yet" ;;
+    no_run_late) mark=$bad text="no apply run 10m after the merge" ;;
+    lookup_failed) mark=$bad text="lookup failed: $(head -n 1 "$ERR")" ;;
+    *)
+      mark=$wait text=$status
+      [[ "$changes" == true ]] && text+=", has changes"
+      ;;
+    esac
+    scalr_line "$mark" "$name" "$link" "$text"
+  done <<<"$scalr_rows"
+}
+
+# The checks come last, just above the status line, where they stay in view
+# at the bottom of the pane however long the conversation above them grows.
 render() {
-  local checks
-  printf '\033[1;4mChecks\033[0m\n\n'
-  # gh exits non-zero with checks pending (8) and with none reported (1), so
-  # its output, not its status, says what there is.
-  checks=$(gh pr checks "$url" --json bucket,name,workflow,link,startedAt,completedAt 2>/dev/null) || true
-  jq -r "${checks_jq}" <<<"${checks:-[]}"
-  printf '\n'
   # GH_FORCE_TTY keeps gh's colours and wraps to the pane's width.
   GH_FORCE_TTY="$(tput cols)" GH_PAGER=cat gh pr view --comments "$url"
   printf '\n\033[1;4mInline review comments\033[0m\n\n'
   gh api --paginate "repos/${repo}/pulls/${number}/comments" |
     jq -rs "add // [] | ${inline_jq}"
+  printf '\n\033[1;4mChecks\033[0m\n\n'
+  jq -r "${checks_jq}" <<<"${checks:-[]}"
+  [[ -z "$workspaces" ]] || render_scalr
 }
 
 # Wait out the interval, returning early, to stop, when Esc is pressed. Keys
@@ -146,31 +637,64 @@ wait_or_esc() {
 
 # Keys pressed during a refresh wait in the input until wait_or_esc reads
 # them; don't echo them meanwhile.
-if [[ -t 0 ]]; then
-  stty -echo
-  trap 'stty echo' EXIT
-fi
+cleanup() {
+  [[ -t 0 ]] && stty echo
+  rm -f "$ERR" "$ERR.checks"
+}
+trap cleanup EXIT
+[[ -t 0 ]] && stty -echo
 
-last=""
+last="" workspaces="" scalr_rows=""
 while :; do
+  IFS=$'\t' read -r state merged_at merge_sha <<<"$(gh pr view "$url" \
+    --json state,mergedAt,mergeCommit \
+    --jq '[.state, (.mergedAt // "-"), (.mergeCommit.oid // "-")] | @tsv' 2>/dev/null)"
+  state=${state:-OPEN}
+  # The last readable checks' workspaces are kept, so a failed read after the
+  # merge doesn't drop the applies.
+  checks=$(fetch_checks) || checks=""
+  [[ -z "$checks" ]] || workspaces=$(scalr_workspaces "$checks")
+  scalr_open=0
+  if [[ "$state" == MERGED && -n "$workspaces" ]] && scalr_ready; then
+    : >"$ERR"
+    scalr_rows=$(scalr_apply_rows "$workspaces" "$merge_sha" "$(apply_deadline "$merged_at")")
+    while IFS=$'\t' read -r _ _ status _; do
+      [[ -n "$status" ]] && ! scalr_finished "$status" && scalr_open=1
+    done <<<"$scalr_rows"
+  fi
+
   if out=$(render 2>&1); then
     if [[ "$out" != "$last" ]]; then
       # Clear the screen and its scrollback, then draw the new view.
       printf '\033[H\033[2J\033[3J%s\n' "$out"
       last="$out"
     fi
-    printf '\r\033[2K\033[2mUpdated %s · every %ss · Esc to stop\033[0m' \
-      "$(date +%H:%M:%S)" "$interval"
+    following=""
+    ((scalr_open)) && following=" · following Scalr applies"
+    printf '\r\033[2K\033[2mUpdated %s · every %ss · Esc to stop%s\033[0m' \
+      "$(date +%H:%M:%S)" "$interval" "$following"
   else
     printf '\r\033[2K\033[31mRefresh failed at %s; retrying in %ss\033[0m' \
       "$(date +%H:%M:%S)" "$interval"
   fi
 
-  state=$(gh pr view "$url" --json state --jq .state 2>/dev/null || echo OPEN)
-  if [[ "$state" != "OPEN" ]]; then
-    printf '\r\033[2K\nPR #%s is %s -- stopped watching\n' "$number" "$state"
+  case "$state" in
+  CLOSED)
+    printf '\r\033[2K\nPR #%s is CLOSED -- stopped watching\n' "$number"
     exit 0
-  fi
+    ;;
+  MERGED)
+    # Without readable checks, whether Scalr applies it is unknown: retry.
+    if [[ -n "$checks" || -n "$workspaces" ]] && ((!scalr_open)); then
+      if [[ -n "$workspaces" ]] && scalr_ready; then
+        printf '\r\033[2K\nPR #%s is MERGED -- Scalr finished\n' "$number"
+      else
+        printf '\r\033[2K\nPR #%s is MERGED -- stopped watching\n' "$number"
+      fi
+      exit 0
+    fi
+    ;;
+  esac
   wait_or_esc
 done
 
