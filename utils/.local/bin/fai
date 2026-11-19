@@ -8,9 +8,9 @@
 #              cloud agent), ALT-G copilot and ALT-P pi; the prompt shows the
 #              agent's icon. TAB / SHIFT-TAB mark several directories, and
 #              each gets its own agent. The agent opens in a new tmux or Rex
-#              window named after the repo (in Rex, a split in the repo's
-#              window when it has one already; or here, outside both, for one
-#              directory only); CTRL-O runs it here instead (the first
+#              window named after the repo (in Rex, a best-fit split in the
+#              repo's window when it has one already; or here, outside both,
+#              for one directory only); CTRL-O runs it here instead (the first
 #              directory here, any others in windows). A link or text below
 #              goes to every agent. CTRL-T toggles a ripgrep search through
 #              every local clone; picking a hit opens its repo with its
@@ -486,10 +486,34 @@ __fai_open_cloud_bg() {
   disown
 }
 
+# __fai_best_fit <window>: print "<block> <right|below>", the best-fit split
+# in a Rex window: its largest tiled block (in pixels), split along its longer
+# side. Only tiled blocks count, so the agent never lands in a floating layer
+# such as fai's own picker, which has focus when fai runs from ctrl+b f or
+# Hyper+A.
+__fai_best_fit() {
+  local win="${1}" b size best="" best_area=-1 w h area dir
+  while IFS= read -r b; do
+    size="$(rex block call -s "${REX_SESSION}" -b "${b}" size 2>/dev/null)" || continue
+    read -r w h < <(jq -r '"\(.columns * .cell_width_px) \(.rows * .cell_height_px)"' <<<"${size}")
+    [[ "${w}" =~ ^[0-9]+$ && "${h}" =~ ^[0-9]+$ ]] || continue
+    area=$((w * h))
+    if ((area > best_area)); then
+      best_area="${area}"
+      dir=right
+      ((h > w)) && dir=below
+      best="${b} ${dir}"
+    fi
+  done < <(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
+    jq -r --arg w "${win}" '.windows[] | select(.window_id == $w) |
+      .layers[] | select(.kind == "tiled") | .blocks[].block_id')
+  printf '%s\n' "${best}"
+}
+
 # __fai_launch <dir> <agent> <link> <prefill> <run-here> <cmd...>: start the
 # agent's command in <dir>: here when <run-here> is 1 (or outside tmux and
-# Rex), else in a new tmux or Rex window named after the repo (in Rex, a new
-# split in the repo's window when there is one).
+# Rex), else in a new tmux or Rex window named after the repo (in Rex, a
+# best-fit split in the repo's window when there is one; see __fai_best_fit).
 # <link> is the picked link (for tmux's @url); <prefill> is typed into the
 # agent's prompt once it starts.
 __fai_launch() {
@@ -532,14 +556,14 @@ __fai_launch() {
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg tmux "${pane}"
   else
     # A repo with a window already (the first window labelled after the repo,
-    # as below) gets the agent in a new split beside that window's focused
-    # block; any other repo gets a new window.
+    # as below) gets the agent in a best-fit split of that window; any other
+    # repo gets a new window.
     win="$(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
       jq -r --arg l "$(basename "${dir}")" \
         'first(.windows[] | select(.label == $l) | .window_id) // empty')"
-    if [[ -n "${win}" ]]; then
-      out="$(rex split -s "${REX_SESSION}" -w "${win}" -c "${dir}" --json \
-        -- "$@")" || return
+    if [[ -n "${win}" ]] && block="$(__fai_best_fit "${win}")" && [[ -n "${block}" ]]; then
+      out="$(rex split -s "${REX_SESSION}" -w "${win}" -b "${block% *}" \
+        --split "${block#* }" -c "${dir}" --json -- "$@")" || return
     else
       out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
         -- "$@")" || return
