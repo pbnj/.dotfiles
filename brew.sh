@@ -32,14 +32,17 @@ brew install docker            # docker cli
 brew install fzf               # fuzzy finder
 brew install fd                # better find
 brew install bat               # cat with syntax highlighting
+brew install chafa             # images in the terminal (yt thumbnails)
 brew install gh                # github cli
 brew install git               # git cli
 brew install git-extras        # extra git utils
 brew install grep              # newer version of grep
+brew install mpv               # media player (streams YouTube via yt-dlp, no ads)
 brew install pre-commit        # git hook manager
 brew install tmux-mem-cpu-load # utility for showing mem & cpu load
 brew install universal-ctags   # ctags
 brew install vim
+brew install yt-dlp            # YouTube/media extractor used by mpv
 
 # language/framework specific utilities
 
