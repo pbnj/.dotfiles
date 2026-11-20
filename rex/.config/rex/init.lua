@@ -171,6 +171,32 @@ local function block_cwd(ctx)
   return nil
 end
 
+-- The best-fit direction to split the focused block: along its longer side in
+-- pixels, "horizontal" (beside it) when it is at least as wide as it is tall,
+-- else "vertical" (below it). Beside it when its size can't be read. The
+-- shell scripts use utils/.local/bin/rex-best-fit, the same rule.
+local function best_fit(ctx)
+  if not ctx.block_id then
+    return "horizontal"
+  end
+  local ok, size = pcall(rex.block.call, "com.superlogical.terminal", "size", {
+    session_id = ctx.session_id,
+    block_id = ctx.block_id,
+  })
+  if
+    ok
+    and size
+    and size.columns
+    and size.rows
+    and size.cell_width_px
+    and size.cell_height_px
+    and size.rows * size.cell_height_px > size.columns * size.cell_width_px
+  then
+    return "vertical"
+  end
+  return "horizontal"
+end
+
 local function scratch(ctx)
   rex.session.new_layer({
     bounds = { 0.1, 0.1, 0.8, 0.8 },
@@ -197,7 +223,8 @@ rex.bind("ctrl+b>ctrl+t", "scratch")
 
 -- A program (a coding agent, or nvim) in the focused block's working
 -- directory, opened where `where` says:
---   split   a split to the right of the focused block
+--   split   a best-fit split of the focused block (best_fit: beside it, or
+--           below it when it is taller than wide)
 --   window  a new window (tab), labelled `label`
 --   float   a floating layer, like a tmux popup
 -- bash -lic loads the profile so the program has the usual PATH; shell =
@@ -236,7 +263,7 @@ local function program_open(where, label, ...)
       _, err = rex.session.new_split({
         session_id = ctx.session_id,
         anchor_id = ctx.block_id,
-        direction = "horizontal",
+        direction = best_fit(ctx),
         side = "after",
         ratio = 0.5,
         focus = true,
@@ -319,7 +346,7 @@ local function watch_pane(label, script, cwd)
   })
 end
 
--- The focused block's branch's PR, watched in a split to the right, in that
+-- The focused block's branch's PR, watched in a best-fit split, in that
 -- block's working directory: its comments, reviews and inline review
 -- comments, then its CI checks and Scalr plans (or, once merged, applies) at
 -- the bottom, redrawn as they change
@@ -335,7 +362,7 @@ rex.action({
     local _, err = rex.session.new_split({
       session_id = ctx.session_id,
       anchor_id = ctx.block_id,
-      direction = "horizontal",
+      direction = best_fit(ctx),
       side = "after",
       ratio = 0.67, -- the anchor keeps 67%; the watch split gets 33%
       focus = false,

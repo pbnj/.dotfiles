@@ -24,8 +24,9 @@
 # becomes "gh-pr OWNER/REPO#N" once the PR is known.
 #
 # Stream mode is for Claude Code's Monitor tool, where every stdout line is a
-# notification. In Rex, it first opens the viewer for the same PR in a split
-# to the right of REX_BLOCK, leaving focus where it is, unless the session
+# notification. In Rex, it first opens the viewer for the same PR in a
+# best-fit split of REX_BLOCK (rex-best-fit: along its longer side), leaving
+# focus where it is, unless the session
 # already has a block labelled "gh-pr OWNER/REPO#N". Then it prints one line
 # per event until the PR closes, or merges and its Scalr applies finish. Each
 # event is printed once: what was printed is kept per PR under
@@ -234,16 +235,17 @@ apply_deadline() {
 # open_viewer: show the PR in a Rex split beside the agent's block, unless
 # the session shows it already.
 open_viewer() {
-  local session=() blocks
+  local session=() blocks dir
   [[ -n "${REX_BLOCK:-}" ]] && command -v rex >/dev/null || return 0
   [[ -n "${REX_SESSION:-}" ]] && session=(-s "$REX_SESSION")
   blocks=$(rex block ls "${session[@]}" --json 2>/dev/null) || blocks=""
   if jq -e --arg l "$label" 'any(.blocks[]?; .label == $l)' <<<"$blocks" >/dev/null 2>&1; then
     return 0
   fi
+  dir=$(rex-best-fit "$REX_BLOCK" 2>/dev/null) || dir=right
   # As watch_pane in rex/.config/rex/init.lua: wait for a key once it stops,
   # unless Esc stopped it.
-  if ! rex split "${session[@]}" -b "$REX_BLOCK" --split right --ratio 33 \
+  if ! rex split "${session[@]}" -b "$REX_BLOCK" --split "$dir" --ratio 33 \
     --focus=false --label "$label" --shell none -- \
     bash -lc "'$self' -i $interval -p '$url'; ((\$? == 130)) || read -rsn1 -p 'Press any key to close'" \
     >/dev/null 2>"$ERR"; then

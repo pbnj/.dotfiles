@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# Author: Peter Benjamin
+# Description: Print the best-fit direction to split a Rex block: "right" when
+#              it is at least as wide as it is tall (in pixels), else "below".
+#              Prints "right" when the size can't be read. Used by the custom
+#              Rex commands that open splits (fzf-urls, gh-pr-watch); init.lua
+#              has the same rule as best_fit().
+# Dependencies: rex, jq
+# Usage: rex split --split "$(rex-best-fit "$REX_BLOCK")" ...
+#        rex-best-fit [BLOCK]   (defaults to REX_BLOCK)
+
+set -uo pipefail
+
+block="${1:-${REX_BLOCK:-}}"
+dir=right
+if [[ -n "${block}" ]] &&
+  size="$(rex block call -b "${block}" size 2>/dev/null)" &&
+  read -r w h < <(jq -r '"\(.columns * .cell_width_px) \(.rows * .cell_height_px)"' <<<"${size}" 2>/dev/null) &&
+  [[ "${w}" =~ ^[0-9]+$ && "${h}" =~ ^[0-9]+$ ]] &&
+  ((h > w)); then
+  dir=below
+fi
+printf '%s\n' "${dir}"
+
+# vim:sts=2:ts=2:sw=2:et:
