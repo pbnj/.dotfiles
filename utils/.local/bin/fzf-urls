@@ -2,7 +2,17 @@
 
 # Author: Peter Benjamin
 # Description: Pick URL(s) from a tmux pane's or a Rex block's scrollback with
-#              fzf and open them. Newest first.
+#              fzf and open them. Newest first. Without a flag, ENTER opens
+#              each in a split beside the pane or block, in a terminal viewer:
+#              a Linear issue with `linear issue view`, a GitHub PR or issue
+#              with `gh pr view` / `gh issue view` (its checks tab with
+#              `gh pr checks`), a repo with `gh repo view`,
+#              a Jira issue or a Confluence page with `twg` (Atlassian's
+#              Teamwork Graph CLI, rendered as Markdown with bat); any other
+#              URL, and every URL on CTRL-B, opens in the browser. With a flag,
+#              ENTER opens the browser.
+#              The preview pane shows the highlighted URL with the same
+#              viewer (a PR or issue without its comments); CTRL-/ toggles it.
 #              Linear issue IDs (ENG-123) are listed too, as their issue URL,
 #              when their prefix is a team key from `linear team list`.
 #              GitHub references are listed too, as their issue URL (GitHub
@@ -18,8 +28,13 @@
 #              In tmux, the pane's (else its window's) @url option, if set, is
 #              listed first.
 # Dependencies: brew install fzf jq; the linear CLI, logged in (optional:
-#               without it only URLs are listed)
+#               without it only URLs are listed); twg, logged in, to view
+#               Jira and Confluence (optional: without it they open in the
+#               browser); bat (optional) to color Markdown
 # Usage: fzf-urls [--url|--linear|--repo|--pr|--checks] [PANE|BLOCK]
+#        fzf-urls --open-split PANE|BLOCK URL... (ENTER without a flag)
+#        fzf-urls --preview URL (fzf's preview)
+#        fzf-urls --jira KEY [--comments] | --confluence URL|ID (the viewers)
 #        A tmux pane (%3) or a Rex block (block:...). Defaults to TMUX_PANE in
 #        tmux, else REX_BLOCK.
 #        A flag narrows the list to one kind, each listed once; when only one
@@ -38,6 +53,194 @@
 
 set -euo pipefail
 [[ "${DEBUG:-}" == "true" ]] && set -x
+
+# viewer <url>: set view_script and view_args to a terminal viewer for the
+# URL: bash code and its positional args. Returns 1 when there is none.
+# shellcheck disable=SC2016 # $1 and $2 expand in the viewer's bash
+viewer() {
+  local url="${1}" re
+  view_args=()
+  re='^https://linear\.app/[^/]+/issue/([A-Z][A-Z0-9]*-[0-9]+)'
+  if [[ "${url}" =~ ${re} ]]; then
+    view_script='linear issue view --no-pager "$1"'
+    view_args=("${BASH_REMATCH[1]}")
+    return 0
+  fi
+  # Jira and Confluence, viewed by this script with twg (see jira() and
+  # confluence() below), so the viewer gets this script's path as $1.
+  if command -v twg >/dev/null; then
+    re='^https://[^/]+\.atlassian\.net/(browse/|.*[?&]selectedIssue=)([A-Z][A-Z0-9_]*-[0-9]+)([?#&/]|$)'
+    if [[ "${url}" =~ ${re} ]]; then
+      view_script='"$1" --jira "$2" --comments'
+      view_args=("${self}" "${BASH_REMATCH[2]}")
+      return 0
+    fi
+    re='^https://[^/]+\.atlassian\.net/wiki/(spaces/[^/]+/(pages|blog/[0-9/]+)/[0-9]+|.*[?&]pageId=[0-9]+|x/)'
+    if [[ "${url}" =~ ${re} ]]; then
+      view_script='"$1" --confluence "$2"'
+      view_args=("${self}" "${url}")
+      return 0
+    fi
+  fi
+  re='^https://github\.com/([A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+)(/([a-z]+)/([0-9]+)(/([a-z]+))?)?/?([?#].*)?$'
+  [[ "${url}" =~ ${re} ]] || return 1
+  view_args=("${BASH_REMATCH[1]%.git}" "${BASH_REMATCH[4]}")
+  case "${BASH_REMATCH[3]}:${BASH_REMATCH[6]}" in
+  :)
+    view_script='gh repo view "$1"'
+    view_args=("${view_args[0]}")
+    ;;
+  pull:checks) view_script='gh pr checks "$2" -R "$1"' ;;
+  pull:*) view_script='gh pr view "$2" -R "$1" --comments' ;;
+  # A reference is listed as an issue URL even when it is a PR.
+  issues:) view_script='gh pr view "$2" -R "$1" --comments 2>/dev/null ||
+    gh issue view "$2" -R "$1" --comments' ;;
+  *) return 1 ;;
+  esac
+  return 0
+}
+
+# open_split <url...>: open each URL in a split beside the target, viewed with
+# viewer(): in a Rex block, a best-fit split (rex-best-fit: along its longer
+# side); in tmux, to the right. A URL without a viewer opens in the browser.
+open_split() {
+  local url dir=right shell
+  shell="$(command -v bash)"
+  if [[ "${target}" == block:* ]]; then
+    dir="$(rex-best-fit "${target}" 2>/dev/null)" || dir=right
+  fi
+  for url in "$@"; do
+    if ! viewer "${url}"; then
+      open "${url}"
+      continue
+    fi
+    # Keep the output on screen until a key is pressed; the block scrolls
+    # it, so no pager.
+    view_script="export GH_PAGER=cat PAGER=cat; ${view_script}
+      ((\$? == 130)) || read -rsn1 -p 'Press any key to close'"
+    case "${target}" in
+    %*)
+      tmux split-window -h -t "${target}" -- \
+        "${shell}" -lc "${view_script}" bash ${view_args[@]+"${view_args[@]}"}
+      ;;
+    *)
+      rex split -b "${target}" --split "${dir}" --shell=none --label view -- \
+        "${shell}" -lc "${view_script}" bash ${view_args[@]+"${view_args[@]}"} >/dev/null
+      ;;
+    esac
+  done
+}
+
+# md: color Markdown on stdin with bat, when it's installed.
+md() {
+  if command -v bat >/dev/null; then
+    bat --plain --paging=never --color=always --language=md
+  else
+    cat
+  fi
+}
+
+# jira <key> [--comments]: a Jira issue as Markdown: its fields, description
+# and, with --comments, its comments.
+jira() {
+  local comments=false
+  [[ "${2:-}" == "--comments" ]] && comments=true
+  twg -o json --output-summary none jira workitem get "${1}" ${2:+--comments} |
+    jq -r --argjson comments "${comments}" "${jira_jq}" | md
+}
+# The issue's description and comments are ADF (Atlassian Document Format)
+# JSON, turned into Markdown enough to read.
+# shellcheck disable=SC2016 # $comments and $m are jq's
+jira_jq='# ADF (Atlassian Document Format) to Markdown, enough to read
+def adf:
+  def kids: (.content // []) | map(adf) | join("");
+  if type == "string" then .
+  elif type == "array" then map(adf) | join("")
+  elif type != "object" then ""
+  elif .type == "text" then
+    (.marks // []) as $m
+    | if any($m[]; .type == "link") then "[\(.text)](\(first($m[] | select(.type == "link")).attrs.href))"
+      elif any($m[]; .type == "code") then "\u0060\(.text)\u0060"
+      elif any($m[]; .type == "strong") then "**\(.text)**"
+      else .text end
+  elif .type == "hardBreak" then "\n"
+  elif .type == "mention" or .type == "emoji" or .type == "status" or .type == "date" then
+    (.attrs.text // .attrs.shortName // .attrs.timestamp // "")
+  elif .type == "inlineCard" or .type == "blockCard" or .type == "embedCard" then (.attrs.url // "")
+  elif .type == "heading" then ("#" * (.attrs.level // 1)) + " " + kids + "\n\n"
+  elif .type == "paragraph" then kids + "\n\n"
+  elif .type == "listItem" then "- " + (kids | rtrimstr("\n") | rtrimstr("\n") | gsub("\n(?=.)"; "\n  ")) + "\n"
+  elif .type == "bulletList" or .type == "orderedList" then kids + "\n"
+  elif .type == "codeBlock" then "\u0060\u0060\u0060\(.attrs.language // "")\n" + kids + "\n\u0060\u0060\u0060\n\n"
+  elif .type == "blockquote" or .type == "panel" then (kids | rtrimstr("\n\n") | split("\n") | map("> " + .) | join("\n")) + "\n\n"
+  elif .type == "rule" then "---\n\n"
+  elif .type == "tableRow" then "| " + ((.content // []) | map(adf | rtrimstr("\n\n") | gsub("\n+"; " ")) | join(" | ")) + " |\n"
+  elif .type == "table" then kids + "\n"
+  else kids end;
+(.data // .) | (if type == "array" then .[0] else . end)
+| "# \(.key): \(.summary)\n",
+  ([["Status", .status.name], ["Type", .issuetype.name], ["Priority", .priority.name],
+    ["Assignee", .assignee.displayName // "Unassigned"], ["Parent", .parent.key]]
+   | map(select(.[1] != null) | "**\(.[0]):** \(.[1])") | join(" | ")),
+  (if (.labels // []) != [] then "**Labels:** \(.labels | join(", "))" else empty end),
+  "**Reporter:** \(.reporter.displayName // "-") | **Created:** \(.created[:10]) | **Updated:** \(.updated[:10])\n",
+  (.description | adf | rtrimstr("\n")),
+  (if $comments and ((.comments // []) | length) > 0 then
+     "\n## Comments\n",
+     (.comments[] | "### \(.author.displayName) · \(.created[:16] | sub("T"; " "))\n\n\(.body | adf | rtrimstr("\n"))\n")
+   else empty end)'
+
+# confluence <url|id>: a Confluence page (or blog post) as Markdown: its
+# title, last edit and body.
+confluence() {
+  twg -o json --output-summary none confluence content get "${1}" \
+    --detail full --format md 2>/dev/null |
+    jq -r '.data | (.title | gsub("&amp;"; "&") | gsub("&lt;"; "<") | gsub("&gt;"; ">")) as $t
+      | "# \($t)\n",
+        "**Updated:** \(.metadata.version.createdAt // "" | .[:10]) by \(.metadata.version.author.displayName // "-")\n",
+        .body.value' | md
+}
+
+# preview <url>: the URL viewed with viewer() for fzf's preview pane, in
+# color at the pane's width, or the URL itself when there is no viewer.
+preview() {
+  local url="${1}"
+  if ! viewer "${url}"; then
+    printf '%s\n' "${url}"
+    return 0
+  fi
+  # The body says more than the comments in a glance.
+  view_script="${view_script// --comments/}"
+  GH_FORCE_TTY="${FZF_PREVIEW_COLUMNS:-100}" GH_PAGER=cat PAGER=cat \
+    CLICOLOR_FORCE=1 FORCE_COLOR=1 \
+    bash -c "${view_script}" bash ${view_args[@]+"${view_args[@]}"} 2>&1 ||
+    printf '\nfzf-urls: no preview for %s\n' "${url}"
+}
+
+self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+case "${1:-}" in
+--jira)
+  jira "${2}" "${3:-}"
+  exit
+  ;;
+--confluence)
+  confluence "${2}"
+  exit
+  ;;
+esac
+
+if [[ "${1:-}" == "--preview" ]]; then
+  preview "${2}"
+  exit
+fi
+
+if [[ "${1:-}" == "--open-split" ]]; then
+  target="${2}"
+  shift 2
+  open_split "$@"
+  exit
+fi
 
 only=""
 case "${1:-}" in
@@ -199,14 +402,26 @@ single=()
 [[ -n "${only}" ]] &&
   single=(--bind 'load:transform:[ "$FZF_TOTAL_COUNT" = 1 ] && echo "become:open {+1}" || true')
 
+# Without a flag, ENTER views in a split and CTRL-B opens the browser.
+enter="become:open {+1}"
+header='<TAB>: select  <ENTER>: open  <CTRL-/>: preview'
+if [[ -z "${only}" ]]; then
+  enter="become:'$0' --open-split '${target}' {+1}"
+  header='<TAB>: select  <ENTER>: view in split  <CTRL-B>: browser  <CTRL-/>: preview'
+fi
+
 fzf \
   --bind "start:reload:'$0' ${only:+--${only}} '${target}' --list" \
-  --bind "enter:become:open {+1}" \
+  --bind "enter:${enter}" \
+  --bind "ctrl-b:become:open {+1}" \
+  --preview "'$0' --preview {1}" \
+  --preview-window 'right,55%,wrap,<100(down,60%,wrap)' \
+  --bind 'ctrl-/:toggle-preview' \
   ${single[@]+"${single[@]}"} \
   --delimiter=$'\t' \
   --multi \
   --prompt="${prompt}" \
-  --header='<TAB>: select  <ENTER>: open' \
+  --header="${header}" \
   --reverse \
   ${popup[@]+"${popup[@]}"} || true
 
