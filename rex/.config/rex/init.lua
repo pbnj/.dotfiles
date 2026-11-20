@@ -111,8 +111,11 @@ end
 rex.bind("ctrl+b>s", grep_scrollback)
 rex.bind("ctrl+b>ctrl+s", grep_scrollback)
 
--- ctrl+b u: pick URL(s) from the focused block's scrollback with fzf and open
--- them, in a floating layer (see utils/.local/bin/fzf-urls). The layer's
+-- ctrl+b u: pick URL(s) from the focused block's scrollback with fzf in a
+-- floating layer, and view each in a best-fit split of that block: Linear issues
+-- with linear issue view, GitHub PRs, issues and repos with gh, Jira issues and
+-- Confluence pages with twg; CTRL-B, or a URL with no viewer, opens the browser,
+-- and CTRL-/ toggles a preview (see utils/.local/bin/fzf-urls). The layer's
 -- own block is a new one, so the focused block is passed as an argument.
 -- ctrl+b ctrl+u works too, for when ctrl is still held. An optional flag
 -- narrows the list (e.g. "--pr", for Open GitHub PR in Browser below);
@@ -381,35 +384,6 @@ rex.action({
 rex.bind("ctrl+b>w", "gh_pr_watch_split")
 rex.bind("ctrl+b>ctrl+w", "gh_pr_watch_split")
 
--- A Linear issue from the focused block's scrollback, shown with linear issue
--- view in a floating layer (utils/.local/bin/linear-view). Several issues are
--- picked from with fzf, where CTRL-B opens one in the browser; with none,
--- it's the current branch's issue, so the layer starts in the block's working
--- directory. The layer's own block is a new one, so the focused block is
--- passed to it. (Block IDs are letters,
--- digits, ":" and "-", safe inside the quotes.)
-rex.action({
-  name = "linear_view_issue",
-  title = "View Linear Issue in Floating Window",
-  category = "Linear",
-  keywords = "linear ticket task bug issue show read comments floating layer popup terminal",
-  run = function(ctx)
-    local _, err = rex.session.new_layer({
-      bounds = { 0.1, 0.1, 0.8, 0.8 },
-      focus = true,
-      layout = watch_pane(
-        "linear",
-        "linear-view '" .. (ctx.block_id or "") .. "'",
-        block_cwd(ctx)
-      ),
-    })
-    if err ~= nil then
-      error(err, 0)
-    end
-    return true
-  end,
-})
-
 -- Send to Agent: pick work items with fzf in a floating layer and send each
 -- in turn to fai, which picks a directory and starts an agent there with the
 -- item's URL in its prompt. bash -li, as for fai, so the agents get the usual
@@ -452,6 +426,48 @@ rex.action({
   keywords = "github pull request pr review failing ci approved feedback attention fai claude agent",
   run = agent_picker("gh-attention", "gh-attention-agent"),
 })
+
+-- ctrl+b v …: view an issue or page from the focused block's scrollback in a
+-- best-fit split of it, picked with fzf-urls and a flag (see pick_urls): a
+-- single match opens without the picker, and CTRL-B opens the browser instead.
+--   l  a Linear issue, from issue URLs and IDs (fzf-urls --linear)
+--   j  a Jira issue, from browse URLs and issue keys (fzf-urls --jira)
+--   c  a Confluence page or blog post (fzf-urls --confluence)
+for _, a in ipairs({
+  {
+    key = "l",
+    name = "linear_view_split",
+    title = "View Linear Issue in Split Pane",
+    category = "Linear",
+    keywords = "linear ticket task bug issue show read scrollback url",
+    flag = "--linear",
+  },
+  {
+    key = "j",
+    name = "jira_view_split",
+    title = "View Jira Issue in Split Pane",
+    category = "Atlassian",
+    keywords = "jira atlassian twg ticket work item issue show read scrollback url",
+    flag = "--jira",
+  },
+  {
+    key = "c",
+    name = "confluence_view_split",
+    title = "View Confluence Page in Split Pane",
+    category = "Atlassian",
+    keywords = "confluence atlassian twg wiki page doc blog show read scrollback url",
+    flag = "--confluence",
+  },
+}) do
+  rex.action({
+    name = a.name,
+    title = a.title,
+    category = a.category,
+    keywords = a.keywords,
+    run = url_picker(a.flag),
+  })
+  rex.bind("ctrl+b>v>" .. a.key, a.name)
+end
 
 -- ctrl+b o …: open something in the browser. u, r, p and c fuzzy-pick
 -- from the focused block's scrollback (fzf-urls with a flag, see pick_urls);

@@ -15,6 +15,9 @@
 #              viewer (a PR or issue without its comments); CTRL-/ toggles it.
 #              Linear issue IDs (ENG-123) are listed too, as their issue URL,
 #              when their prefix is a team key from `linear team list`.
+#              Jira issue keys (PROJ-123) are listed too, as their browse URL,
+#              when their prefix is a Jira project key from `twg`. A key
+#              that is both a Linear team and a Jira project is listed as both.
 #              GitHub references are listed too, as their issue URL (GitHub
 #              redirects it to the PR when the number is one): owner/repo#123
 #              as written, and repo#123 when a clone of repo is under
@@ -31,10 +34,12 @@
 #               without it only URLs are listed); twg, logged in, to view
 #               Jira and Confluence (optional: without it they open in the
 #               browser); bat (optional) to color Markdown
-# Usage: fzf-urls [--url|--linear|--repo|--pr|--checks] [PANE|BLOCK]
+# Usage: fzf-urls [--url|--linear|--jira|--confluence|--repo|--pr|--checks]
+#                 [PANE|BLOCK]
 #        fzf-urls --open-split PANE|BLOCK URL... (ENTER without a flag)
 #        fzf-urls --preview URL (fzf's preview)
-#        fzf-urls --jira KEY [--comments] | --confluence URL|ID (the viewers)
+#        fzf-urls --view-jira KEY [--comments] | --view-confluence URL|ID
+#        (the Jira and Confluence viewers)
 #        A tmux pane (%3) or a Rex block (block:...). Defaults to TMUX_PANE in
 #        tmux, else REX_BLOCK.
 #        A flag narrows the list to one kind, each listed once; when only one
@@ -42,10 +47,14 @@
 #        --url     any URL found as is (not built from an issue ID or
 #                  reference)
 #        --linear  Linear issues: issue URLs and issue IDs
+#        --jira    Jira issues: browse URLs and issue keys
+#        --confluence  Confluence pages and blog posts
 #        --repo    GitHub repos, from any GitHub URL or reference
 #        --pr      GitHub PRs, from PR URLs and references (a reference to an
 #                  issue opens the issue: GitHub redirects /pull/N to it)
 #        --checks  the checks tab of those PRs
+#        With --linear, --jira or --confluence, ENTER (and a single match)
+#        views in a split as without a flag, and CTRL-B opens the browser.
 #        tmux: bind with run-shell -b, passing '#{pane_id}'; the picker opens
 #        in a tmux popup.
 #        Rex: bind to a floating layer, passing the block that was focused, so
@@ -71,13 +80,13 @@ viewer() {
   if command -v twg >/dev/null; then
     re='^https://[^/]+\.atlassian\.net/(browse/|.*[?&]selectedIssue=)([A-Z][A-Z0-9_]*-[0-9]+)([?#&/]|$)'
     if [[ "${url}" =~ ${re} ]]; then
-      view_script='"$1" --jira "$2" --comments'
+      view_script='"$1" --view-jira "$2" --comments'
       view_args=("${self}" "${BASH_REMATCH[2]}")
       return 0
     fi
     re='^https://[^/]+\.atlassian\.net/wiki/(spaces/[^/]+/(pages|blog/[0-9/]+)/[0-9]+|.*[?&]pageId=[0-9]+|x/)'
     if [[ "${url}" =~ ${re} ]]; then
-      view_script='"$1" --confluence "$2"'
+      view_script='"$1" --view-confluence "$2"'
       view_args=("${self}" "${url}")
       return 0
     fi
@@ -220,11 +229,11 @@ preview() {
 self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
 case "${1:-}" in
---jira)
+--view-jira)
   jira "${2}" "${3:-}"
   exit
   ;;
---confluence)
+--view-confluence)
   confluence "${2}"
   exit
   ;;
@@ -244,7 +253,7 @@ fi
 
 only=""
 case "${1:-}" in
---url | --linear | --repo | --pr | --checks)
+--url | --linear | --jira | --confluence | --repo | --pr | --checks)
   only="${1#--}"
   shift
   ;;
@@ -291,6 +300,29 @@ if [[ "${2:-}" == "--list" ]]; then
   { read -r linear_workspace && read -r linear_keys; } <"${linear_cache}" 2>/dev/null || true
   [[ -n "${linear_workspace:-}" ]] || linear_workspace="" linear_keys=""
 
+  # The Jira site's host for the URL, and its space-separated project keys,
+  # from twg, cached for a day like Linear's. Projects come 100 a page.
+  jira_cache="${XDG_CACHE_HOME:-${HOME}/.cache}/fzf-urls/jira"
+  if command -v twg >/dev/null && [[ -z "$(find "${jira_cache}" -mmin -1440 2>/dev/null)" ]]; then
+    mkdir -p "${jira_cache%/*}"
+    tmp="$(mktemp "${jira_cache}.XXXXXX")"
+    jira_site="" jira_keys="" start=0
+    while page="$(twg -o json --output-summary none jira space list \
+      --limit 100 --start-at "${start}" 2>/dev/null)"; do
+      jira_site="$(jq -r '.request.site // empty' <<<"${page}")" || break
+      jira_keys+=" $(jq -r '[.data.projects[].key] | join(" ")' <<<"${page}")" || break
+      [[ "$(jq -r '.data.isLast' <<<"${page}")" == "false" ]] || break
+      start=$((start + 100))
+    done
+    if [[ -n "${jira_site}" && -n "${jira_keys// /}" ]]; then
+      printf '%s\n%s\n' "${jira_site}" "${jira_keys# }" >"${tmp}"
+      mv "${tmp}" "${jira_cache}"
+    fi
+    rm -f "${tmp}"
+  fi
+  { read -r jira_site && read -r jira_keys; } <"${jira_cache}" 2>/dev/null || true
+  [[ -n "${jira_site:-}" ]] || jira_site="" jira_keys=""
+
   # Space-separated owner/repo of every local clone, for repo#123.
   shopt -s nullglob
   clones=("${HOME}"/Projects/github.com/*/*/)
@@ -310,9 +342,10 @@ if [[ "${2:-}" == "--list" ]]; then
     capture |
     perl -e 'print reverse <>' |
     LINEAR_KEYS="${linear_keys}" LINEAR_WORKSPACE="${linear_workspace}" \
-      GITHUB_REPOS="${github_repos}" perl -ne '
+      JIRA_KEYS="${jira_keys}" JIRA_SITE="${jira_site}" GITHUB_REPOS="${github_repos}" perl -ne '
       BEGIN {
         %keys = map { $_ => 1 } split " ", $ENV{LINEAR_KEYS};
+        %jira = map { $_ => 1 } split " ", $ENV{JIRA_KEYS};
         # Lowercased repo name => owner/repo of each clone of it.
         push @{ $clones{lc((split m{/})[1])} }, $_ for split " ", $ENV{GITHUB_REPOS};
       }
@@ -328,9 +361,11 @@ if [[ "${2:-}" == "--list" ]]; then
         s/[.,;:!?]+$//;
         print "$_\n" unless /\xe2\x80\xa6$/;
       }
-      # An ID inside a URL or a longer word is skipped.
-      while (/(?<![\w\/.-])([A-Z][A-Z0-9]*)-([0-9]+)(?![\w-])/g) {
+      # Linear and Jira issue IDs. An ID inside a URL or a longer word is
+      # skipped.
+      while (/(?<![\w\/.-])([A-Z][A-Z0-9_]*)-([0-9]+)(?![\w-])/g) {
         print "https://linear.app/$ENV{LINEAR_WORKSPACE}/issue/$1-$2\t$1-$2\n" if $keys{$1};
+        print "https://$ENV{JIRA_SITE}/browse/$1-$2\t$1-$2\n" if $jira{$1};
       }
       # GitHub references: owner/repo#123, or repo#123 for a local clone. A
       # reference inside a URL, a path or a longer word is skipped.
@@ -353,6 +388,23 @@ if [[ "${2:-}" == "--list" ]]; then
       only == "linear" {
         if (match($1, /^https:\/\/linear\.app\/[^\/]+\/issue\/[A-Z][A-Z0-9]*-[0-9]+/) &&
           !seen[substr($1, 1, RLENGTH)]++) print
+        next
+      }
+      # Jira: browse URLs only, once per issue.
+      only == "jira" {
+        if (match($1, /^https:\/\/[^\/]+\.atlassian\.net\/browse\/[A-Z][A-Z0-9_]*-[0-9]+/) &&
+          !seen[substr($1, 1, RLENGTH)]++) print
+        next
+      }
+      # Confluence: pages and blog posts, once per page: URLs with and
+      # without the title slug are the same page.
+      only == "confluence" {
+        if (!match($1, /^https:\/\/[^\/]+\.atlassian\.net\/wiki\//)) next
+        key = $1
+        if (match($1, /^https:\/\/[^\/]+\/wiki\/spaces\/[^\/]+\/(pages|blog\/[0-9\/]+)\/[0-9]+/) ||
+          match($1, /^https:\/\/[^\/]+\/wiki\/.*[?&]pageId=[0-9]+/)) key = substr($1, 1, RLENGTH)
+        else if ($1 !~ /\/wiki\/x\//) next
+        if (!seen[key]++) print
         next
       }
       # GitHub: the repo part of the URL, minus pages that are not repos
@@ -389,6 +441,8 @@ popup=()
 case "${only}" in
 url) prompt='URL(s)> ' ;;
 linear) prompt='Linear issue(s)> ' ;;
+jira) prompt='Jira issue(s)> ' ;;
+confluence) prompt='Confluence page(s)> ' ;;
 repo) prompt='Repo(s)> ' ;;
 pr) prompt='PR(s)> ' ;;
 checks) prompt='PR checks> ' ;;
@@ -397,18 +451,20 @@ esac
 
 # With a flag, a list of one opens it straight away. The list loads after fzf
 # starts (start:reload), which --select-1 doesn't see, so check on load.
-single=()
-# shellcheck disable=SC2016 # fzf expands FZF_TOTAL_COUNT, not this shell
-[[ -n "${only}" ]] &&
-  single=(--bind 'load:transform:[ "$FZF_TOTAL_COUNT" = 1 ] && echo "become:open {+1}" || true')
-
-# Without a flag, ENTER views in a split and CTRL-B opens the browser.
+# Without a flag, and with one of the issue and page flags, ENTER views in a
+# split and CTRL-B opens the browser.
 enter="become:open {+1}"
 header='<TAB>: select  <ENTER>: open  <CTRL-/>: preview'
-if [[ -z "${only}" ]]; then
+case "${only}" in
+"" | linear | jira | confluence)
   enter="become:'$0' --open-split '${target}' {+1}"
   header='<TAB>: select  <ENTER>: view in split  <CTRL-B>: browser  <CTRL-/>: preview'
-fi
+  ;;
+esac
+
+single=()
+[[ -n "${only}" ]] &&
+  single=(--bind "load:transform:[ \"\$FZF_TOTAL_COUNT\" = 1 ] && echo \"${enter}\" || true")
 
 fzf \
   --bind "start:reload:'$0' ${only:+--${only}} '${target}' --list" \
