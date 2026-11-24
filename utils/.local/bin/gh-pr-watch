@@ -24,12 +24,9 @@
 # becomes "gh-pr OWNER/REPO#N" once the PR is known.
 #
 # Stream mode is for Claude Code's Monitor tool, where every stdout line is a
-# notification. In Rex, it first opens the viewer for the same PR in a
-# best-fit split of REX_BLOCK (rex-best-fit: along its longer side), leaving
-# focus where it is, unless the session
-# already has a block labelled "gh-pr OWNER/REPO#N". Then it prints one line
-# per event until the PR closes, or merges and its Scalr applies finish. Each
-# event is printed once: what was printed is kept per PR under
+# notification. It prints one line per event until the PR closes, or merges
+# and its Scalr applies finish. Each event is printed once: what was printed
+# is kept per PR under
 # ${XDG_STATE_HOME:-~/.local/state}/gh-pr-watch, so re-arming the watch after
 # the Monitor's 30-minute expiry reports only what is new.
 #
@@ -46,7 +43,6 @@
 #   CONFLICT: <head> conflicts with <base> on <sha> <pr url>  -- once until resolved
 #   CONFLICT resolved: <head> merges cleanly into <base> on <sha> <pr url>
 #   WATCH gh|scalr failing ...             -- 3 polls in a row failed
-#   VIEWER failed: ...                     -- the Rex split could not be opened
 #   PR #<n> is MERGED|CLOSED -- stopping   -- then exit 0
 # Threads, replies and reviews by the authenticated user are not reported.
 # Scalr, while the PR is open:
@@ -94,12 +90,20 @@ while (($#)); do
 done
 [[ "$interval" =~ ^[1-9][0-9]*$ ]] || usage
 
-self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+# pr_url PR: the PR's URL. gh's stderr is passed on only when it fails: run by
+# an agent (AI_AGENT, CLAUDECODE), gh also writes a hint to use `gh event
+# listen` on every call, which a Monitor would report as an event.
+pr_url() {
+  local err
+  { err=$(gh pr view "$1" --json url --jq .url 2>&1 >&3); } 3>&1 && return 0
+  printf '%s\n' "$err" >&2
+  return 1
+}
 
 # The PR's URL pins the repo and number, whichever way the PR was found, so
 # later calls don't depend on the branch still being checked out.
 if [[ -n "$pr" ]]; then
-  url=$(gh pr view "$pr" --json url --jq .url) || exit 1
+  url=$(pr_url "$pr") || exit 1
 elif ! url=$(gh pr view --json url --jq .url 2>/dev/null); then
   branch=$(git branch --show-current 2>/dev/null || true)
   if ((stream)); then
@@ -128,7 +132,7 @@ elif ! url=$(gh pr view --json url --jq .url 2>/dev/null); then
       --no-multi \
       --preview='GH_FORCE_TTY=$FZF_PREVIEW_COLUMNS GH_PAGER=cat gh pr view {1}' \
       --preview-window='down,60%,wrap') || exit 0
-  url=$(gh pr view "${pick%%$'\t'*}" --json url --jq .url) || exit 1
+  url=$(pr_url "${pick%%$'\t'*}") || exit 1
   if [[ -n "${return_block}" ]]; then
     rex focus "${return_block}" >/dev/null 2>&1 || true
   fi
@@ -136,7 +140,7 @@ fi
 path=${url#https://github.com/}
 repo=${path%/pull/*}
 number=${url##*/}
-# Names the viewer's Rex block, so a stream can tell the PR is already shown.
+# Names the viewer's Rex block.
 label="gh-pr ${repo}#${number}"
 
 # ---------------------------------------------------------------------------
@@ -231,27 +235,6 @@ apply_deadline() {
 
 # ---------------------------------------------------------------------------
 # Stream mode
-
-# open_viewer: show the PR in a Rex split beside the agent's block, unless
-# the session shows it already.
-open_viewer() {
-  local session=() blocks dir
-  [[ -n "${REX_BLOCK:-}" ]] && command -v rex >/dev/null || return 0
-  [[ -n "${REX_SESSION:-}" ]] && session=(-s "$REX_SESSION")
-  blocks=$(rex block ls "${session[@]}" --json 2>/dev/null) || blocks=""
-  if jq -e --arg l "$label" 'any(.blocks[]?; .label == $l)' <<<"$blocks" >/dev/null 2>&1; then
-    return 0
-  fi
-  dir=$(rex-best-fit "$REX_BLOCK" 2>/dev/null) || dir=right
-  # As watch_pane in rex/.config/rex/init.lua: wait for a key once it stops,
-  # unless Esc stopped it.
-  if ! rex split "${session[@]}" -b "$REX_BLOCK" --split "$dir" --ratio 33 \
-    --focus=false --label "$label" --shell none -- \
-    bash -lc "'$self' -i $interval -p '$url'; ((\$? == 130)) || read -rsn1 -p 'Press any key to close'" \
-    >/dev/null 2>"$ERR"; then
-    echo "VIEWER failed: could not open a Rex split: $(head -n 1 "$ERR")"
-  fi
-}
 
 # emit KEY LINE: print LINE unless KEY has been emitted before.
 # Returns 1 when KEY was already emitted. An empty LINE records KEY silently.
@@ -401,8 +384,6 @@ stream_main() {
   FAILING="$STATE/failing" # checks last reported red, to announce them going green
   ERR="$STATE/stderr"
   touch "$SEEN" "$FAILING" "$STATE/scalr"
-
-  open_viewer
 
   while :; do
     if pr=$(gh api graphql -f owner="$owner" -f name="$name" -F number="$number" \

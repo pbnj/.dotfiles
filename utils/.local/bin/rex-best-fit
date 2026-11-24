@@ -4,8 +4,8 @@
 # Description: Print the best-fit direction to split a Rex block: "right" when
 #              it is at least as wide as it is tall (in pixels), else "below".
 #              Prints "right" when the size can't be read. Used by the custom
-#              Rex commands that open splits (fzf-urls, gh-pr-watch); init.lua
-#              has the same rule as best_fit().
+#              Rex commands that open splits (fzf-urls); init.lua has
+#              the same rule as best_fit().
 # Dependencies: rex, jq
 # Usage: rex split --split "$(rex-best-fit "$REX_BLOCK")" ...
 #        rex-best-fit [BLOCK]   (defaults to REX_BLOCK)
