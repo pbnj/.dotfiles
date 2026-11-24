@@ -52,4 +52,6 @@ pi/.pi/agent/models.json
 *.bak*
 utils/.local/bin/linear-claude-desktop
 utils/.local/bin/twingate_menu
+# uv's python shims (uv python install), symlinks into ~/.local/share/uv
+utils/.local/bin/python3.*
 /.claude/
