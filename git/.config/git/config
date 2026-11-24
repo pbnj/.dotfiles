@@ -46,6 +46,7 @@
 	conflictStyle = diff3
 	defaultToUpstream = true
 	tool = vimdiff
+	autoStash = true
 
 [difftool "nvim_difftool"]
   cmd = nvim -d "$LOCAL" "$REMOTE"
@@ -150,3 +151,5 @@
 	helper = "!f() { test \"$1\" = get && echo username=pbnj && echo password=$(/opt/homebrew/bin/gh auth token --user pbnj); }; f"
 [fetch]
 	prune = true
+[rebase]
+	autoStash = true
