@@ -384,6 +384,78 @@ rex.action({
 rex.bind("ctrl+b>w", "gh_pr_watch_split")
 rex.bind("ctrl+b>ctrl+w", "gh_pr_watch_split")
 
+-- Git in the focused block's working directory, in a floating layer.
+-- Command palette only, no keys.
+--   git_status    git status
+--   git_diff      git diff (unstaged changes), always paged with less; q
+--                 closes the layer
+--   git_pull      git pull
+--   git_checkout  pick a local or remote branch with fzf and check it out
+--                 (utils/.local/bin/git-fzf-checkout; ALT-F fetches, ALT-D
+--                 deletes); Esc closes the layer at once
+-- All but git_diff wait for a key once git is done, so its output stays
+-- readable (see watch_pane).
+for _, a in ipairs({
+  {
+    name = "git_status",
+    title = "Git Status",
+    keywords = "git status changes modified staged untracked working tree",
+    script = "git status",
+    bounds = { 0.2, 0.2, 0.6, 0.6 },
+  },
+  {
+    name = "git_diff",
+    title = "Git Diff",
+    keywords = "git diff changes patch unstaged working tree",
+    -- less without -F, so even a short diff stays up until q
+    command = { BASH, "-lc", "GIT_PAGER='less -R' git diff" },
+    bounds = { 0.1, 0.1, 0.8, 0.8 },
+  },
+  {
+    name = "git_pull",
+    title = "Git Pull",
+    keywords = "git pull fetch update sync upstream remote",
+    script = "git pull",
+    bounds = { 0.2, 0.2, 0.6, 0.6 },
+  },
+  {
+    name = "git_checkout",
+    title = "Git Checkout Branch",
+    keywords = "git checkout switch branch fzf picker remote",
+    script = "git-fzf-checkout",
+    bounds = { 0.1, 0.1, 0.8, 0.8 },
+  },
+}) do
+  rex.action({
+    name = a.name,
+    title = a.title,
+    category = "Git",
+    keywords = a.keywords,
+    run = function(ctx)
+      local label, cwd = a.name:gsub("_", "-"), block_cwd(ctx)
+      local layout
+      if a.command then
+        layout = rex.layout.block({
+          flavor = "com.superlogical.terminal.shell",
+          label = label,
+          options = { shell = "none", cwd = cwd, command = a.command },
+        })
+      else
+        layout = watch_pane(label, a.script, cwd)
+      end
+      local _, err = rex.session.new_layer({
+        bounds = a.bounds,
+        focus = true,
+        layout = layout,
+      })
+      if err ~= nil then
+        error(err, 0)
+      end
+      return true
+    end,
+  })
+end
+
 -- Send to Agent: pick work items with fzf in a floating layer and send each
 -- in turn to fai, which picks a directory and starts an agent there with the
 -- item's URL in its prompt. bash -li, as for fai, so the agents get the usual

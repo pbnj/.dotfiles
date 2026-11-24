@@ -22,4 +22,4 @@ fzf \
   --preview='git log -n 50 --color=always --date=short --patch {}' \
   --prompt='Git Checkout> ' \
   --reverse \
-  --tmux='center,80%' || true
+  --tmux='center,80%'
