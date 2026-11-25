@@ -22,6 +22,8 @@ brew install --cask font-sketchybar-app-font # app icons for sketchybar spaces
 
 # essentials
 
+brew install agent-browser     # browser automation cli for ai agents (uses system chrome)
+mkdir -p ~/.claude/skills && ln -sfn "$(brew --prefix)/opt/agent-browser/libexec/skills/agent-browser" ~/.claude/skills/agent-browser # its claude code skill
 brew install bash              # newer version of bash
 brew install bash-completion   # completion for common tools & utilities
 brew install coreutils         # core utilities
