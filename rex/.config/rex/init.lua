@@ -491,6 +491,26 @@ rex.action({
   run = agent_picker("linear", "linear-agent"),
 })
 
+-- linear_cycle  my Linear issues in my teams' active cycles, filtered by
+--               status with ALT-S (utils/.local/bin/linear-cycle)
+rex.action({
+  name = "linear_cycle",
+  title = "View My Linear Issues in Floating Window",
+  category = "Linear",
+  keywords = "linear my issues tickets assigned me cycle sprint current active status fai claude agent",
+  run = agent_picker("linear-cycle", "linear-cycle"),
+})
+
+-- linear_search  Linear issues across the workspace whose text matches the
+--                query, searched as you type (utils/.local/bin/linear-search)
+rex.action({
+  name = "linear_search",
+  title = "Search Linear Issues in Floating Window",
+  category = "Linear",
+  keywords = "linear search find query text issues tickets full-text fai claude agent",
+  run = agent_picker("linear-search", "linear-search"),
+})
+
 rex.action({
   name = "gh_agent",
   title = "Send GitHub Attention to Agent",
