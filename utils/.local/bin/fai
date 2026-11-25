@@ -550,7 +550,7 @@ __fai_open_cloud_bg() {
 __fai_best_fit() {
   local win="${1}" b size best="" best_area=-1 w h area dir
   while IFS= read -r b; do
-    size="$(rex block call -s "${REX_SESSION}" -b "${b}" size 2>/dev/null)" || continue
+    size="$(rex block call -b "${b}" size 2>/dev/null)" || continue
     read -r w h < <(jq -r '"\(.columns * .cell_width_px) \(.rows * .cell_height_px)"' <<<"${size}")
     [[ "${w}" =~ ^[0-9]+$ && "${h}" =~ ^[0-9]+$ ]] || continue
     area=$((w * h))
@@ -560,7 +560,7 @@ __fai_best_fit() {
       ((h > w)) && dir=below
       best="${b} ${dir}"
     fi
-  done < <(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
+  done < <(rex window ls --json 2>/dev/null |
     jq -r --arg w "${win}" '.windows[] | select(.window_id == $w) |
       .layers[] | select(.kind == "tiled") | .blocks[].block_id')
   printf '%s\n' "${best}"
@@ -575,8 +575,8 @@ __fai_best_fit() {
 __fai_launch() {
   local dir="${1}" agent="${2}" link="${3}" url="${4}" here="${5}" win pane out block
   shift 5
-  # tmux first: a tmux started inside Rex inherits REX_SESSION too
-  if [[ "${here}" == 1 || (-z "${TMUX:-}" && -z "${REX_SESSION:-}") ]]; then
+  # tmux first: a tmux started inside Rex inherits REX_BLOCK too
+  if [[ "${here}" == 1 || (-z "${TMUX:-}" && -z "${REX_BLOCK:-}") ]]; then
     if [[ -n "${url}" ]]; then
       if [[ -n "${TMUX_PANE:-}" ]]; then
         __fai_prefill_bg tmux "${TMUX_PANE}" "${url}"
@@ -614,14 +614,14 @@ __fai_launch() {
     # A repo with a window already (the first window labelled after the repo,
     # as below) gets the agent in a best-fit split of that window; any other
     # repo gets a new window.
-    win="$(rex window ls -s "${REX_SESSION}" --json 2>/dev/null |
+    win="$(rex window ls --json 2>/dev/null |
       jq -r --arg l "$(basename "${dir}")" \
         'first(.windows[] | select(.label == $l) | .window_id) // empty')"
     if [[ -n "${win}" ]] && block="$(__fai_best_fit "${win}")" && [[ -n "${block}" ]]; then
-      out="$(rex split -s "${REX_SESSION}" -w "${win}" -b "${block% *}" \
+      out="$(rex split -w "${win}" -b "${block% *}" \
         --split "${block#* }" -c "${dir}" --json -- "$@")" || return
     else
-      out="$(rex window new -s "${REX_SESSION}" "$(basename "${dir}")" -c "${dir}" --json \
+      out="$(rex window new "$(basename "${dir}")" -c "${dir}" --json \
         -- "$@")" || return
       win="$(jq -r .window_id <<<"${out}")"
     fi
@@ -630,8 +630,13 @@ __fai_launch() {
     [[ "${agent}" == cloud ]] && __fai_open_cloud_bg rex "${block}"
     # The Rex app keeps its own selected tab, so ask it to show the new one.
     # It only takes this with Remote Control on (Settings > Rex Server).
+    # session.select needs the session ID itself, which Rex doesn't export;
+    # whoami reports the session containing $REX_BLOCK.
+    local session
+    session="$(rex whoami --json 2>/dev/null | jq -r '.session_id // empty')"
     # shellcheck disable=SC1010 # `do` is rex's subcommand, not the keyword
-    rex do session.select session_id="${REX_SESSION}" window_id="${win}" >/dev/null 2>&1 || true
+    [[ -n "${session}" ]] &&
+      rex do session.select session_id="${session}" window_id="${win}" >/dev/null 2>&1 || true
   fi
 }
 
@@ -859,7 +864,7 @@ fai() {
   [[ -n "${text}" ]] && url+="${url:+$'\n\n'}${text}"
 
   # Outside tmux and Rex there is only here, so only the first dir.
-  if [[ -z "${TMUX:-}" && -z "${REX_SESSION:-}" && ${#dirs[@]} -gt 1 ]]; then
+  if [[ -z "${TMUX:-}" && -z "${REX_BLOCK:-}" && ${#dirs[@]} -gt 1 ]]; then
     echo "fai: outside tmux and Rex, only ${dirs[0]} gets an agent" >&2
     dirs=("${dirs[0]}")
   fi
