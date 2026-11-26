@@ -152,7 +152,7 @@ rex.bind("ctrl+b>ctrl+s", grep_scrollback)
 -- and CTRL-/ toggles a preview (see utils/.local/bin/fzf-urls). The layer's
 -- own block is a new one, so the focused block is passed as an argument.
 -- ctrl+b ctrl+u works too, for when ctrl is still held. An optional flag
--- narrows the list (e.g. "--pr", for Open GitHub PR in Browser below);
+-- narrows the list (e.g. "--pr", for GitHub: Open PR in Browser below);
 -- with one, a single match opens without the picker.
 local function url_picker(flag)
   return function(ctx)
@@ -392,7 +392,7 @@ end
 -- hands focus back to the focused block, which is passed to it.
 rex.action({
   name = "gh_pr_watch_split",
-  title = "Watch GitHub PR in Split Pane",
+  title = "GitHub: Watch PR in Split Pane",
   category = "GitHub",
   keywords = "github pull request ci checks actions comments reviews feedback watch pane worktree",
   run = function(ctx)
@@ -494,7 +494,7 @@ end
 -- in turn to fai, which picks a directory and starts an agent there with the
 -- item's URL in its prompt. bash -li, as for fai, so the agents get the usual
 -- PATH and environment.
---   linear_agent  open Linear issues, filtered by team, assignee and status
+--   linear_agent  open Linear tasks, filtered by team, assignee and status
 --                 with ALT-T, ALT-A and ALT-S (utils/.local/bin/linear-agent)
 --   gh_agent      PRs that need your attention (gh attention), filtered by
 --                 section, repo and author with ALT-S, ALT-R and ALT-A
@@ -519,35 +519,35 @@ end
 
 rex.action({
   name = "linear_agent",
-  title = "Send Linear Issue to Agent",
+  title = "Linear: Send Task to Agent",
   category = "Linear",
   keywords = "linear ticket task bug issue fai claude agent repo team assignee status",
   run = agent_picker("linear", "linear-agent"),
 })
 
--- linear_cycle  my Linear issues in my teams' active cycles, filtered by
+-- linear_cycle  my Linear tasks in my teams' active cycles, filtered by
 --               status with ALT-S (utils/.local/bin/linear-cycle)
 rex.action({
   name = "linear_cycle",
-  title = "View My Linear Issues in Floating Window",
+  title = "Linear: View My Tasks in Floating Window",
   category = "Linear",
-  keywords = "linear my issues tickets assigned me cycle sprint current active status fai claude agent",
+  keywords = "linear my tasks issues tickets assigned me cycle sprint current active status fai claude agent",
   run = agent_picker("linear-cycle", "linear-cycle"),
 })
 
--- linear_search  Linear issues across the workspace whose text matches the
+-- linear_search  Linear tasks across the workspace whose text matches the
 --                query, searched as you type (utils/.local/bin/linear-search)
 rex.action({
   name = "linear_search",
-  title = "Search Linear Issues in Floating Window",
+  title = "Linear: Search Tasks in Floating Window",
   category = "Linear",
-  keywords = "linear search find query text issues tickets full-text fai claude agent",
+  keywords = "linear search find query text tasks issues tickets full-text fai claude agent",
   run = agent_picker("linear-search", "linear-search"),
 })
 
 rex.action({
   name = "gh_agent",
-  title = "Send GitHub Attention to Agent",
+  title = "GitHub: Send Attention to Agent",
   category = "GitHub",
   keywords = "github pull request pr review failing ci approved feedback attention fai claude agent",
   run = agent_picker("gh-attention", "gh-attention-agent"),
@@ -563,7 +563,7 @@ for _, a in ipairs({
   {
     key = "l",
     name = "linear_view_split",
-    title = "View Linear Issue in Split Pane",
+    title = "Linear: View Task in Split Pane",
     category = "Linear",
     keywords = "linear ticket task bug issue show read scrollback url",
     flag = "--linear",
@@ -639,7 +639,7 @@ for _, a in ipairs({
   {
     key = "r",
     name = "gh_open_repo",
-    title = "Open GitHub Repo in Browser",
+    title = "GitHub: Open Repo in Browser",
     category = "GitHub",
     keywords = "github repository browse",
     run = url_picker("--repo"),
@@ -647,7 +647,7 @@ for _, a in ipairs({
   {
     key = "p",
     name = "gh_open_pr",
-    title = "Open GitHub PR in Browser",
+    title = "GitHub: Open PR in Browser",
     category = "GitHub",
     keywords = "github pull request review",
     run = url_picker("--pr"),
@@ -655,7 +655,7 @@ for _, a in ipairs({
   {
     key = "c",
     name = "gh_open_checks",
-    title = "Open GitHub PR Checks in Browser",
+    title = "GitHub: Open PR Checks in Browser",
     category = "GitHub",
     keywords = "github ci actions build status failing",
     run = url_picker("--checks"),
@@ -663,7 +663,7 @@ for _, a in ipairs({
   {
     key = "f",
     name = "gh_open_file",
-    title = "Open GitHub File in Browser (Permalink)",
+    title = "GitHub: Open File in Browser (Permalink)",
     category = "GitHub",
     keywords = "source link share",
     run = gh_pick("files"),
@@ -671,7 +671,7 @@ for _, a in ipairs({
   {
     key = "l",
     name = "gh_open_line",
-    title = "Open GitHub Line in Browser (Permalink)",
+    title = "GitHub: Open Line in Browser (Permalink)",
     category = "GitHub",
     keywords = "source link share blame",
     run = gh_pick("lines"),
