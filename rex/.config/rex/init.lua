@@ -774,6 +774,11 @@ rex.action({
 rex.bind("ctrl+b>l", "last_pane")
 rex.bind("ctrl+b>ctrl+l", "last_pane")
 
+-- ctrl+b [: enter copy mode in the focused pane, as in tmux. ctrl+b ctrl+[
+-- works too, for when ctrl is still held.
+rex.bind("ctrl+b>[", "pane.copy_mode.enter")
+rex.bind("ctrl+b>ctrl+[", "pane.copy_mode.enter")
+
 -- ctrl+b ?: list every binding (rex keymap) in a floating layer, paged with
 -- less; q closes it. Rex has no "?" key name, so it's bound as shift+/.
 -- Bindings to a Lua function show as client.key.forward.
