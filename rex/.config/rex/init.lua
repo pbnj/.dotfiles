@@ -100,7 +100,7 @@ rex.bind("ctrl+b>ctrl+g", "grep_projects")
 -- is still held.
 rex.action({
   name = "youtube",
-  title = "Watch YouTube in Floating Window",
+  title = "YouTube: Watch Videos",
   category = "Media",
   keywords = "yt youtube video watch mpv yt-dlp subscriptions search",
   args = { query = "string?" },
