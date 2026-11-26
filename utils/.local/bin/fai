@@ -15,9 +15,8 @@
 #              goes to every agent. CTRL-T toggles a ripgrep search through
 #              every local clone; picking a hit opens its repo with its
 #              path:line typed into the agent's prompt. ESC or CTRL-C
-#              cancels, opening nothing. ~/Projects/github.com and its owner
-#              directories are in the list too, to run an agent across many
-#              repos.
+#              cancels, opening nothing. Owner directories are in the list
+#              too, to run an agent across many repos.
 #              The cloud agent is Claude Code on claude.ai/code, attached with
 #              `claude --cloud`; it needs a task up front, so fai asks for one
 #              (seeded with any link below) unless args already give it.
@@ -42,8 +41,8 @@
 #              ~/Projects/github.com first. CTRL-B opens the highlighted
 #              repo (an owner directory: the owner; a grep hit: its file at
 #              its line) on github.com. CTRL-X
-#              deletes the highlighted local clone or owner directory (never
-#              github.com/ itself), after showing what would
+#              deletes the highlighted local clone or owner directory,
+#              after showing what would
 #              be lost and asking. In grep mode (CTRL-T) each hit is shown as
 #              owner/repo/path:line:text and previewed around its line. A
 #              one-cell Nerd Font icon before the prompt's ">" shows the list:
@@ -259,9 +258,7 @@ __pick_repo_local() {
 __pick_repo_browse() {
   local line="${1:-}" root="${HOME}/Projects/github.com" url
   line="${line%/}"
-  if [[ "${line}" == "${root}" ]]; then
-    url="https://github.com"
-  elif [[ "${line}" == "${root}"/* ]]; then
+  if [[ "${line}" == "${root}"/* ]]; then
     url="https://github.com/${line#"${root}"/}"
   elif [[ "${line}" =~ ^([^/]+/[^/]+)/([^:]+):([0-9]+): ]]; then
     url="https://github.com/${BASH_REMATCH[1]}/blob/HEAD/${BASH_REMATCH[2]}#L${BASH_REMATCH[3]}"
@@ -387,11 +384,10 @@ __pick_repo() {
   # Local paths show from github.com on: the field after the root's slashes.
   local nth="${root//[!\/]/}"
   nth="$((${#nth} + 1)).."
-  # Every directory from the root down to the repos: the root and each owner
-  # keep their trailing / (fd's), so the list shows github.com/ and <owner>/;
-  # it is dropped from the path printed for a pick.
+  # Every directory under the root down to the repos: each owner keeps its
+  # trailing / (fd's), so the list shows github.com/<owner>/; it is dropped
+  # from the path printed for a pick.
   {
-    [[ -d "${root}" ]] && printf '%s/\n' "${root}"
     fd . "${root}" --type d --max-depth 1
     fd . "${root}" --type d --min-depth 2 --max-depth 2 | sed 's|/$||'
   } >"${list}"
