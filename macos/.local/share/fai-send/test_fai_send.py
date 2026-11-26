@@ -1,14 +1,11 @@
-import io
 import json
 import plistlib
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 import install
-import launch
 
 SESSION = "session:01a198a3-0f90-7576-9158-0e763e09afed"
 OTHER = "session:01a198a3-0f90-7576-9158-0e763e09afee"
@@ -28,20 +25,152 @@ def clients(*sessions, kind="app", state="connected"):
     )
 
 
+FAI_SEND = install.ROOT.parents[3] / "utils/.local/bin/fai-send"
+REX_BUNDLE = "com.superlogical.rex"
+
+# Stubs for the commands fai-send runs, first on its PATH. They log each call
+# to $LOG and answer from the FRONT, TAB_URL, SELECTION and CLIENTS environment
+# variables. SELECTION_FAIL makes the JavaScript call fail, as it does when the
+# browser's "Allow JavaScript from Apple Events" is off.
+STUBS = {
+    "osascript": """#!/bin/sh
+echo "osascript $*" >>"$LOG"
+case "$2" in
+id\\ of\\ application*)
+  # Rex is frontmost once `open -b` has brought it forward.
+  if [ -e "$STATE/opened" ]; then echo com.superlogical.rex; else echo "$FRONT"; fi ;;
+*[Jj]ava[Ss]cript*)
+  [ -n "$SELECTION_FAIL" ] && exit 1
+  printf '%s\\n' "$SELECTION" ;;
+*) printf '%s\\n' "$TAB_URL" ;;
+esac
+""",
+    "open": """#!/bin/sh
+echo "open $*" >>"$LOG"
+touch "$STATE/opened"
+""",
+    "rex": """#!/bin/sh
+case "$*" in
+*"client ls"*) printf '%s\\n' "$CLIENTS" ;;
+*)
+  echo "rex $*" >>"$LOG"
+  cat >"$STATE/stdin"
+  exit "${REX_EXIT:-0}" ;;
+esac
+""",
+}
+
+
 class LauncherTests(unittest.TestCase):
     def setUp(self):
-        environment = patch.dict("launch.os.environ", {"REX_SESSION": ""})
-        environment.start()
-        self.addCleanup(environment.stop)
-        which = patch("launch.shutil.which", return_value="/bin/rex")
-        which.start()
-        self.addCleanup(which.stop)
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.state = Path(temporary.name)
+        stubs = self.state / "bin"
+        stubs.mkdir()
+        for name, body in STUBS.items():
+            (stubs / name).write_text(body)
+            (stubs / name).chmod(0o755)
+        self.env = {
+            "PATH": str(stubs) + ":/usr/bin:/bin",
+            "HOME": str(self.state),
+            "LOG": str(self.state / "log"),
+            "STATE": str(self.state),
+            "FRONT": "com.google.Chrome",
+            "TAB_URL": "https://github.com/org/repo/pull/1",
+            "SELECTION": "",
+            "SELECTION_FAIL": "",
+            "CLIENTS": clients(SESSION),
+        }
 
-    def ls(self, stdout, returncode=0):
-        return patch(
-            "launch.subprocess.run",
-            return_value=subprocess.CompletedProcess([], returncode, stdout, ""),
+    def run_fai_send(self, *args, stdin="", **env):
+        return subprocess.run(
+            [str(FAI_SEND), *args],
+            input=stdin,
+            capture_output=True,
+            text=True,
+            env={**self.env, **env},
+            timeout=20,
+            check=False,
         )
+
+    def log(self):
+        path = self.state / "log"
+        return path.read_text().splitlines() if path.exists() else []
+
+    def sent(self):
+        return json.loads((self.state / "stdin").read_text())
+
+    def test_sends_the_chrome_tab_url_on_stdin_after_activating_rex(self):
+        url = "https://github.com/org/repo/pull/1?token=secret"
+        result = self.run_fai_send(TAB_URL=url)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.sent(), {"url": url})
+        log = self.log()
+        self.assertIn(
+            'osascript -e tell application id "com.google.Chrome" to get URL'
+            " of active tab of front window",
+            log,
+        )
+        opened = log.index("open -b " + REX_BUNDLE)
+        sent = log.index("rex do -s " + SESSION + " fai --args -")
+        self.assertLess(opened, sent)
+        self.assertFalse(any(url in line for line in log))  # never in argv
+
+    def test_reads_safari_from_its_front_document(self):
+        result = self.run_fai_send(FRONT="com.apple.Safari")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            'osascript -e tell application id "com.apple.Safari" to get URL'
+            " of front document",
+            self.log(),
+        )
+
+    def test_sends_the_highlighted_text_with_the_url(self):
+        url = "https://github.com/org/repo/pull/1"
+        result = self.run_fai_send(SELECTION="  the error\r\nline 2 \n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.sent(), {"url": url, "text": "the error\nline 2"})
+        self.assertIn(
+            'osascript -e tell application id "com.google.Chrome" to execute'
+            " active tab of front window javascript"
+            ' "window.getSelection().toString()"',
+            self.log(),
+        )
+
+    def test_reads_the_safari_selection_with_do_javascript(self):
+        self.run_fai_send(FRONT="com.apple.Safari", SELECTION="words")
+        self.assertEqual(self.sent()["text"], "words")
+        self.assertIn(
+            'osascript -e tell application id "com.apple.Safari" to do'
+            ' JavaScript "window.getSelection().toString()" in front document',
+            self.log(),
+        )
+
+    def test_sends_only_the_url_without_a_selection(self):
+        url = "https://github.com/org/repo/pull/1"
+        for env in (
+            {"SELECTION": ""},
+            {"SELECTION": " \n"},
+            {"SELECTION": "missing value"},
+            {"SELECTION": "text", "SELECTION_FAIL": "1"},
+        ):
+            (self.state / "opened").unlink(missing_ok=True)  # Rex in back again
+            result = self.run_fai_send(**env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.sent(), {"url": url}, env)
+
+    def test_a_long_selection_is_cut_to_16_kib(self):
+        self.run_fai_send(SELECTION="é" * 9000)
+        text = self.sent()["text"]
+        self.assertEqual(text, "é" * 8192)
+
+    def test_refuses_an_app_that_is_not_a_supported_browser(self):
+        for front in ("org.mozilla.firefox", "com.superlogical.rex"):
+            result = self.run_fai_send(FRONT=front)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Focus a Chrome", result.stderr)
+            self.assertFalse((self.state / "stdin").exists())
 
     def test_url_validation(self):
         for url in (
@@ -49,105 +178,57 @@ class LauncherTests(unittest.TestCase):
             "https://linear.app/acme/issue/ENG-7#comment",
             "about:blank",
         ):
-            self.assertEqual(launch.validate_url(url), url)
-        for url in ("", "github.com/org/repo", "https://", "https://a b", "x\x00"):
-            with self.assertRaises(ValueError):
-                launch.validate_url(url)
+            result = self.run_fai_send("--url", url, "--dry-run")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout.splitlines()[1]), {"url": url})
+        for url in ("", "github.com/org/repo", "https://", "https://a b", "x\x01y"):
+            result = self.run_fai_send("--url", url, "--dry-run")
+            self.assertEqual(result.returncode, 1, url)
+        result = self.run_fai_send(TAB_URL="")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("valid URL", result.stderr)
 
     def test_uses_the_session_the_app_shows(self):
-        with self.ls(clients(SESSION)):
-            self.assertEqual(launch.rex_target(), ("/bin/rex", SESSION))
+        result = self.run_fai_send("--url", "https://example.com", "--dry-run")
+        self.assertEqual(
+            result.stdout.splitlines()[0], "rex do -s " + SESSION + " fai --args -"
+        )
 
     def test_current_rex_session_wins(self):
-        with (
-            patch.dict("launch.os.environ", {"REX_SESSION": OTHER}),
-            self.ls(clients(SESSION, OTHER)),
-        ):
-            self.assertEqual(launch.rex_target(), ("/bin/rex", OTHER))
+        result = self.run_fai_send(
+            "--url",
+            "https://example.com",
+            "--dry-run",
+            CLIENTS=clients(SESSION, OTHER),
+            REX_SESSION=OTHER,
+        )
+        self.assertIn(OTHER, result.stdout.splitlines()[0])
 
     def test_requires_a_connected_rex_app(self):
-        for stdout, code in (
-            (clients(SESSION, state="disconnected"), 0),
-            (clients(SESSION, kind="cli"), 0),
-            (clients(), 0),
-            ("not json", 0),
-            ("", 1),
+        for listing in (
+            clients(SESSION, kind="tui"),
+            clients(SESSION, state="disconnected"),
+            "",
         ):
-            with (
-                self.ls(stdout, code),
-                self.assertRaisesRegex(ValueError, "not running"),
-            ):
-                launch.rex_target()
+            result = self.run_fai_send("--url", "https://example.com", CLIENTS=listing)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Rex app is not running", result.stderr)
 
-    def test_requires_rex(self):
-        with (
-            patch("launch.shutil.which", return_value=None),
-            self.assertRaisesRegex(ValueError, "rex executable"),
-        ):
-            launch.rex_target()
-
-    def test_open_fai_activates_rex_first_then_sends_the_url_on_stdin(self):
-        url = "https://github.com/org/repo/pull/1?token=secret"
-        with patch("launch.activate_rex") as activate, self.ls("") as run:
-            activate.side_effect = lambda: self.assertEqual(run.call_count, 0)
-            launch.open_fai("/bin/rex", SESSION, {"url": url})
-        activate.assert_called_once()
-        (action,) = run.call_args_list
-        argv = action.args[0]
-        self.assertEqual(argv, ["/bin/rex", "do", "-s", SESSION, "fai", "--args", "-"])
-        self.assertNotIn(url, " ".join(argv))
-        self.assertEqual(json.loads(action.kwargs["input"]), {"url": url})
-
-    def test_activate_rex_waits_until_rex_is_frontmost(self):
-        fronts = iter(["com.google.Chrome", "com.google.Chrome", launch.REX_BUNDLE])
-        with (
-            patch("launch.frontmost", side_effect=lambda: next(fronts)),
-            patch("launch.time.sleep") as sleep,
-            self.ls("") as run,
-        ):
-            launch.activate_rex()
-        self.assertEqual(
-            run.call_args.args[0], ["/usr/bin/open", "-b", launch.REX_BUNDLE]
-        )
-        self.assertEqual(sleep.call_count, 2)
-
-    def test_activate_rex_gives_up_after_the_timeout(self):
-        with (
-            patch("launch.frontmost", return_value="com.google.Chrome"),
-            patch("launch.time.sleep") as sleep,
-            patch("launch.time.monotonic", side_effect=[0.0, 1.0, 4.0]),
-            self.ls(""),
-        ):
-            launch.activate_rex(timeout=3.0)
-        self.assertEqual(sleep.call_count, 1)
-
-    def test_open_fai_failure_raises(self):
-        failed = subprocess.CompletedProcess([], 1, "", "no action named fai")
-        with (
-            patch("launch.activate_rex"),
-            patch("launch.subprocess.run", return_value=failed) as run,
-            self.assertRaisesRegex(ValueError, "no action named fai"),
-        ):
-            launch.open_fai("/bin/rex", SESSION, {"url": "https://example.com"})
-        self.assertEqual(run.call_count, 1)
+    def test_rex_failure_is_reported(self):
+        result = self.run_fai_send(REX_EXIT="1")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Rex could not open fai", result.stderr)
 
     def test_dry_run_opens_nothing(self):
-        argv = ["fai-send", "--dry-run", "--url", "https://example.com"]
-        with (
-            patch("sys.argv", argv),
-            self.ls(clients(SESSION)) as run,
-            patch("builtins.print") as printed,
-        ):
-            self.assertEqual(launch.main(), 0)
-        self.assertEqual(run.call_count, 1)  # only `rex client ls`
-        self.assertEqual(
-            json.loads(printed.call_args.args[0])["args"],
-            {"url": "https://example.com"},
-        )
+        result = self.run_fai_send("--dry-run", "--url", "https://example.com")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.log(), [])
 
     def test_selection_that_is_one_url_is_sent_as_a_url(self):
         url = "https://github.com/org/repo/pull/1"
-        self.assertEqual(launch.selection_args(" " + url + "\n"), {"url": url})
+        result = self.run_fai_send("--stdin", stdin=" " + url + "\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.sent(), {"url": url})
 
     def test_any_other_selection_is_sent_as_text(self):
         for text in (
@@ -156,29 +237,20 @@ class LauncherTests(unittest.TestCase):
             "github.com/org/repo",
             "word",
         ):
-            self.assertEqual(launch.selection_args(text), {"text": text})
+            result = self.run_fai_send("--stdin", stdin=text)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.sent(), {"text": text})
 
     def test_selection_is_trimmed_and_bounded(self):
-        self.assertEqual(launch.selection_args("\n  a\nb  \n"), {"text": "a\nb"})
+        self.run_fai_send("--stdin", stdin="\n  a\nb  \n")
+        self.assertEqual(self.sent(), {"text": "a\nb"})
         for text in ("", " \n\t"):
-            with self.assertRaisesRegex(ValueError, "No text"):
-                launch.selection_args(text)
-        with self.assertRaisesRegex(ValueError, "16 KiB"):
-            launch.selection_args("é" * 8193)
-
-    def test_stdin_dry_run_sends_the_selection(self):
-        with (
-            patch("sys.argv", ["fai-send", "--stdin", "--dry-run"]),
-            patch("sys.stdin", io.StringIO("an error\nline 2\n")),
-            patch("launch.capture_url") as capture,
-            self.ls(clients(SESSION)),
-            patch("builtins.print") as printed,
-        ):
-            self.assertEqual(launch.main(), 0)
-        capture.assert_not_called()
-        self.assertEqual(
-            json.loads(printed.call_args.args[0])["args"], {"text": "an error\nline 2"}
-        )
+            result = self.run_fai_send("--stdin", stdin=text)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("No text", result.stderr)
+        result = self.run_fai_send("--stdin", stdin="é" * 8193)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("16 KiB", result.stderr)
 
 
 class WorkflowTests(unittest.TestCase):
@@ -240,7 +312,7 @@ class WorkflowTests(unittest.TestCase):
 
 class InstallerTests(unittest.TestCase):
     def setUp(self):
-        self.config = launch.load_config()
+        self.config = install.load_config()
         self.original = {
             "hyperKeyPhysicalKey": "capsLock",
             "unrelated": b"preserve me",

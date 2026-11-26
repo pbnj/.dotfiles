@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-"""Build URL capture, safely merge the browser-URL → fai hotkey into Tinycast,
-and install the Send to fai… Quick Action."""
+"""Safely merge the browser-URL → fai hotkey into Tinycast, and install the
+Send to fai… Quick Action."""
 
 import argparse
 import json
@@ -14,7 +14,12 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from launch import CACHE, ROOT, load_config
+ROOT = Path(__file__).resolve().parent
+
+
+def load_config():
+    return json.loads((ROOT / "config.json").read_text())
+
 
 DOMAIN = "com.tinycast.app"
 HYPER = 256 | 2048 | 4096  # Carbon cmdKey | optionKey | controlKey
@@ -136,27 +141,6 @@ def is_running():
     )
 
 
-def build_helper():
-    CACHE.mkdir(parents=True, exist_ok=True)
-    binary = CACHE / "fai"
-    source = ROOT / "fai.swift"
-    if not binary.exists() or source.stat().st_mtime > binary.stat().st_mtime:
-        temporary = CACHE / "fai.build"
-        subprocess.run(
-            [
-                "/usr/bin/swiftc",
-                "-O",
-                "-module-cache-path",
-                str(CACHE / "swift-modules"),
-                str(source),
-                "-o",
-                str(temporary),
-            ],
-            check=True,
-        )
-        temporary.replace(binary)
-
-
 def install_workflow(home):
     """Copy the Quick Action into home/Library/Services, replacing only an
     earlier copy of it (one whose menu item is the same), and return its path."""
@@ -223,17 +207,10 @@ def main():
         if (target.exists() or target.is_symlink()) and not is_our_workflow(target):
             print("A different " + str(target) + " is in the way.")
         return
-    live = Path.home() / ".local/share/fai-send"
-    if (live.exists() or live.is_symlink()) and live.resolve() != ROOT:
-        raise ValueError("Refusing to replace existing " + str(live))
     wrapper = Path.home() / ".local/bin/fai-send"
     if not wrapper.exists():
         raise ValueError("Install utils/.local/bin/fai-send into ~/.local/bin first.")
     wrapper.chmod(0o755)
-    build_helper()
-    if not live.exists():
-        live.parent.mkdir(parents=True, exist_ok=True)
-        live.symlink_to(ROOT, target_is_directory=True)
     remove_legacy(Path.home())
     workflow = install_workflow(Path.home())
     # Refresh the Services menu so the Quick Action shows without logging out.

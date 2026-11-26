@@ -21,9 +21,10 @@ local BASH = "/opt/homebrew/bin/bash"
 -- optional url is passed to fai, which picks a GitHub URL's repo (any other
 -- URL leaves the pick to you) and types the link into the agent's prompt; the
 -- browser hotkey (macos/.local/share/fai-send) runs this with the frontmost
--- tab's URL. Optional text (right-click → Send to fai… on a selection) goes
--- to fai as FAI_TEXT, shown under the picker and pasted into the agent's
--- prompt. Either way FAI_PICK keeps the picker open even on a unique match,
+-- tab's URL, and the text highlighted on the page if any. Optional text
+-- (that, or right-click → Send to fai… on a selection) goes to fai as
+-- FAI_TEXT, shown under the picker and pasted into the agent's prompt, below
+-- the URL when there is one. Either way FAI_PICK keeps the picker open even on a unique match,
 -- so TAB can still choose the agent before Enter. Both reach bash as
 -- arguments, never as shell code.
 rex.action({
@@ -33,12 +34,24 @@ rex.action({
   keywords = "claude cloud copilot pi repo clone picker",
   args = { url = "string?", text = "string?" },
   run = function(_, args)
+    local url = args and args.url or ""
+    local text = args and args.text or ""
     local command = { BASH, "-lic", "fai", "bash" }
-    if args and args.text and args.text ~= "" then
-      command =
-        { BASH, "-lic", 'FAI_PICK=1 FAI_TEXT="$1" fai', "bash", args.text }
-    elseif args and args.url and args.url ~= "" then
-      command = { BASH, "-lic", 'FAI_PICK=1 fai "$@"', "bash", args.url }
+    if text ~= "" and url ~= "" then
+      -- Both (Hyper+A with text highlighted on the page): fai types the
+      -- URL into the agent's prompt, then the text below it.
+      command = {
+        BASH,
+        "-lic",
+        'FAI_PICK=1 FAI_TEXT="$1" fai "$2"',
+        "bash",
+        text,
+        url,
+      }
+    elseif text ~= "" then
+      command = { BASH, "-lic", 'FAI_PICK=1 FAI_TEXT="$1" fai', "bash", text }
+    elseif url ~= "" then
+      command = { BASH, "-lic", 'FAI_PICK=1 fai "$@"', "bash", url }
     end
     local _, err = rex.session.new_layer({
       bounds = { 0.1, 0.1, 0.8, 0.8 },

@@ -1,6 +1,159 @@
-#!/bin/sh
-# Send the frontmost browser tab's URL (Hyper+A in Tinycast) or, with --stdin,
-# selected text (right-click → Send to fai…) to fai in the Rex app; see
-# macos/.local/share/fai-send/README.md.
-# Tinycast's GUI environment does not source interactive shell configuration.
-exec /usr/bin/python3 "$HOME/.local/share/fai-send/launch.py" "$@"
+#!/usr/bin/env bash
+
+# Description: Send the frontmost browser tab's URL, and any text highlighted
+#              on the page (Hyper+A in Tinycast), or, with --stdin, selected
+#              text (right-click → Send to fai…) to fai in a floating layer in
+#              the Rex app. See macos/.local/share/fai-send/README.md.
+#              The URL comes from the browser's AppleScript dictionary, so
+#              Chrome, Brave, Arc, Edge, Vivaldi, Opera and Safari work;
+#              Firefox and Zen have none. The first use asks once whether the
+#              caller (Tinycast) may control the browser. The highlighted
+#              text needs the browser's "Allow JavaScript from Apple Events"
+#              (Chrome: View → Developer; Safari: Develop); without it, or
+#              with nothing highlighted, only the URL is sent.
+# Dependencies: the Rex app, jq
+# Usage: fai-send [--url URL | --stdin] [--dry-run]
+#        --url URL  send URL instead of reading the browser
+#        --stdin    send the text on stdin: as {"url": ...} when it is one
+#                   URL, so a GitHub link still picks its repo, else as
+#                   {"text": ...} for the agent's prompt
+#        --dry-run  print the rex command and its input instead of running it
+
+set -euo pipefail
+
+# Tinycast runs this without the interactive shell's PATH. Append, so a
+# caller's PATH (and the tests' stubs) still come first.
+PATH="$PATH:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin"
+PATH="$PATH:$HOME/Library/Application Support/com.superlogical.rex/RexServer/Versions/Current/Rex Server.app/Contents/MacOS"
+
+REX_BUNDLE=com.superlogical.rex
+# The most selected text sent to fai; the Quick Action cuts it here too.
+MAX_TEXT=16384
+
+die() {
+  echo "fai-send: $*" >&2
+  exit 1
+}
+
+# valid_url TEXT: whether TEXT is one absolute URL, with no spaces or
+# control characters.
+valid_url() {
+  ((${#1} <= 65536)) &&
+    [[ "$1" =~ ^[A-Za-z][A-Za-z0-9+.-]*:[^[:space:][:cntrl:]]+$ ]] &&
+    ! [[ "$1" =~ ^(https?|ftp)://(/|$) ]]
+}
+
+# trim TEXT: TEXT without surrounding whitespace.
+trim() {
+  local text="$1"
+  text="${text#"${text%%[![:space:]]*}"}"
+  printf %s "${text%"${text##*[![:space:]]}"}"
+}
+
+# read_browser: set url to the URL of the frontmost browser's current tab,
+# and selection to the text highlighted on it, if any. Only the frontmost
+# app is asked, never a browser in the background.
+read_browser() {
+  local app js='window.getSelection().toString()'
+  app=$(osascript -e 'id of application (path to frontmost application as text)')
+  case "$app" in
+  com.google.Chrome* | com.brave.Browser* | company.thebrowser.Browser | \
+    com.microsoft.edgemac* | com.vivaldi.Vivaldi* | com.operasoftware.Opera*)
+    url=$(osascript -e "tell application id \"$app\" to get URL of active tab of front window")
+    selection=$(osascript -e "tell application id \"$app\" to execute active tab of front window javascript \"$js\"" 2>/dev/null) || true
+    ;;
+  com.apple.Safari*)
+    url=$(osascript -e "tell application id \"$app\" to get URL of front document")
+    selection=$(osascript -e "tell application id \"$app\" to do JavaScript \"$js\" in front document" 2>/dev/null) || true
+    ;;
+  *) die "Focus a Chrome, Brave, Arc, Edge, Vivaldi, Opera or Safari tab first (frontmost: $app)." ;;
+  esac
+  valid_url "$url" || die "The browser did not provide a valid URL."
+  # AppleScript may end lines with CR, and says "missing value" for nothing.
+  selection="${selection//$'\r\n'/$'\n'}"
+  selection=$(trim "${selection//$'\r'/$'\n'}")
+  [[ "$selection" == "missing value" ]] && selection=''
+  # Keep the first 16 KiB, dropping a character cut in half.
+  if (($(printf %s "$selection" | wc -c) > MAX_TEXT)); then
+    selection=$(printf %s "$selection" | head -c "$MAX_TEXT" | iconv -c -f UTF-8 -t UTF-8)
+  fi
+  return 0
+}
+
+# selection_args: the fai action's args for the text on stdin.
+selection_args() {
+  local text
+  text=$(trim "$(head -c $((MAX_TEXT + 1)))")
+  [[ -n "$text" ]] || die "No text was selected."
+  (($(printf %s "$text" | wc -c) <= MAX_TEXT)) || die "The selection is over 16 KiB."
+  if valid_url "$text"; then
+    jq -cn --arg url "$text" '{url: $url}'
+  else
+    jq -cn --arg text "$text" '{text: $text}'
+  fi
+}
+
+# rex_session: the session the connected Rex app shows, or this terminal's
+# session when that's one of them.
+rex_session() {
+  local sessions
+  sessions=$(rex --autostart=false client ls --json 2>/dev/null |
+    jq -r '.clients[]? | select(.info.kind == "app" and .connection_state == "connected")
+      | .session_ids[]?') || true
+  if [[ -n "${REX_SESSION:-}" ]] && grep -qxF -- "$REX_SESSION" <<<"$sessions"; then
+    echo "$REX_SESSION"
+  elif [[ -n "$sessions" ]]; then
+    head -1 <<<"$sessions"
+  else
+    die "The Rex app is not running."
+  fi
+}
+
+mode=browser url='' selection='' dry_run=false
+while (($#)); do
+  case "$1" in
+  --url)
+    mode=url url="${2:?--url needs a URL}"
+    shift
+    ;;
+  --stdin) mode=stdin ;;
+  --dry-run) dry_run=true ;;
+  *) die "unknown argument $1" ;;
+  esac
+  shift
+done
+
+hash rex 2>/dev/null || die "Cannot find the rex executable."
+hash jq 2>/dev/null || die "Cannot find jq. brew install jq"
+
+case "$mode" in
+stdin) args=$(selection_args) ;;
+url)
+  valid_url "$url" || die "Not an absolute URL: $url"
+  args=$(jq -cn --arg url "$url" '{url: $url}')
+  ;;
+browser)
+  read_browser
+  # fai types the URL into the agent's prompt, then the text below it.
+  args=$(jq -cn --arg url "$url" --arg text "$selection" \
+    '{url: $url} + (if $text == "" then {} else {text: $text} end)')
+  ;;
+esac
+session=$(rex_session)
+# The args go on stdin, never in argv.
+command=(rex "do" -s "$session" fai --args -)
+
+if $dry_run; then
+  printf '%s\n' "${command[*]}" "$args"
+  exit 0
+fi
+
+# Bring Rex to the front, and wait until it is, before opening the layer: one
+# created while Rex is in the background shows in front, but keyboard focus
+# stays on the block behind it.
+open -b "$REX_BUNDLE"
+for _ in {1..60}; do
+  [[ "$(osascript -e 'id of application (path to frontmost application as text)')" == "$REX_BUNDLE" ]] && break
+  sleep 0.05
+done
+"${command[@]}" <<<"$args" >/dev/null 2>&1 || die "Rex could not open fai."
