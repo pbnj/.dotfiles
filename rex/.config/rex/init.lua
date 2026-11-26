@@ -93,6 +93,40 @@ rex.action({
 rex.bind("ctrl+b>g", "grep_projects")
 rex.bind("ctrl+b>ctrl+g", "grep_projects")
 
+-- ctrl+b y: yt (~/.local/bin/yt) in a floating layer: your subscriptions
+-- feed, or search results for a query (rex do youtube --args '{"query":"…"}'). The
+-- picks play in their own mpv window, and the layer closes once yt exits.
+-- bash -l puts ~/.local/bin on PATH. ctrl+b ctrl+y works too, for when ctrl
+-- is still held.
+rex.action({
+  name = "youtube",
+  title = "Watch YouTube in Floating Window",
+  category = "Media",
+  keywords = "yt youtube video watch mpv yt-dlp subscriptions search",
+  args = { query = "string?" },
+  run = function(_, args)
+    local command = { BASH, "-lc", "yt" }
+    if args and args.query and args.query ~= "" then
+      command = { BASH, "-lc", 'yt "$@"', "bash", args.query }
+    end
+    local _, err = rex.session.new_layer({
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      focus = true,
+      layout = rex.layout.block({
+        flavor = "com.superlogical.terminal.shell",
+        label = "yt",
+        options = { shell = "none", command = command },
+      }),
+    })
+    if err ~= nil then
+      error(err, 0)
+    end
+    return true
+  end,
+})
+rex.bind("ctrl+b>y", "youtube")
+rex.bind("ctrl+b>ctrl+y", "youtube")
+
 -- ctrl+b s: fuzzy-search the scrollback of every block in a floating layer,
 -- and jump to the chosen line (see utils/.local/bin/fzf-rex-grep). ctrl+b
 -- ctrl+s works too, for when ctrl is still held.
