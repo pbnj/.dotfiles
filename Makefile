@@ -95,6 +95,22 @@ stow-bash: ## stow bash
 stow-tmux: ## stow tmux
 	stow tmux -t $(HOME)
 
+.PHONY: stow-agents
+stow-agents: ## stow agent skills into ~/.agents/skills (read by pi, copilot, opencode, codex)
+	mkdir -p $(HOME)/.agents/skills
+	stow agents -t $(HOME)
+
+.PHONY: link-claude-skills
+link-claude-skills: ## symlink each ~/.agents skill from agents/ into ~/.claude/skills
+	@mkdir -p $(HOME)/.claude/skills
+	@for d in agents/.agents/skills/*/; do \
+		name=$$(basename "$$d"); dst=$(HOME)/.claude/skills/$$name; \
+		if [ -e "$$dst" ] && [ ! -L "$$dst" ]; then \
+			echo "skip $$dst: a real directory, move it aside first" >&2; continue; \
+		fi; \
+		ln -sfn $(HOME)/.agents/skills/$$name "$$dst" && echo "linked $$dst"; \
+	done
+
 # MACOS
 
 .PHONY: macos-change-screenshot-location
