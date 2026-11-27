@@ -3,6 +3,10 @@
 	b = browse
 	branches = branch -a --sort=-committerdate
 	c = commit
+	; git cl <github-url> [clone args...] -- clone into ~/Projects/github.com/<owner>/<repo>.
+	; Accepts https, git@github.com: and ssh:// URLs, with or without .git or a
+	; trailing /tree/... path. If the repo is already there, fetch it instead.
+	cl = "!f(){ url=$1; if [ -z \"$url\" ]; then echo 'usage: git cl <github-url> [clone args...]' >&2; return 1; fi; shift; path=${url%/}; path=${path%.git}; case $path in https://github.com/*) path=${path#https://github.com/}; base=https://github.com/;; git@github.com:*) path=${path#git@github.com:}; base=git@github.com:;; ssh://git@github.com/*) path=${path#ssh://git@github.com/}; base=ssh://git@github.com/;; *) echo \"git cl: not a GitHub URL: $url\" >&2; return 1;; esac; path=$(printf %s \"$path\" | cut -d/ -f1-2); path=${path%.git}; case $path in */?*) ;; *) echo \"git cl: no owner/repo in: $url\" >&2; return 1;; esac; dest=$HOME/Projects/github.com/$path; if [ -d \"$dest/.git\" ]; then echo \"git cl: $dest already exists, fetching\" >&2; git -C \"$dest\" fetch --all --prune; else git clone \"$@\" \"$base$path.git\" \"$dest\"; fi; }; f"
 	co = checkout
 	cob = checkout -b
 	com = checkout main
