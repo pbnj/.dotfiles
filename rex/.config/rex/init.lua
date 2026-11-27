@@ -379,20 +379,21 @@ rex.action({
 -- A pane that runs script (bash -lc) in cwd, then waits for a key and
 -- closes, so its output stays readable once it finishes (or fails, e.g.
 -- when there's no PR). A script that exits 130, stopped by the user (Esc),
--- closes it at once.
-local function watch_pane(label, script, cwd)
+-- closes it at once. Any further arguments reach the script as $0, $1, …,
+-- never as shell code.
+local function watch_pane(label, script, cwd, ...)
+  local command = {
+    BASH,
+    "-lc",
+    script .. "; (($? == 130)) || read -rsn1 -p 'Press any key to close'",
+  }
+  for _, arg in ipairs({ ... }) do
+    command[#command + 1] = arg
+  end
   return rex.layout.block({
     flavor = "com.superlogical.terminal.shell",
     label = label,
-    options = {
-      shell = "none",
-      cwd = cwd,
-      command = {
-        BASH,
-        "-lc",
-        script .. "; (($? == 130)) || read -rsn1 -p 'Press any key to close'",
-      },
-    },
+    options = { shell = "none", cwd = cwd, command = command },
   })
 end
 
@@ -494,6 +495,58 @@ for _, a in ipairs({
         bounds = a.bounds,
         focus = true,
         layout = layout,
+      })
+      if err ~= nil then
+        error(err, 0)
+      end
+      return true
+    end,
+  })
+end
+
+-- Homebrew in a floating layer. Command palette only, no keys.
+--   brew_upgrade  brew upgrade (brew updates itself first), then brew cleanup
+--                 --prune=all, which removes old versions and the whole
+--                 download cache
+--   brew_search   search formulae and casks by name and description as you
+--                 type (an empty query lists what's installed); ENTER
+--                 installs the picks, ALT-D uninstalls them
+--                 (utils/.local/bin/fzf-brew-search)
+-- brew_search takes an optional starting query (rex do brew_search --args
+-- '{"query":"…"}'), which reaches bash as an argument, never as shell code.
+-- Each waits for a key once brew is done, so its output stays readable; Esc
+-- in the picker closes the layer at once (see watch_pane).
+for _, a in ipairs({
+  {
+    name = "brew_upgrade",
+    title = "Homebrew: Upgrade Packages",
+    keywords = "brew homebrew upgrade update outdated formulae casks packages cleanup prune cache",
+    script = "brew upgrade && brew cleanup --prune=all",
+  },
+  {
+    name = "brew_search",
+    title = "Homebrew: Search Packages",
+    keywords = "brew homebrew search find description formula cask package install uninstall remove delete fzf picker",
+    script = 'fzf-brew-search "$0"',
+  },
+}) do
+  rex.action({
+    name = a.name,
+    title = a.title,
+    category = "Homebrew",
+    keywords = a.keywords,
+    args = { query = "string?" },
+    run = function(_, args)
+      local _, err = rex.session.new_layer({
+        bounds = { 0.1, 0.1, 0.8, 0.8 },
+        focus = true,
+        -- The query is the script's $0 (brew_upgrade ignores it).
+        layout = watch_pane(
+          (a.name:gsub("_", "-")),
+          a.script,
+          nil,
+          (args and args.query) or ""
+        ),
       })
       if err ~= nil then
         error(err, 0)
