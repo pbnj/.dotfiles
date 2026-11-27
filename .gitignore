@@ -24,7 +24,6 @@ glab-cli/
 helix/.config/helix/runtime/
 htop/
 jira-cli/
-neovim/.config/nvim/lazy-lock.json
 out.gif
 pack/*
 plugged/*
